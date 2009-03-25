@@ -1,7 +1,15 @@
 all:
-	@echo "Please choose a target from the makefile. (setup? build? clean? run?)"
+	@echo "Please choose a target from the makefile. (setup? update? build? clean? run?)"
 
 setup: install-debs install-dev-debs create-build-logs-dir install-couchdb install-rabbitmq
+
+update: update-rabbitmq
+
+update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
+	rm -rf build/scratch build/opt/rabbitmq
+	(cd build/src/rabbitmq-codegen && hg pull && hg update)
+	(cd build/src/rabbitmq-server && hg pull && hg update)
+	$(MAKE) build/opt/rabbitmq
 
 build:
 
@@ -10,8 +18,8 @@ clean:
 veryclean: clean
 	rm -rf build/opt
 	rm -rf build/scratch
-	-[ -d build/src/couchdb-0.9.0 ] && make -C build/src/couchdb-0.9.0 clean
-	-[ -d build/src/rabbitmq-server ] && make -C build/src/rabbitmq-server clean
+	-[ -d build/src/couchdb-0.9.0 ] && $(MAKE) -C build/src/couchdb-0.9.0 clean
+	-[ -d build/src/rabbitmq-server ] && $(MAKE) -C build/src/rabbitmq-server clean
 
 absurdlyclean:
 	rm -rf build
@@ -37,13 +45,13 @@ build/src/rabbitmq-server:
 
 build/opt/rabbitmq:
 	@echo Building rabbitmq-server ...
-	(cd build/src/rabbitmq-server && make srcdist) \
+	(cd build/src/rabbitmq-server && $(MAKE) srcdist) \
 		> build/logs/build-rabbitmq-server.txt 2>&1
 	mkdir -p build/scratch \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 	(cd build/scratch && tar -zxvf ../src/rabbitmq-server/dist/rabbitmq-server-0.0.0.tar.gz) \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
-	(cd build/scratch/rabbitmq-server-0.0.0 && make install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
+	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 
 build/src/couchdb-0.9.0:
@@ -55,7 +63,7 @@ build/opt/couchdb-0.9.0:
 	@echo Building CouchDB ...
 	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap) \
 		> build/logs/build-couchdb.txt 2>&1
-	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && make && make install) \
+	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && $(MAKE) && $(MAKE) install) \
 		>> build/logs/build-couchdb.txt 2>&1
 
 install-debs:
