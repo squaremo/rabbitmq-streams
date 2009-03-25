@@ -1,32 +1,65 @@
 all:
 	@echo "Please choose a target from the makefile. (setup? build? clean? run?)"
 
-setup: install-debs install-dev-debs install-couchdb
+setup: install-debs install-dev-debs create-build-logs-dir install-couchdb install-rabbitmq
 
 build:
 
 clean:
 
 veryclean: clean
-	rm -rf build/opt/couchdb-0.9.0
+	rm -rf build/opt
+	rm -rf build/scratch
+	-[ -d build/src/couchdb-0.9.0 ] && make -C build/src/couchdb-0.9.0 clean
+	-[ -d build/src/rabbitmq-server ] && make -C build/src/rabbitmq-server clean
 
 absurdlyclean:
 	rm -rf build
 
 run:
 
+create-build-logs-dir:
+	mkdir -p build/logs
+
 install-couchdb: build/src/couchdb-0.9.0 build/opt/couchdb-0.9.0
 
+install-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server build/opt/rabbitmq
+
+build/src/rabbitmq-codegen:
+	@echo Cloning rabbitmq-codegen ...
+	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-codegen) \
+		> build/logs/clone-rabbitmq-codegen.txt 2>&1
+
+build/src/rabbitmq-server:
+	@echo Cloning rabbitmq-server ...
+	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-server) \
+		> build/logs/clone-rabbitmq-server.txt 2>&1
+
+build/opt/rabbitmq:
+	@echo Building rabbitmq-server ...
+	(cd build/src/rabbitmq-server && make srcdist) \
+		> build/logs/build-rabbitmq-server.txt 2>&1
+	mkdir -p build/scratch \
+		>> build/logs/build-rabbitmq-server.txt 2>&1
+	(cd build/scratch && tar -zxvf ../src/rabbitmq-server/dist/rabbitmq-server-0.0.0.tar.gz) \
+		>> build/logs/build-rabbitmq-server.txt 2>&1
+	(cd build/scratch/rabbitmq-server-0.0.0 && make install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
+		>> build/logs/build-rabbitmq-server.txt 2>&1
+
 build/src/couchdb-0.9.0:
-	mkdir -p build/src
-	svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ build/src/couchdb-0.9.0
+	@echo Checking out CouchDB from svn ...
+	mkdir -p build/src && svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ build/src/couchdb-0.9.0 \
+		> build/logs/checkout-couchdb.txt 2>&1
 
 build/opt/couchdb-0.9.0:
-	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap)
-	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && make && make install)
+	@echo Building CouchDB ...
+	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap) \
+		> build/logs/build-couchdb.txt 2>&1
+	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && make && make install) \
+		>> build/logs/build-couchdb.txt 2>&1
 
 install-debs:
-	sudo apt-get install daemontools-run ejabberd rabbitmq-server
+	sudo apt-get install daemontools-run ejabberd
 
 install-dev-debs:
 	: # these come from the couchdb README.
@@ -34,4 +67,4 @@ install-dev-debs:
 	sudo apt-get install build-essential erlang libicu38 libicu-dev libmozjs-dev libcurl4-openssl-dev
 
 purge-debs:
-	sudo apt-get purge ejabberd rabbitmq-server
+	sudo apt-get purge ejabberd
