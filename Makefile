@@ -1,3 +1,6 @@
+SRC_COUCH=build/src/couchdb-0.9.0
+OPT_COUCH=build/opt/couchdb-0.9.0
+
 default_target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
@@ -20,7 +23,7 @@ clean:
 veryclean: clean
 	rm -rf build/opt
 	rm -rf build/scratch
-	-[ -d build/src/couchdb-0.9.0 ] && $(MAKE) -C build/src/couchdb-0.9.0 clean
+	-[ -d $(SRC_COUCH) ] && $(MAKE) -C $(SRC_COUCH) clean
 	-[ -d build/src/rabbitmq-server ] && $(MAKE) -C build/src/rabbitmq-server clean
 	-[ -d build/src/rabbitmq-erlang-client ] && $(MAKE) -C build/src/rabbitmq-erlang-client clean
 
@@ -28,6 +31,9 @@ absurdlyclean:
 	rm -rf build
 
 run:
+	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "$(OPT_COUCH)/bin/couchdb" &
+	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "./start-feedshub-rabbit.sh" &
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(MAKE) -C orchestrator run" &
 
 create-build-logs-dir:
 	mkdir -p build/logs
@@ -35,18 +41,18 @@ create-build-logs-dir:
 ###########################################################################
 # CouchDB
 
-install-couchdb: build/src/couchdb-0.9.0 build/opt/couchdb-0.9.0
+install-couchdb: $(SRC_COUCH) $(OPT_COUCH)
 
-build/src/couchdb-0.9.0:
+$(SRC_COUCH):
 	@echo Checking out CouchDB from svn ...
-	mkdir -p build/src && svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ build/src/couchdb-0.9.0 \
+	mkdir -p build/src && svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ $(SRC_COUCH) \
 		> build/logs/checkout-couchdb.txt 2>&1
 
-build/opt/couchdb-0.9.0:
+$(OPT_COUCH):
 	@echo Building CouchDB ...
-	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap) \
+	(cd $(SRC_COUCH); [ -f ./configure ] || ./bootstrap) \
 		> build/logs/build-couchdb.txt 2>&1
-	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && $(MAKE) && $(MAKE) install) \
+	(cd $(SRC_COUCH); ./configure --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
 		>> build/logs/build-couchdb.txt 2>&1
 
 ###########################################################################
