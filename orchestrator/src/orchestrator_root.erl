@@ -14,13 +14,13 @@ init([]) ->
     error_logger:info_report({?MODULE, here}),
     {ok, nostate}.
 
-handle_call(Message, _From, State) ->
+handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
-handle_cast(Message, State) ->
+handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
-handle_info(Info, State) ->
+handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
 terminate(_Reason, _State) ->
