@@ -3,6 +3,7 @@
   {vsn, "0.0"},
   {modules,[
             orchestrator,
+            orchestrator_root,
             orchestrator_root_sup
 	   ]},
   {applications,[kernel,stdlib]},
