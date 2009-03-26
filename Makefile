@@ -21,6 +21,8 @@ clean:
 	$(MAKE) -C orchestrator clean
 
 cleandb:
+	rm -rf $(OPT_COUCH)/var/lib/couchdb/*
+	rm -rf $(OPT_COUCH)/var/log/couchdb/*
 	rm -rf build/db/rabbitmq/*
 
 veryclean: clean
