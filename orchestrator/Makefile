@@ -28,4 +28,6 @@ clean:
 	rm -f erl_crash.dump
 
 run: all
-	$(ERL) $(ERL_PATH_OPTS) -sname orchestrator -s orchestrator
+	$(ERL) $(ERL_PATH_OPTS) \
+		-boot start_sasl \
+		-sname orchestrator -s orchestrator
