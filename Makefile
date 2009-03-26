@@ -67,12 +67,9 @@ build/opt/couchdb-0.9.0:
 		>> build/logs/build-couchdb.txt 2>&1
 
 install-debs:
-	sudo apt-get install daemontools-run ejabberd
+	: # none at the minute.
 
 install-dev-debs:
 	: # these come from the couchdb README.
 	sudo apt-get install automake autoconf libtool help2man
 	sudo apt-get install build-essential erlang libicu38 libicu-dev libmozjs-dev libcurl4-openssl-dev
-
-purge-debs:
-	sudo apt-get purge ejabberd
