@@ -20,6 +20,9 @@ all:
 clean:
 	$(MAKE) -C orchestrator clean
 
+cleandb:
+	rm -rf build/db/rabbitmq/*
+
 veryclean: clean
 	rm -rf build/opt
 	rm -rf build/scratch

@@ -11,6 +11,8 @@
   {env, [
          {couch_host, "localhost"},
          {couch_port, 5984},
-         {rabbitmq_host, "localhost"}
+         {rabbitmq_host, "localhost"},
+         {rabbitmq_feedshub_admin_user, "feedshub_admin"},
+         {rabbitmq_feedshub_admin_password, "feedshub_admin"}
         ]}
  ]}.
