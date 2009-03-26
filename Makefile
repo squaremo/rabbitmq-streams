@@ -1,5 +1,5 @@
-all:
-	@echo "Please choose a target from the makefile. (setup? update? build? clean? run?)"
+default_target:
+	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
 setup: install-debs install-dev-debs create-build-logs-dir install-couchdb install-rabbitmq
 
@@ -11,9 +11,11 @@ update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	(cd build/src/rabbitmq-server && hg pull && hg update)
 	$(MAKE) build/opt/rabbitmq
 
-build:
+all:
+	$(MAKE) -C orchestrator all
 
 clean:
+	$(MAKE) -C orchestrator clean
 
 veryclean: clean
 	rm -rf build/opt

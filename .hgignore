@@ -1,2 +1,4 @@
 ^scratch$
 ^build$
+\.beam$
+(^|/)erl_crash\.dump$
