@@ -1,15 +1,15 @@
 default_target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
-setup: install-debs install-dev-debs create-build-logs-dir install-couchdb install-rabbitmq
+setup: \
+	install-debs \
+	install-dev-debs \
+	create-build-logs-dir \
+	install-couchdb \
+	install-erlang-rfc4627 \
+	install-rabbitmq
 
-update: update-rabbitmq
-
-update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
-	rm -rf build/scratch build/opt/rabbitmq
-	(cd build/src/rabbitmq-codegen && hg pull && hg update)
-	(cd build/src/rabbitmq-server && hg pull && hg update)
-	$(MAKE) build/opt/rabbitmq
+update: update-erlang-rfc4627 update-rabbitmq
 
 all:
 	$(MAKE) -C orchestrator all
@@ -31,9 +31,56 @@ run:
 create-build-logs-dir:
 	mkdir -p build/logs
 
+###########################################################################
+# CouchDB
+
 install-couchdb: build/src/couchdb-0.9.0 build/opt/couchdb-0.9.0
 
+build/src/couchdb-0.9.0:
+	@echo Checking out CouchDB from svn ...
+	mkdir -p build/src && svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ build/src/couchdb-0.9.0 \
+		> build/logs/checkout-couchdb.txt 2>&1
+
+build/opt/couchdb-0.9.0:
+	@echo Building CouchDB ...
+	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap) \
+		> build/logs/build-couchdb.txt 2>&1
+	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && $(MAKE) && $(MAKE) install) \
+		>> build/logs/build-couchdb.txt 2>&1
+
+###########################################################################
+# Erlang RFC 4627
+
+install-erlang-rfc4627: build/src/erlang-rfc4627 build/opt/erlang-rfc4627
+
+update-erlang-rfc4627: build/src/erlang-rfc4627
+	rm -rf build/opt/erlang-rfc4627
+	(cd build/src/erlang-rfc4627 && hg pull && hg update)
+	$(MAKE) build/opt/erlang-rfc4627
+
+build/src/erlang-rfc4627:
+	@echo Cloning erlang-rfc4627 ...
+	(mkdir -p build/src && cd build/src && hg clone http://hg.opensource.lshift.net/erlang-rfc4627) \
+		> build/logs/clone-erlang-rfc4627.txt 2>&1
+
+build/opt/erlang-rfc4627:
+	@echo Building erlang-rfc4627 ...
+	(cd build/src/erlang-rfc4627 && $(MAKE)) \
+		> build/logs/build-erlang-rfc4627.txt 2>&1
+	(mkdir -p build/opt/erlang-rfc4627 && \
+		cp -r build/src/erlang-rfc4627/{ebin,include} build/opt/erlang-rfc4627) \
+		>> build/logs/build-erlang-rfc4627.txt 2>&1
+
+###########################################################################
+# RabbitMQ
+
 install-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server build/opt/rabbitmq
+
+update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
+	rm -rf build/scratch build/opt/rabbitmq
+	(cd build/src/rabbitmq-codegen && hg pull && hg update)
+	(cd build/src/rabbitmq-server && hg pull && hg update)
+	$(MAKE) build/opt/rabbitmq
 
 build/src/rabbitmq-codegen:
 	@echo Cloning rabbitmq-codegen ...
@@ -56,17 +103,7 @@ build/opt/rabbitmq:
 	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 
-build/src/couchdb-0.9.0:
-	@echo Checking out CouchDB from svn ...
-	mkdir -p build/src && svn co http://svn.apache.org/repos/asf/couchdb/tags/0.9.0/ build/src/couchdb-0.9.0 \
-		> build/logs/checkout-couchdb.txt 2>&1
-
-build/opt/couchdb-0.9.0:
-	@echo Building CouchDB ...
-	(cd build/src/couchdb-0.9.0; [ -f ./configure ] || ./bootstrap) \
-		> build/logs/build-couchdb.txt 2>&1
-	(cd build/src/couchdb-0.9.0; ./configure --prefix="$(CURDIR)/build/opt/couchdb-0.9.0" && $(MAKE) && $(MAKE) install) \
-		>> build/logs/build-couchdb.txt 2>&1
+###########################################################################
 
 install-debs:
 	: # none at the minute.
