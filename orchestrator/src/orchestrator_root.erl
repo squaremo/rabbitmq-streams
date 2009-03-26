@@ -25,9 +25,12 @@ setup_core_resources(Ch) ->
         amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_CONFIG_XNAME,
                                                   type = <<"topic">>,
                                                   durable = true}),
-    PrivateQ = lib_amqp:declare_queue(Ch),
+    PrivateQ = lib_amqp:declare_private_queue(Ch),
     #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"#">>),
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
+    ok.
+
+startup_couch_scan() ->
     ok.
 
 %%---------------------------------------------------------------------------
@@ -41,6 +44,7 @@ init([]) ->
     AmqpConnectionPid = amqp_connection:start_link(Username, Password, RabbitHost),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_resources(Ch),
+    ok = startup_couch_scan(),
     {ok, #state{amqp_connection = AmqpConnectionPid,
                 ch = Ch}}.
 
