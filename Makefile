@@ -30,10 +30,12 @@ veryclean: clean
 absurdlyclean:
 	rm -rf build
 
-run:
+run: run_core
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(MAKE) -C orchestrator run" &
+
+run_core:
 	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "$(OPT_COUCH)/bin/couchdb" &
 	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "./start-feedshub-rabbit.sh" &
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(MAKE) -C orchestrator run" &
 
 create-build-logs-dir:
 	mkdir -p build/logs
