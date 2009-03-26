@@ -1,0 +1,1 @@
+-define(FEEDSHUB_CONFIG_XNAME, <<"feedshub/config">>).
