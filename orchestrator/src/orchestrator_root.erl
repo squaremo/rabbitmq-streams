@@ -1,0 +1,30 @@
+-module(orchestrator_root).
+
+-behaviour(gen_server).
+
+-export([start_link/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+
+start_link() ->
+    gen_server:start_link(?MODULE, [], []).
+
+%%---------------------------------------------------------------------------
+
+init([]) ->
+    error_logger:info_report({?MODULE, here}),
+    {ok, nostate}.
+
+handle_call(Message, _From, State) ->
+    {stop, unhandled_call, State}.
+
+handle_cast(Message, State) ->
+    {stop, unhandled_cast, State}.
+
+handle_info(Info, State) ->
+    {stop, unhandled_info, State}.
+
+terminate(_Reason, _State) ->
+    ok.
+
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.

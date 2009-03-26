@@ -12,4 +12,5 @@ start_link() ->
 
 init([]) ->
     {ok, {{one_for_one, 10, 10},
-	  []}}.
+	  [{orchestrator_root, {orchestrator_root, start_link, []},
+           transient, 5000, worker, [orchestrator_root]}]}}.
