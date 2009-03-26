@@ -2,3 +2,5 @@
 ^build$
 \.beam$
 (^|/)erl_crash\.dump$
+\.pyc$
+~$
