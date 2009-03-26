@@ -6,7 +6,7 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
-    this_is_an_invalid_response. %% see http://www.erlang.org/doc/design_principles/applications.html#7.2
+    orchestrator_root_sup:start_link().
 
 stop(_State) ->
     ok.
