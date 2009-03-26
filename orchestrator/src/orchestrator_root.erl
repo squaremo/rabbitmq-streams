@@ -20,7 +20,7 @@ open_channel() ->
 
 %%---------------------------------------------------------------------------
 
-setup_core_resources(Ch) ->
+setup_core_messaging(Ch) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_CONFIG_XNAME,
                                                   type = <<"topic">>,
@@ -30,7 +30,24 @@ setup_core_resources(Ch) ->
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
     ok.
 
+setup_core_couch() ->
+    ok = couchapi:createdb(?FEEDSHUB_CONFIG_DBNAME),
+    ok.
+
 startup_couch_scan() ->
+    {ok, CouchInfo} = couchapi:get(""),
+    {couchdb_presence_check, {ok, _}} = {couchdb_presence_check,
+                                         rfc4627:get_field(CouchInfo, "couchdb")},
+    {couchdb_version_check, {ok, <<"0.9.0">>}} = {couchdb_version_check,
+                                                  rfc4627:get_field(CouchInfo, "version")},
+    case couchapi:get(?FEEDSHUB_CONFIG_DBNAME) of
+        {ok, DbInfo} ->
+            error_logger:info_report({?MODULE, config_db_info, DbInfo}),
+            ok;
+        {error, 404, _} ->
+            ok = setup_core_couch()
+    end,
+    error_logger:info_report({?MODULE, couch_info, CouchInfo}),
     ok.
 
 %%---------------------------------------------------------------------------
@@ -43,7 +60,7 @@ init([]) ->
     {ok, Password} = application:get_env(rabbitmq_feedshub_admin_password),
     AmqpConnectionPid = amqp_connection:start_link(Username, Password, RabbitHost),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
-    ok = setup_core_resources(Ch),
+    ok = setup_core_messaging(Ch),
     ok = startup_couch_scan(),
     {ok, #state{amqp_connection = AmqpConnectionPid,
                 ch = Ch}}.
@@ -57,7 +74,7 @@ handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
 handle_info(#'basic.consume_ok'{}, State) ->
-    %% As part of setup_core_resources, we subscribe to a few
+    %% As part of setup_core_messaging, we subscribe to a few
     %% things. Ignore the success notices.
     {noreply, State};
 handle_info(_Info, State) ->
