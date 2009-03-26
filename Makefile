@@ -22,6 +22,7 @@ veryclean: clean
 	rm -rf build/scratch
 	-[ -d build/src/couchdb-0.9.0 ] && $(MAKE) -C build/src/couchdb-0.9.0 clean
 	-[ -d build/src/rabbitmq-server ] && $(MAKE) -C build/src/rabbitmq-server clean
+	-[ -d build/src/rabbitmq-erlang-client ] && $(MAKE) -C build/src/rabbitmq-erlang-client clean
 
 absurdlyclean:
 	rm -rf build
@@ -74,7 +75,12 @@ build/opt/erlang-rfc4627:
 ###########################################################################
 # RabbitMQ
 
-install-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server build/opt/rabbitmq
+install-rabbitmq: \
+	build/src/rabbitmq-codegen \
+	build/src/rabbitmq-server \
+	build/src/rabbitmq-erlang-client \
+	build/opt/rabbitmq \
+	build/opt/rabbitmq-erlang-client
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
@@ -92,6 +98,11 @@ build/src/rabbitmq-server:
 	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-server) \
 		> build/logs/clone-rabbitmq-server.txt 2>&1
 
+build/src/rabbitmq-erlang-client:
+	@echo Cloning rabbitmq-erlang-client ...
+	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-erlang-client) \
+		> build/logs/clone-rabbitmq-erlang-client.txt 2>&1
+
 build/opt/rabbitmq:
 	@echo Building rabbitmq-server ...
 	(cd build/src/rabbitmq-server && $(MAKE) srcdist) \
@@ -102,6 +113,14 @@ build/opt/rabbitmq:
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
+
+build/opt/rabbitmq-erlang-client:
+	@echo Building rabbitmq-erlang-client ...
+	(cd build/src/rabbitmq-erlang-client && $(MAKE) BROKER_DIR=$(CURDIR)/build/opt/rabbitmq) \
+		> build/logs/build-rabbitmq-erlang-client.txt 2>&1
+	(mkdir -p build/opt/rabbitmq-erlang-client && \
+		cp -r build/src/rabbitmq-erlang-client/{ebin,include} build/opt/rabbitmq-erlang-client) \
+		>> build/logs/build-rabbitmq-erlang-client.txt 2>&1
 
 ###########################################################################
 

@@ -6,6 +6,7 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
+    inets:start(), %% assume it succeeded
     orchestrator_root_sup:start_link().
 
 stop(_State) ->

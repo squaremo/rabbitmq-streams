@@ -5,10 +5,17 @@ SOURCES=$(wildcard $(SOURCE_DIR)/*.erl)
 BEAM_TARGETS=$(patsubst $(SOURCE_DIR)/%.erl, $(EBIN_DIR)/%.beam,$(SOURCES))
 TARGETS=$(BEAM_TARGETS)
 
-ERLC_OPTS=-I $(INCLUDE_DIR) -o $(EBIN_DIR) -Wall -v +debug_info
+RFC4627_BIN=$(CURDIR)/../build/opt/erlang-rfc4627
+ERLAMQP_BIN=$(CURDIR)/../build/opt/rabbitmq-erlang-client
+
+INCLUDE_OPTS=-I $(INCLUDE_DIR) -I $(RFC4627_BIN)/include -I $(ERLAMQP_BIN)/include
+
+ERLC_OPTS=$(INCLUDE_OPTS) -o $(EBIN_DIR) -Wall -v +debug_info
 
 ERLC=erlc
 ERL=erl
+
+ERL_PATH_OPTS=-pa $(EBIN_DIR) -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin
 
 all: $(TARGETS)
 
@@ -20,4 +27,4 @@ clean:
 	rm -f erl_crash.dump
 
 run: all
-	$(ERL) -pa $(EBIN_DIR) -sname orchestrator -s orchestrator
+	$(ERL) $(ERL_PATH_OPTS) -sname orchestrator -s orchestrator
