@@ -12,7 +12,7 @@ setup: \
 	install-erlang-rfc4627 \
 	install-rabbitmq
 
-update: update-erlang-rfc4627 update-rabbitmq
+update: update-erlang-rfc4627 update-rabbitmq-erlang-client update-rabbitmq
 
 all:
 	$(MAKE) -C orchestrator all
@@ -98,6 +98,11 @@ update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	(cd build/src/rabbitmq-codegen && hg pull && hg update)
 	(cd build/src/rabbitmq-server && hg pull && hg update)
 	$(MAKE) build/opt/rabbitmq
+
+update-rabbitmq-erlang-client: build/src/rabbitmq-erlang-client
+	rm -rf build/opt/rabbitmq-erlang-client
+	(cd build/src/rabbitmq-erlang-client && hg pull && hg update)
+	$(MAKE) build/opt/rabbitmq-erlang-client
 
 build/src/rabbitmq-codegen:
 	@echo Cloning rabbitmq-codegen ...
