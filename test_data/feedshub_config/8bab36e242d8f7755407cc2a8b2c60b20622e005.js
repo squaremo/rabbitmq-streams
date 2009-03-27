@@ -1,0 +1,4 @@
+{
+    "type": "feed",
+    "active": false
+}

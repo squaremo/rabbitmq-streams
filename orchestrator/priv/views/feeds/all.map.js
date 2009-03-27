@@ -1,3 +1,3 @@
 function(doc) {
-    if (doc.type = "feed") emit(null, doc);
+    if (doc.type == "feed") emit(doc._id, null);
 }
