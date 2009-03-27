@@ -16,8 +16,9 @@ def usage():
     modulename is the name of a module on the path that is to be treated as a component.
     URL is the URL of an initialisation document.
 
-    The plugin will be given a PYTHONPATH of at least its own
-    directory and the directory 'lib/' under that.
+    The plugin will be given an effective PYTHONPATH of at least the
+    harness directory, its own directory and the directory 'lib/'
+    under that.
     """
 
 def fetch_config(url):
