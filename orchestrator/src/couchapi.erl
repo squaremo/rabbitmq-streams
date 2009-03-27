@@ -66,11 +66,13 @@ createdb(DbName) ->
 %%---------------------------------------------------------------------------
 
 request(Method, Url) ->
-    process_response(http:request(Method, {Url, []}, [], [])).
+    request1(Method, {Url, []}).
 
 request(Method, Url, Term) ->
-    process_response(http:request(Method, {Url, [], "application/json", rfc4627:encode(Term)},
-                                  [], [])).
+    request1(Method, {Url, [], "application/json", rfc4627:encode(Term)}).
+
+request1(Method, Request) ->
+    process_response(http:request(Method, Request, [{version, "HTTP/1.0"}], [])).
 
 expand({raw, AbsUrl}) ->
     AbsUrl;

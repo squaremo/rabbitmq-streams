@@ -29,6 +29,9 @@ clean:
 	rm -f $(EBIN_DIR)/*.beam
 	rm -f erl_crash.dump
 
+cleandb:
+	http_proxy= curl -X DELETE http://localhost:5984/feedshub_config
+
 run: all
 	$(ERL) $(ERL_PATH_OPTS) \
 		-boot start_sasl \
