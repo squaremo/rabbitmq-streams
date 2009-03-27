@@ -77,8 +77,10 @@ request1(Method, Request) ->
 expand({raw, AbsUrl}) ->
     AbsUrl;
 expand(RelUrl) ->
-    {ok, CouchBaseUrl} = application:get_env(couch_base_url),
-    CouchBaseUrl ++ RelUrl.
+    case application:get_env(couch_base_url) of
+        {ok, CouchBaseUrl} -> CouchBaseUrl ++ RelUrl;
+        undefined -> "http://localhost:5984/" ++ RelUrl
+    end.
 
 process_response({ok, {{_HttpVersion, StatusCode, _StatusLine}, _Headers, Body}}) ->
     process_json_response(StatusCode, Body);
