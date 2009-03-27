@@ -1,5 +1,5 @@
 """
-Interfaces for components to use.
+Interfaces for plugin components to use.
 """
 
 import couchdb.client as couch
@@ -68,6 +68,8 @@ def db_from_config(config):
     return server[config['database']]
 
 class StompPublisher: # FIXME supply the connection
+    """
+    """
     def __init__(self, connection, exchange, key):
         self.__key = key
         self.__exchange = exchange

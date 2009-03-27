@@ -1,13 +1,12 @@
 """
-Driver for Python plugins.  This will be invoked with a module name
-and a pointer to the initialisation document (see XXX).
+Driver for Python plugins.  This will be invoked with a module path
+and name and a pointer to the initialisation document (see [TODO]).
 """
 
 try:
     import json
 except:
     import simplejson as json
-
 
 def usage():
     print """
@@ -16,9 +15,18 @@ def usage():
     modulepath is the path to the plugin
     modulename is the name of a module on the path that is to be treated as a component.
     URL is the URL of an initialisation document.
+
+    The plugin will be given a PYTHONPATH of at least its own
+    directory and the directory 'lib/' under that.
     """
 
 def fetch_config(url):
+    """
+    I get the configuration as pointed to by the initialisation
+    document.  If there's a convention as to how configuration is laid
+    out (for example, if it's a set of pointers to other documents),
+    this is where that convention will be encoded.
+    """
     import urllib2
     try:
         doc = urllib2.urlopen(url)
@@ -33,7 +41,7 @@ def fetch_config(url):
 
 
 def main():
-    import sys
+    import sys, os.path
     from imp import find_module, load_module
     if len(sys.argv) < 4:
         return usage()
@@ -42,6 +50,8 @@ def main():
     url = sys.argv[3]
     config = fetch_config(url)
 
+    sys.path.insert(0, os.join(modulepath, 'lib'))
+    sys.path.insert(0, modulepath)
     f = None
     try:
         f, p, d = find_module(modulename, [modulepath])
@@ -57,4 +67,3 @@ def main():
 # we follow Python idiom anyway.
 if __name__ == '__main__':
     main()
-

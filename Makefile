@@ -164,3 +164,5 @@ install-dev-debs:
 	: # these come from the couchdb README.
 	sudo apt-get install automake autoconf libtool help2man
 	sudo apt-get install build-essential erlang libicu38 libicu-dev libmozjs-dev libcurl4-openssl-dev
+	: # these are (this is) RabbitMQ server build dependencies
+	sudo apt-get install elinks
