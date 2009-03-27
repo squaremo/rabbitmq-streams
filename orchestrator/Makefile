@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 SOURCE_DIR=src
 EBIN_DIR=ebin
 INCLUDE_DIR=include
