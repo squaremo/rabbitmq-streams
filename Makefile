@@ -19,8 +19,12 @@ update: update-erlang-rfc4627 update-rabbitmq-erlang-client update-rabbitmq
 all:
 	$(MAKE) -C orchestrator all
 
+docs:
+	$(MAKE) -C doc
+
 clean:
 	$(MAKE) -C orchestrator clean
+	$(MAKE) -C doc clean
 	rm -f couchdb.stderr couchdb.stdout
 
 cleandb:
