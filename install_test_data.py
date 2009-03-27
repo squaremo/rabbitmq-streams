@@ -20,5 +20,9 @@ for dbdir in glob.glob("test_data/*"):
     for docfilename in glob.glob(dbdir + "/*.js"):
         docid = os.path.splitext(os.path.basename(docfilename))[0]
         f = open(docfilename)
-        db[docid] = json.loads(f.read())
+        d = json.loads(f.read())
         f.close()
+        if docid in db:
+            d['_id'] = db[docid]['_id']
+            d['_rev'] = db[docid]['_rev']
+        db[docid] = d
