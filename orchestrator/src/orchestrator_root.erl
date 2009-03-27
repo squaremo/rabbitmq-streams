@@ -9,6 +9,8 @@
 
 -define(SERVER, ?MODULE).
 
+-define(ROOT_CONFIG_DOCID, ?FEEDSHUB_CONFIG_DBNAME "root_config").
+
 -include("orchestrator.hrl").
 -include("rabbit_framing.hrl").
 
@@ -20,6 +22,8 @@ open_channel() ->
 
 %%---------------------------------------------------------------------------
 
+-record(root_config, {rabbitmq_host, rabbitmq_admin_user, rabbitmq_admin_password}).
+
 setup_core_messaging(Ch) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_CONFIG_XNAME,
@@ -30,9 +34,57 @@ setup_core_messaging(Ch) ->
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
     ok.
 
+install_views() ->
+    lists:foreach(fun install_view/1,
+                  filelib:wildcard(orchestrator:priv_dir()++"/views/*")).
+
+install_view(ViewDir) ->
+    ViewCollectionName = filename:basename(ViewDir),
+    Views = lists:foldl(fun (FileName, V) ->
+                                Base = filename:basename(FileName, ".js"),
+                                Extn = filename:extension(Base),
+                                ViewName = filename:basename(Base, Extn),
+                                "." ++ FunctionName = Extn,
+                                {ok, FunctionText} = file:read_file(FileName),
+                                dict:update(ViewName,
+                                            fun (OldViewDict) ->
+                                                    dict:store(FunctionName,
+                                                               FunctionText,
+                                                               OldViewDict)
+                                            end,
+                                            dict:store(FunctionName, FunctionText, dict:new()),
+                                            V)
+                        end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
+    {ok, _} = couchapi:put(?FEEDSHUB_CONFIG_DBNAME"_design/" ++ ViewCollectionName,
+                           {obj, [{"views", Views},
+                                  {"language", <<"javascript">>}]}).
+
 setup_core_couch() ->
     ok = couchapi:createdb(?FEEDSHUB_CONFIG_DBNAME),
+    {ok, _} = couchapi:put(?ROOT_CONFIG_DOCID,
+                           {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
+                                  {"rabbitmq", {obj, [{"host", <<"localhost">>},
+                                                      {"user", <<"feedshub_admin">>},
+                                                      {"password", <<"feedshub_admin">>}]}}
+                                 ]}),
+    ok = install_views(),
     ok.
+
+read_root_config() ->
+    {ok, RootConfig} = couchapi:get(?ROOT_CONFIG_DOCID),
+    case rfc4627:get_field(RootConfig, "feedshub_version") of
+        {ok, ?FEEDSHUB_VERSION} ->
+            {ok, RMQ} = rfc4627:get_field(RootConfig, "rabbitmq"),
+            {ok, RHost} = rfc4627:get_field(RMQ, "host"),
+            {ok, RUser} = rfc4627:get_field(RMQ, "user"),
+            {ok, RPassword} = rfc4627:get_field(RMQ, "password"),
+            {ok, #root_config{rabbitmq_host = binary_to_list(RHost),
+                              rabbitmq_admin_user = binary_to_list(RUser),
+                              rabbitmq_admin_password = binary_to_list(RPassword)}};
+        {ok, Other} ->
+            exit({feedshub_version_mismatch, [{expected, ?FEEDSHUB_VERSION},
+                                              {detected, Other}]})
+    end.
 
 startup_couch_scan() ->
     {ok, CouchInfo} = couchapi:get(""),
@@ -41,28 +93,27 @@ startup_couch_scan() ->
     {couchdb_version_check, {ok, <<"0.9.0">>}} = {couchdb_version_check,
                                                   rfc4627:get_field(CouchInfo, "version")},
     case couchapi:get(?FEEDSHUB_CONFIG_DBNAME) of
-        {ok, DbInfo} ->
-            error_logger:info_report({?MODULE, config_db_info, DbInfo}),
+        {ok, _DbInfo} ->
             ok;
         {error, 404, _} ->
             ok = setup_core_couch()
     end,
-    error_logger:info_report({?MODULE, couch_info, CouchInfo}),
-    ok.
+    {ok, #root_config{}} = read_root_config().
 
 %%---------------------------------------------------------------------------
 
--record(state, {amqp_connection, ch}).
+-record(state, {config, amqp_connection, ch}).
 
 init([]) ->
-    {ok, RabbitHost} = application:get_env(rabbitmq_host),
-    {ok, Username} = application:get_env(rabbitmq_feedshub_admin_user),
-    {ok, Password} = application:get_env(rabbitmq_feedshub_admin_password),
-    AmqpConnectionPid = amqp_connection:start_link(Username, Password, RabbitHost),
+    {ok, Configuration = #root_config{rabbitmq_host = RHost,
+                                      rabbitmq_admin_user = RUser,
+                                      rabbitmq_admin_password = RPassword}}
+        = startup_couch_scan(),
+    AmqpConnectionPid = amqp_connection:start_link(RUser, RPassword, RHost),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch),
-    ok = startup_couch_scan(),
-    {ok, #state{amqp_connection = AmqpConnectionPid,
+    {ok, #state{config = Configuration,
+                amqp_connection = AmqpConnectionPid,
                 ch = Ch}}.
 
 handle_call(open_channel, _From, State = #state{amqp_connection = Conn}) ->
