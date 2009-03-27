@@ -18,18 +18,26 @@ selfcheck(FeedPid) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {feed_id}).
+-record(state, {feed_id, running_components}).
+
+do_selfcheck(State = #state{feed_id = FeedId,
+                            running_components = OldRunningComponents}) ->
+    {ok, FeedDefinition} = couchapi:get(?FEEDSHUB_CONFIG_DBNAME ++ binary_to_list(FeedId)),
+    error_logger:info_report({?MODULE, selfcheck, FeedDefinition}),
+    State.
+
+%%---------------------------------------------------------------------------
 
 init([FeedId]) ->
     selfcheck(self()),
-    {ok, #state{feed_id = FeedId}}.
+    {ok, #state{feed_id = FeedId,
+                running_components = dict:new()}}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
 handle_cast(selfcheck, State) ->
-    error_logger:info_report({?MODULE, selfcheck, self(), "%%%HERE"}),
-    {noreply, State};
+    {noreply, do_selfcheck(State)};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
