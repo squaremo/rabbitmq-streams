@@ -45,14 +45,18 @@ def main():
     from imp import find_module, load_module
     if len(sys.argv) < 4:
         return usage()
+    here = os.path.dirname(os.path.abspath(sys.argv[0]))
     modulepath = sys.argv[1]
     modulename = sys.argv[2]
     url = sys.argv[3]
     config = fetch_config(url)
 
-    sys.path.insert(0, os.path.join(modulepath, 'lib'))
+    # It would be nice to do this, but it doesn't seem to be allowed.
+    #os.chroot(modulepath)
+    
     sys.path.insert(0, modulepath)
-    sys.path.insert(0, 'lib')
+    sys.path.insert(0, os.path.join(modulepath, 'lib'))
+    sys.path.insert(0, os.path.join(here, 'lib'))
     f = None
     try:
         f, p, d = find_module(modulename, [modulepath])
