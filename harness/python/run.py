@@ -52,6 +52,7 @@ def main():
 
     sys.path.insert(0, os.path.join(modulepath, 'lib'))
     sys.path.insert(0, modulepath)
+    sys.path.insert(0, 'lib')
     f = None
     try:
         f, p, d = find_module(modulename, [modulepath])

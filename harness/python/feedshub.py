@@ -3,7 +3,7 @@ Interfaces for plugin components to use.
 """
 
 import couchdb.client as couch
-import stomp
+import amqplib.client_0_8 as amqp
 
 try:
     import json
@@ -67,30 +67,36 @@ def db_from_config(config):
     server = couch.Server(config['server'])
     return server[config['database']]
 
-class StompPublisher: # FIXME supply the connection
-    """
-    """
+class AmqpPublisher:
     def __init__(self, connection, exchange, key):
-        self.__key = key
+        self.__channel = connection.channel()
         self.__exchange = exchange
-        self.__conn = connection
-
+        self.__key = key
+        
     def publish(self, msg):
-        self.__conn.send(message=json.dumps(msg),
-                         exchange=self.__exchange,
-                         destination=self.__key)
+        message = amqp.Message(json.dumps(msg))
+        self.__chan.basic_publish(message,
+                                  exchange=self.__exchange,
+                                  routing_key=self.__key)
+    def close(self):
+        self.__channel.close()
 
-def connection_from_config(hostspec):
-    hostname = hostspec['host']
-    port = int(hostspec['port'])
-    login, passcode = hostspec['username'], hostspec['password'] # what are these called in AMQP?
-    connection = stomp.Connection([(hostname, port)], user=login, passcode=passcode)
+def amqp_connection_from_config(hostspec):
+    hostname = hostspec['hostname']
+    port = str(hostspec['port'])
+    host = ":".join([hostname, port])
+    virt = hostspec['virtual_host']
+    userid, password = hostspec['username'], hostspec['password']
+    connection = amqp.Connection(host=host,
+                                 userid=userid,
+                                 password=password,
+                                 virtual_host=virt)
     return connection
 
 def publisher_from_config(connection, exchangespec):
     exchange = exchangespec['exchange']
     destination = exchangespec.get('routingkey', '')
-    return StompPublisher(connection, exchange, destination)
+    return AmqpPublisher(connection, exchange, destination)
 
 class Source:
     """
@@ -106,9 +112,7 @@ class Source:
     def __init__(self, config):
         channelspec = config['channels']
         msghostspec = channelspec['host']
-        self.__conn = connection_from_config(msghostspec)
-        self.__conn.start()
-        self.__conn.connect()
+        self.__conn = amqp_connection_from_config(msghostspec)
         emitspec = channelspec['out']
         self.__out = publisher_from_config(self.__conn, emitspec)
         errorspec = channelspec['err']
@@ -143,5 +147,6 @@ class Source:
         try:
             self.run()
         finally:
-            if self.__conn.is_connected():
-                self.__conn.disconnect()
+            self.__out.close()
+            self.__err.close()
+            self.__conn.close()
