@@ -50,7 +50,7 @@ def main():
     url = sys.argv[3]
     config = fetch_config(url)
 
-    sys.path.insert(0, os.join(modulepath, 'lib'))
+    sys.path.insert(0, os.path.join(modulepath, 'lib'))
     sys.path.insert(0, modulepath)
     f = None
     try:

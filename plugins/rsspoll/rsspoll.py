@@ -1,5 +1,5 @@
 from feedshub import Source, cons_db, config_of_db, db_from_config, ensure_db
-from fetcher import fetch
+from fetch import fetch
 
 class RssPollerSource(Source):
     
