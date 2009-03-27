@@ -116,8 +116,6 @@ check_feed(FeedId) ->
                                  [orchestrator_feed_sup]}) of
         {ok, _ChildPid} ->
             ok;
-        {error, already_present} ->
-            ok;
         {error, {already_started, _Child}} ->
             ok
     end.
