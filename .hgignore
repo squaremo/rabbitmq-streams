@@ -4,3 +4,5 @@
 (^|/)erl_crash\.dump$
 \.pyc$
 ~$
+^couchdb.std(err|out)$
+^couchlogtail.pid$

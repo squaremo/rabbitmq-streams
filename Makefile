@@ -39,8 +39,20 @@ run: run_core
 	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(MAKE) -C orchestrator run" &
 
 run_core:
-	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "$(OPT_COUCH)/bin/couchdb" &
+	$(OPT_COUCH)/bin/couchdb -b
+	(xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "sleep 3; tail -f couchdb.std* $(OPT_COUCH)/var/log/couchdb/*" & (echo $$! > couchlogtail.pid))
 	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "./start-feedshub-rabbit.sh" &
+	sleep 3
+
+stop_core:
+	-$(OPT_COUCH)/bin/couchdb -d
+	-kill `cat couchlogtail.pid`; rm couchlogtail.pid
+	-build/opt/rabbitmq/sbin/rabbitmqctl stop
+	sleep 3
+
+full_reset_core:
+	$(MAKE) stop_core cleandb run_core
+	./setup-core.sh
 
 create-build-logs-dir:
 	mkdir -p build/logs
