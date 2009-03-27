@@ -24,8 +24,11 @@ False
 """
 
 import httplib2
-from mimetypes import guess_type
+import mimetypes
 from urllib import quote, urlencode
+from types import FunctionType
+from inspect import getsource
+from textwrap import dedent
 import re
 import socket
 try:
@@ -324,7 +327,7 @@ class Database(object):
         Use this method in preference over ``__del__`` to ensure you're
         deleting the revision that you had previously retrieved. In the case
         the document has been updated since it was retrieved, this method will
-        raise a `PreconditionFailed` exception.
+        raise a `ResourceConflict` exception.
 
         >>> server = Server('http://localhost:5984/')
         >>> db = server.create('python-tests')
@@ -337,12 +340,12 @@ class Database(object):
         >>> db.delete(doc)
         Traceback (most recent call last):
           ...
-        PreconditionFailed: ('conflict', 'Document update conflict.')
+        ResourceConflict: ('conflict', 'Document update conflict.')
 
         >>> del server['python-tests']
         
         :param doc: a dictionary or `Document` object holding the document data
-        :raise PreconditionFailed: if the document was updated in the database
+        :raise ResourceConflict: if the document was updated in the database
         :since: 0.4.1
         """
         self.resource.delete(doc['_id'], rev=doc['_rev'])
@@ -380,13 +383,17 @@ class Database(object):
     def delete_attachment(self, doc, filename):
         """Delete the specified attachment.
         
+        Note that the provided `doc` is required to have a `_rev` field. Thus,
+        if the `doc` is based on a view row, the view row would need to include
+        the `_rev` field.
+
         :param doc: the dictionary or `Document` object representing the
                     document that the attachment belongs to
         :param filename: the name of the attachment file
         :since: 0.4.1
         """
         resp, data = self.resource(doc['_id']).delete(filename, rev=doc['_rev'])
-        doc.update({'_rev': data['rev']})
+        doc['_rev'] = data['rev']
 
     def get_attachment(self, id_or_doc, filename, default=None):
         """Return an attachment from the specified doc id and filename.
@@ -414,6 +421,10 @@ class Database(object):
     def put_attachment(self, doc, content, filename=None, content_type=None):
         """Create or replace an attachment.
 
+        Note that the provided `doc` is required to have a `_rev` field. Thus,
+        if the `doc` is based on a view row, the view row would need to include
+        the `_rev` field.
+
         :param doc: the dictionary or `Document` object representing the
                     document that the attachment should be added to
         :param content: the content to upload, either a file-like object or
@@ -434,13 +445,13 @@ class Database(object):
             else:
                 raise ValueError('no filename specified for attachment')
         if content_type is None:
-            content_type = ';'.join(filter(None, guess_type(filename)))
+            content_type = ';'.join(filter(None, mimetypes.guess_type(filename)))
 
         resp, data = self.resource(doc['_id']).put(filename, content=content,
                                                    headers={
             'Content-Type': content_type
         }, rev=doc['_rev'])
-        doc.update({'_rev': data['rev']})
+        doc['_rev'] = data['rev']
 
     def query(self, map_fun, reduce_fun=None, language='javascript',
               wrapper=None, **options):
@@ -485,7 +496,7 @@ class Database(object):
                              reduce_fun, language=language, wrapper=wrapper,
                              http=self.resource.http)(**options)
 
-    def update(self, documents):
+    def update(self, documents, **options):
         """Perform a bulk update or insertion of the given documents using a
         single HTTP request.
         
@@ -525,16 +536,20 @@ class Database(object):
                 docs.append(dict(doc.items()))
             else:
                 raise TypeError('expected dict, got %s' % type(doc))
-        resp, data = self.resource.post('_bulk_docs', content={'docs': docs})
-        assert data['ok'] # FIXME: Should probably raise a proper exception
+        content = options
+        content.update(docs=docs)
+        resp, data = self.resource.post('_bulk_docs', content=content)
         def _update():
-            for idx, result in enumerate(data['new_revs']):
-                doc = documents[idx]
-                if isinstance(doc, dict):
-                    doc.update({'_id': result['id'], '_rev': result['rev']})
-                    yield doc
-                else:
+            for idx, result in enumerate(data):
+                if 'error' in result:
                     yield result
+                else:
+                    doc = documents[idx]
+                    if isinstance(doc, dict):
+                        doc.update({'_id': result['id'], '_rev': result['rev']})
+                        yield doc
+                    else:
+                        yield result
         return _update()
 
     def view(self, name, wrapper=None, **options):
@@ -550,8 +565,10 @@ class Database(object):
         
         >>> del server['python-tests']
         
-        :param name: the name of the view, including the ``_view/design_docid``
-                     prefix for custom views
+        :param name: the name of the view; for custom views, use the format
+                     ``design_docid/viewname``, that is, the document ID of the
+                     design document and the name of the view, separated by a
+                     slash
         :param wrapper: an optional callable that should be used to wrap the
                         result rows
         :param options: optional query string parameters
@@ -559,7 +576,8 @@ class Database(object):
         :rtype: `ViewResults`
         """
         if not name.startswith('_'):
-            name = '_view/' + name
+            design, name = name.split('/', 1)
+            name = '/'.join(['_design', design, '_view', name])
         return PermanentView(uri(self.resource.uri, *name.split('/')), name,
                              wrapper=wrapper,
                              http=self.resource.http)(**options)
@@ -631,10 +649,16 @@ class PermanentView(View):
 class TemporaryView(View):
     """Representation of a temporary view."""
 
-    def __init__(self, uri, map_fun=None, reduce_fun=None,
+    def __init__(self, uri, map_fun, reduce_fun=None,
                  language='javascript', wrapper=None, http=None):
         View.__init__(self, uri, wrapper=wrapper, http=http)
-        self.map_fun = map_fun
+        if isinstance(map_fun, FunctionType):
+            map_fun = getsource(map_fun).rstrip('\n\r')
+        self.map_fun = dedent(map_fun.lstrip('\n\r'))
+        if isinstance(reduce_fun, FunctionType):
+            reduce_fun = getsource(reduce_fun).rstrip('\n\r')
+        if reduce_fun:
+            reduce_fun = dedent(reduce_fun.lstrip('\n\r'))
         self.reduce_fun = reduce_fun
         self.language = language
 
