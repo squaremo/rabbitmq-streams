@@ -19,6 +19,7 @@ all:
 
 clean:
 	$(MAKE) -C orchestrator clean
+	rm -f couchdb.stderr couchdb.stdout
 
 cleandb:
 	rm -rf $(OPT_COUCH)/var/lib/couchdb/*
