@@ -23,7 +23,12 @@ selfcheck(FeedPid) ->
 do_selfcheck(State = #state{feed_id = FeedId,
                             running_components = OldRunningComponents}) ->
     {ok, FeedDefinition} = couchapi:get(?FEEDSHUB_CONFIG_DBNAME ++ binary_to_list(FeedId)),
-    error_logger:info_report({?MODULE, selfcheck, FeedDefinition}),
+    {ok, Wiring} = rfc4627:get_field(FeedDefinition, "wiring"),
+    {ok, {obj, NodeDefs}} = rfc4627:get_field(Wiring, "nodes"),
+    {ok, Edges} = rfc4627:get_field(Wiring, "edges"),
+    error_logger:info_report({?MODULE, selfcheck,
+                              {nodes, NodeDefs},
+                              {edges, Edges}}),
     State.
 
 %%---------------------------------------------------------------------------
