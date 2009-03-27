@@ -1,8 +1,9 @@
 {
   "channels": {
     "host": {
-      "host": "localhost",
-      "port": 61613,
+      "hostname": "localhost",
+      "virtual_host": "/",
+      "port": 5672,
       "username": "guest",
       "password": "guest"
     },
