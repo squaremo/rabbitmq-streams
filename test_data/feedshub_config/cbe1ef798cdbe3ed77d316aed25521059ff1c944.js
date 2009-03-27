@@ -1,4 +1,5 @@
 {
     "type": "feed",
-    "active": true
+    "active": true,
+    "user": "testuser"
 }

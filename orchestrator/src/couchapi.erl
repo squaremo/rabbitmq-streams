@@ -7,7 +7,7 @@
 -export([simple_result/1]).
 
 %% Somewhat higher-level.
--export([all_dbs/0, createdb/1]).
+-export([all_dbs/0, createdb/1, get_view/3, get_view_rows/3]).
 
 %%---------------------------------------------------------------------------
 
@@ -63,6 +63,14 @@ all_dbs() ->
 createdb(DbName) ->
     simple_result(put1(DbName, null)).
 
+get_view(DbName, ViewCollectionName, ViewName) ->
+    get1(DbName ++ "_design/" ++ ViewCollectionName ++ "/_view/" ++ ViewName).
+
+get_view_rows(DbName, ViewCollectionName, ViewName) ->
+    {ok, Result} = get_view(DbName, ViewCollectionName, ViewName),
+    {ok, Rows} = rfc4627:get_field(Result, "rows"),
+    Rows.
+
 %%---------------------------------------------------------------------------
 
 request(Method, Url) ->
@@ -77,8 +85,10 @@ request1(Method, Request) ->
 expand({raw, AbsUrl}) ->
     AbsUrl;
 expand(RelUrl) ->
-    {ok, CouchBaseUrl} = application:get_env(couch_base_url),
-    CouchBaseUrl ++ RelUrl.
+    case application:get_env(couch_base_url) of
+        {ok, CouchBaseUrl} -> CouchBaseUrl ++ RelUrl;
+        undefined -> "http://localhost:5984/" ++ RelUrl
+    end.
 
 process_response({ok, {{_HttpVersion, StatusCode, _StatusLine}, _Headers, Body}}) ->
     process_json_response(StatusCode, Body);

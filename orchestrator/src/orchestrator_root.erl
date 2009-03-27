@@ -100,6 +100,28 @@ startup_couch_scan() ->
     end,
     {ok, #root_config{}} = read_root_config().
 
+check_active_feeds() ->
+    FeedIds = [rfc4627:get_field(R, "id", undefined)
+               || R <- couchapi:get_view_rows(?FEEDSHUB_CONFIG_DBNAME, "feeds", "active")],
+    lists:foreach(fun check_feed/1, FeedIds),
+    ok.
+
+check_feed(FeedId) ->
+    case supervisor:start_child(orchestrator_root_sup,
+                                {FeedId,
+                                 {orchestrator_feed_sup, start_link, [FeedId]},
+                                 transient,
+                                 5000,
+                                 supervisor,
+                                 [orchestrator_feed_sup]}) of
+        {ok, _ChildPid} ->
+            ok;
+        {error, already_present} ->
+            ok;
+        {error, {already_started, _Child}} ->
+            ok
+    end.
+
 %%---------------------------------------------------------------------------
 
 -record(state, {config, amqp_connection, ch}).
@@ -112,6 +134,7 @@ init([]) ->
     AmqpConnectionPid = amqp_connection:start_link(RUser, RPassword, RHost),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch),
+    gen_server:cast(self(), check_active_feeds), %% do this after we're fully running.
     {ok, #state{config = Configuration,
                 amqp_connection = AmqpConnectionPid,
                 ch = Ch}}.
@@ -121,6 +144,9 @@ handle_call(open_channel, _From, State = #state{amqp_connection = Conn}) ->
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
+handle_cast(check_active_feeds, State) ->
+    ok = check_active_feeds(),
+    {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
