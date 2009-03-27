@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
 
