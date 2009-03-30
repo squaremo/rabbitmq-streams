@@ -9,6 +9,6 @@
     "global_configuration": [],
     "configuration": [],
 
-    "inputs": {},
-    "outputs": {"output": {}}
+    "inputs": [],
+    "outputs": [{"name": "output"}]
 }

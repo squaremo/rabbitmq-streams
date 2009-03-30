@@ -11,6 +11,6 @@
 		       "label": "Data Source",
 		       "type": "datasource"}],
 
-    "inputs": {},
-    "outputs": {"output": {}}
+    "inputs": [],
+    "outputs": [{"name": "output"}]
 }

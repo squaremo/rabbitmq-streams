@@ -17,6 +17,6 @@
 				   "Atom feed": "atom",
 				   "Email": "email"}}],
 
-    "inputs": {"input": {}},
-    "outputs": {}
+    "inputs": [{"name": "input"}],
+    "outputs": []
 }

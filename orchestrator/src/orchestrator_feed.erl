@@ -20,7 +20,7 @@ selfcheck(FeedPid) ->
 
 -record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid}).
 
--record(node_configuration, {node_id, queues, exchanges}).
+-record(node_configuration, {node_id, plugin_desc, queues, exchanges}).
 
 open_channel(State = #state{channel = undefined}) ->
     {ok, Ch} = orchestrator_root:open_channel(),
@@ -84,10 +84,11 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     {ok, PluginTypeBin} = rfc4627:get_field(NodeSpecJson, "type"),
     {ok, PluginTypeDescription} = feedshub_plugin:describe(binary_to_list(PluginTypeBin)),
     error_logger:info_report({?MODULE, node_configuration, FeedId, NodeId, PluginTypeDescription}),
-    {ok, {obj, Inputs}} = rfc4627:get_field(PluginTypeDescription, "inputs"),
-    {ok, {obj, Outputs}} = rfc4627:get_field(PluginTypeDescription, "outputs"),
+    {ok, Inputs} = rfc4627:get_field(PluginTypeDescription, "inputs"),
+    {ok, Outputs} = rfc4627:get_field(PluginTypeDescription, "outputs"),
     Queues = [resource_name(FeedId, NodeId, AttachmentName) ||
-                 {AttachmentName, _Details} <- Inputs],
+                 Input <- Inputs,
+                 {ok, AttachmentName} <- [rfc4627:get_field(Input, "name")]],
     lists:foreach(fun (Q) ->
                           amqp_channel:call(Channel,
                                             #'queue.declare'{queue = list_to_binary(Q),
@@ -95,7 +96,8 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                   end,
                   Queues),
     Exchanges = [resource_name(FeedId, NodeId, AttachmentName) ||
-                    {AttachmentName, _Details} <- Outputs],
+                    Output <- Outputs,
+                    {ok, AttachmentName} <- [rfc4627:get_field(Output, "name")]],
     lists:foreach(fun (X) ->
                           amqp_channel:call(Channel,
                                             #'exchange.declare'{exchange = list_to_binary(X),
@@ -104,6 +106,7 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                   end,
                   Exchanges),
     #node_configuration{node_id = NodeId,
+                        plugin_desc = PluginTypeDescription,
                         queues = Queues,
                         exchanges = Exchanges}.
 

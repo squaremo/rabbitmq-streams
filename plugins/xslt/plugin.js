@@ -11,6 +11,6 @@
 		       "label": "Stylesheet URL",
 		       "type": "url"}],
 
-    "inputs": {"input": {}},
-    "outputs": {"output": {}}
+    "inputs": [{"name": "input"}],
+    "outputs": [{"name": "output"}]
 }
