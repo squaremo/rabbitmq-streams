@@ -81,6 +81,14 @@ class AmqpPublisher:
     def close(self):
         self.__channel.close()
 
+class AmqpSubscriber:
+    def __init__(self, connection, queue, callback):
+        self.__channel = new connection.channel()
+        self.__channel.basic_consume(queue=queue, callback=callback)
+
+    def close(self):
+        self.__channel.close()
+
 def amqp_connection_from_config(hostspec):
     hostname = hostspec['hostname']
     port = str(hostspec['port'])
@@ -98,30 +106,17 @@ def publisher_from_config(connection, exchangespec):
     destination = exchangespec.get('routingkey', '')
     return AmqpPublisher(connection, exchange, destination)
 
-class Source:
-    """
-    A source has only an output of messages, generated on some schedule.
+def subscriber_from_config(connection, queuespec, callback):
+    queue = queuespec['queue']
+    return AmqpSubscriber(connection, queue, callback)
 
-    Subclasses get to use
-     - emit() to send an item
-     - putState() and getState() to keep state information
-     - error() to report an error in processing
-     - setting() to retrieve a configuration setting
-    """
-
+def Component:
     def __init__(self, config):
-        channelspec = config['channels']
-        msghostspec = channelspec['host']
-        self.__conn = amqp_connection_from_config(msghostspec)
-        emitspec = channelspec['out']
-        self.__out = publisher_from_config(self.__conn, emitspec)
-        errorspec = channelspec['err']
-        self.__err = publisher_from_config(self.__conn, errorspec)
         statespec = config['state']
         self.__statedb = db_from_config(statespec)
         self.__statedoc = statespec['documentid']
         self.__settings = config['settings']
-        
+
     def putState(self, state):
         """Record the state of the component"""
         print "Putting state: "
@@ -135,6 +130,28 @@ class Source:
         """Get a configuration setting."""
         return self.__settings.get(name, None)
 
+
+class Source:
+    """
+    A source has only an output of messages, generated on some schedule.
+
+    Subclasses get to use
+     - publish() to send an item
+     - putState() and getState() to keep state information
+     - error() to report an error in processing
+     - setting() to retrieve a configuration setting
+    """
+
+    def __init__(self, config):
+        super(Source, self).__init__(config)
+        channelspec = config['channels']
+        msghostspec = channelspec['host']
+        self.__conn = amqp_connection_from_config(msghostspec)
+        emitspec = channelspec['out']
+        self.__out = publisher_from_config(self.__conn, emitspec)
+        errorspec = channelspec['err']
+        self.__err = publisher_from_config(self.__conn, errorspec)
+        
     def publish(self, msg):
         """Send an item into the system"""
         self.__out.publish(msg)
@@ -149,4 +166,54 @@ class Source:
         finally:
             self.__out.close()
             self.__err.close()
+            self.__conn.close()
+
+class Sink:
+    """
+    A sink has an input of messages, and does something (other than
+    putting them back into the pipeline) with them.  For example,
+    archiving them into a database.
+
+    Unlike <code>Source</code>s, which get to set their own shedule,
+    sinks are driven by incoming messages.  For that reason, they
+    essentially use a callback mechanism.
+
+    Subclasses get to use
+      - putState() and getState() to keep state information
+      - error() to report an error in processing
+      - setting() to retrieve a configuration setting
+    and should implement
+      - accept() to do something with each message.
+    """
+
+    def __init__(self, config):
+        super(Sink, self).__init__(config)
+        channelspec = config['channels']
+        msghostspec = channelspec['host']
+        self.__conn = amqp_connection_from_config(msghostspec)
+        subscribespec = channelspec['input']
+        self.__in = subscribe_from_config(self.__conn, subscribespec)
+        #errorspec = channelspec['err']
+        #self.__err = publisher_from_config(self.__conn, errorspec)
+        self.__in = subscribe_from_config(self.__conn, subscribespec, self._message)
+        
+    def error(self, msg):
+        """Report a problem"""
+        self.__err.publish(msg)
+
+    def _message(message):
+        tag = message.delivery_tag
+        self.accept(message.body)
+        self.__in.basic_ack(tag)
+
+    def accept(msg):
+        raise NotImplemented
+
+    def start(self):
+        try:
+            while True:
+                ch.wait() # let the callbacks process
+        finally:
+            self.__in.close()
+            #self.__err.close()
             self.__conn.close()
