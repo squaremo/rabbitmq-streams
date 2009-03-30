@@ -2,14 +2,14 @@
 
 -behaviour(gen_server).
 
--export([start_link/0]).
+-export([start_link/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -include("orchestrator.hrl").
 
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+start_link(InitParameters) ->
+    gen_server:start_link(?MODULE, InitParameters, []).
 
 %%---------------------------------------------------------------------------
 
@@ -17,7 +17,8 @@ start_link() ->
 
 %%---------------------------------------------------------------------------
 
-init([]) ->
+init([HarnessTypeBin, PluginType, Queues, Exchanges]) ->
+    error_logger:info_report({?MODULE, starting_plugin, HarnessTypeBin, PluginType, Queues, Exchanges}),
     {ok, #state{}}.
 
 handle_call(_Message, _From, State) ->

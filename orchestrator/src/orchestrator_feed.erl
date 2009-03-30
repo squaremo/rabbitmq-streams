@@ -20,7 +20,7 @@ selfcheck(FeedPid) ->
 
 -record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid}).
 
--record(node_configuration, {node_id, plugin_desc, queues, exchanges}).
+-record(node_configuration, {node_id, plugin_type, plugin_desc, queues, exchanges}).
 
 open_channel(State = #state{channel = undefined}) ->
     {ok, Ch} = orchestrator_root:open_channel(),
@@ -82,7 +82,8 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     {ok, PluginTypeBin} = rfc4627:get_field(NodeSpecJson, "type"),
-    {ok, PluginTypeDescription} = feedshub_plugin:describe(binary_to_list(PluginTypeBin)),
+    PluginType = binary_to_list(PluginTypeBin),
+    {ok, PluginTypeDescription} = feedshub_plugin:describe(PluginType),
     error_logger:info_report({?MODULE, node_configuration, FeedId, NodeId, PluginTypeDescription}),
     {ok, Inputs} = rfc4627:get_field(PluginTypeDescription, "inputs"),
     {ok, Outputs} = rfc4627:get_field(PluginTypeDescription, "outputs"),
@@ -106,11 +107,21 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                   end,
                   Exchanges),
     #node_configuration{node_id = NodeId,
+                        plugin_type = PluginType,
                         plugin_desc = PluginTypeDescription,
                         queues = Queues,
                         exchanges = Exchanges}.
 
-start_component(PluginSupPid, #node_configuration{}) ->
+start_component(PluginSupPid, #node_configuration{node_id = NodeId,
+                                                  plugin_type = PluginType,
+                                                  plugin_desc = PluginTypeDescription,
+                                                  queues = Queues,
+                                                  exchanges = Exchanges}) ->
+    {ok, HarnessTypeBin} = rfc4627:get_field(PluginTypeDescription, "harness"),
+    supervisor:start_child(PluginSupPid, [[HarnessTypeBin,
+                                           PluginType,
+                                           Queues,
+                                           Exchanges]]),
     ok.
 
 do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->
