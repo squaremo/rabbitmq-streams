@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/1]).
+-export([start_link/2]).
 -export([selfcheck/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -10,39 +10,139 @@
 -include("orchestrator.hrl").
 -include("rabbit_framing.hrl").
 
-start_link(FeedId) ->
-    gen_server:start_link(?MODULE, [FeedId], []).
+start_link(FeedId, FeedSupPid) ->
+    gen_server:start_link(?MODULE, [FeedId, FeedSupPid], []).
 
 selfcheck(FeedPid) ->
     ok = gen_server:cast(FeedPid, selfcheck).
 
 %%---------------------------------------------------------------------------
 
--record(state, {feed_id, running_components}).
+-record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid}).
 
-do_selfcheck(State = #state{feed_id = FeedId,
-                            running_components = OldRunningComponents}) ->
+-record(node_configuration, {node_id, queues, exchanges}).
+
+open_channel(State = #state{channel = undefined}) ->
+    {ok, Ch} = orchestrator_root:open_channel(),
+    State#state{channel = Ch}.
+
+ensure_plugin_sup_detected(State = #state{plugin_sup_pid = P}) when is_pid(P) ->
+    State;
+ensure_plugin_sup_detected(State = #state{feed_sup_pid = FSP}) ->
+    case lists:keysearch(orchestrator_plugin_sup, 1, supervisor:which_children(FSP)) of
+        {value, {_Id, PluginSupPid, supervisor, _Modules}} ->
+            State#state{plugin_sup_pid = PluginSupPid};
+        false ->
+            exit(plugin_sup_not_found)
+    end.
+
+get_config(#state{feed_id = FeedId}) ->
     {ok, FeedDefinition} = couchapi:get(?FEEDSHUB_CONFIG_DBNAME ++ binary_to_list(FeedId)),
+    FeedDefinition.
+
+resource_name(FeedId, N, A) when is_binary(FeedId) ->
+    resource_name(binary_to_list(FeedId), N, A);
+resource_name(F, NodeId, A) when is_binary(NodeId) ->
+    resource_name(F, binary_to_list(NodeId), A);
+resource_name(F, N, AttName) when is_binary(AttName) ->
+    resource_name(F, N, binary_to_list(AttName));
+resource_name(FeedIdStr, NodeIdStr, AttachmentNameStr) ->
+    FeedIdStr ++ ":" ++ NodeIdStr ++ ":" ++ AttachmentNameStr.
+
+do_start_pipeline(State = #state{feed_id = FeedIdBin,
+                                 channel = Channel,
+                                 plugin_sup_pid = PluginSupPid}) ->
+    FeedId = binary_to_list(FeedIdBin),
+    FeedDefinition = get_config(State),
     {ok, Wiring} = rfc4627:get_field(FeedDefinition, "wiring"),
     {ok, {obj, NodeDefs}} = rfc4627:get_field(Wiring, "nodes"),
     {ok, Edges} = rfc4627:get_field(Wiring, "edges"),
-    error_logger:info_report({?MODULE, selfcheck,
+
+    error_logger:info_report({?MODULE, start_pipeline,
                               {nodes, NodeDefs},
                               {edges, Edges}}),
+
+    %% Go through all nodes creating resources (queues, exchanges).
+    NodeConfigurations = [node_configuration(Channel, FeedId, N) || N <- NodeDefs],
+
+    %% Go through all edges creating bindings.
+    lists:foreach(fun ([ONode, OAtt, INode, IAtt]) ->
+                          lib_amqp:bind_queue(Channel,
+                                              list_to_binary(resource_name(FeedId, ONode, OAtt)),
+                                              list_to_binary(resource_name(FeedId, INode, IAtt)),
+                                              <<>>)
+                  end, Edges),
+
+    %% Finally, go through nodes again starting the plugin instances.
+    lists:foreach(fun (NodeConfiguration) ->
+                          start_component(PluginSupPid, NodeConfiguration)
+                  end, NodeConfigurations),
+
     State.
+
+node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
+    {ok, PluginTypeBin} = rfc4627:get_field(NodeSpecJson, "type"),
+    {ok, PluginTypeDescription} = feedshub_plugin:describe(binary_to_list(PluginTypeBin)),
+    error_logger:info_report({?MODULE, node_configuration, FeedId, NodeId, PluginTypeDescription}),
+    {ok, {obj, Inputs}} = rfc4627:get_field(PluginTypeDescription, "inputs"),
+    {ok, {obj, Outputs}} = rfc4627:get_field(PluginTypeDescription, "outputs"),
+    Queues = [resource_name(FeedId, NodeId, AttachmentName) ||
+                 {AttachmentName, _Details} <- Inputs],
+    lists:foreach(fun (Q) ->
+                          amqp_channel:call(Channel,
+                                            #'queue.declare'{queue = list_to_binary(Q),
+                                                             durable = true})
+                  end,
+                  Queues),
+    Exchanges = [resource_name(FeedId, NodeId, AttachmentName) ||
+                    {AttachmentName, _Details} <- Outputs],
+    lists:foreach(fun (X) ->
+                          amqp_channel:call(Channel,
+                                            #'exchange.declare'{exchange = list_to_binary(X),
+                                                                type = <<"fanout">>,
+                                                                durable = true})
+                  end,
+                  Exchanges),
+    #node_configuration{node_id = NodeId,
+                        queues = Queues,
+                        exchanges = Exchanges}.
+
+start_component(PluginSupPid, #node_configuration{}) ->
+    ok.
+
+do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->
+    {ok, DbConfigRev} = rfc4627:get_field(get_config(State), "_rev"),
+    if
+        DbConfigRev == CurrentConfigRev ->
+            {noreply, State};
+        true ->
+            error_logger:info_report({?MODULE, selfcheck, restarting,
+                                      [{old_rev, CurrentConfigRev},
+                                       {new_rev, DbConfigRev}]}),
+            {stop, normal, State}
+    end.
 
 %%---------------------------------------------------------------------------
 
-init([FeedId]) ->
-    selfcheck(self()),
+init([FeedId, FeedSupPid]) ->
+    %% We send ourselves a message, because we need to interact with
+    %% FeedSupPid, our parent supervisor, and doing so during init is
+    %% a violation of the behaviour spec required of us as a
+    %% supervisee. It deadlocks the supervisor.
+    gen_server:cast(self(), start_pipeline),
     {ok, #state{feed_id = FeedId,
-                running_components = dict:new()}}.
+                channel = undefined,
+                config_rev_id = null,
+                feed_sup_pid = FeedSupPid,
+                plugin_sup_pid = undefined}}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
+handle_cast(start_pipeline, State) ->
+    {noreply, do_start_pipeline(open_channel(ensure_plugin_sup_detected(State)))};
 handle_cast(selfcheck, State) ->
-    {noreply, do_selfcheck(State)};
+    do_selfcheck(State);
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 

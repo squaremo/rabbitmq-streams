@@ -6,6 +6,9 @@
     "harness": "python",
     "subtype": "pipeline_component",
     
+    "global_configuration": [],
+    "configuration": [],
+
     "inputs": {},
     "outputs": {"output": {}}
 }

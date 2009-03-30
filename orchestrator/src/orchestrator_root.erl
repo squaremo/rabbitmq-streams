@@ -117,7 +117,10 @@ check_feed(FeedId) ->
         {ok, _ChildPid} ->
             ok;
         {error, {already_started, _Child}} ->
-            ok
+            ok;
+        {error, {shutdown, _}} ->
+            error_logger:error_report({?MODULE, check_feed, start_error, FeedId}),
+            {error, start_error}
     end.
 
 %%---------------------------------------------------------------------------
