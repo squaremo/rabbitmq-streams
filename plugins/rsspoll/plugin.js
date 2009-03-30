@@ -1,6 +1,6 @@
 {
     "name": "RSS Poller",
-    "author": {"name": "Michael Bridgen"},
+    "author": {"name": "Michael Bridgen", "email": "mikeb@lshift.net"},
 
     "type": "plugin",
     "harness": "python",
@@ -10,5 +10,7 @@
     "configuration": [],
 
     "inputs": [],
-    "outputs": [{"name": "output"}]
+    "outputs": [{"name": "output"}],
+
+    "databases": {"content": {}}
 }
