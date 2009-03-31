@@ -86,10 +86,10 @@ def amqp_connection_from_config(hostspec):
     return connection
 
 def publish_to_exchange(channel, exchange):
-    return lambda zelf, msg: channel.basic_publish(json.dumps(msg), exchange=exchange)
+    return lambda msg: channel.basic_publish(amqp.Message(json.dumps(msg)), exchange=exchange)
 
-def subscribe_to_queue(channel, queue, callback):
-    channel.basic_consume(queue=queue, callback=callback)
+def subscribe_to_queue(channel, queue, method):
+    channel.basic_consume(queue=queue, callback=lambda msg: method(json.loads(msg.body)))
 
 class Component(object):
 
@@ -150,8 +150,8 @@ class Component(object):
             self.__channel.wait() # let the callbacks process
 
     def start(self):
-        try:
-            self.run()
-        finally:
-            self.__channel.close()
-            self.__conn.close()
+#        try:
+        self.run()
+        #finally:
+        #    self.__channel.close()
+        #    self.__conn.close()

@@ -72,7 +72,6 @@ def fetch(database, href, feed_args):
     index = dbindex(database)
     docs = [d for d in map(doc, feed.entries) if d['_id'] not in index]
     # TODO: updated entries
-    updated = database.update(docs)
     return dict(lastpolled=now,
                 feed=feed_status(feed),
-                updated=list(updated))
+                updated=list(docs))

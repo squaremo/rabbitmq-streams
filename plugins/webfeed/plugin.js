@@ -10,7 +10,7 @@
     "configuration": [
       {"label": "Title",
        "type": "string",
-       "name": "title",
+       "name": "title"
       }
     ],
 

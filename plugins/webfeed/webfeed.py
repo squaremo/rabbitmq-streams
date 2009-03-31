@@ -4,7 +4,10 @@ class FeedArchiver(Component):
     INPUTS = {'input': 'accept'}
 
     def accept(self, msg):
-        pass
+        id = msg['_id']
+        db = self.privateDatabase()
+        if id not in db:
+            db[id] = msg
 
     def run(self):
         super(FeedArchiver, self).run()

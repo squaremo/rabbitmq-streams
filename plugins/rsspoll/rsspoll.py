@@ -32,9 +32,11 @@ class RssPollerSource(Component):
             
             if 'updated' in response:
                 # TODO notify of new items
-                for msg in response['updated']:
+                updated = response['updated']
+                for msg in updated:
                     self.publish(msg)
-    
+                contentdb.update(updated)
+
             state.update(response)
             return state
 
