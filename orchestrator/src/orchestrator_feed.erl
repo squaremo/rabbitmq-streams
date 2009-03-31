@@ -20,7 +20,7 @@ selfcheck(FeedPid) ->
 
 -record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid}).
 
--record(node_configuration, {node_id, plugin_type, plugin_desc, queues, exchanges}).
+-record(node_configuration, {node_id, plugin_config, plugin_desc, queues, exchanges, database}).
 
 open_channel(State = #state{channel = undefined}) ->
     {ok, Ch} = orchestrator_root:open_channel(),
@@ -47,7 +47,7 @@ resource_name(F, NodeId, A) when is_binary(NodeId) ->
 resource_name(F, N, AttName) when is_binary(AttName) ->
     resource_name(F, N, binary_to_list(AttName));
 resource_name(FeedIdStr, NodeIdStr, AttachmentNameStr) ->
-    FeedIdStr ++ ":" ++ NodeIdStr ++ ":" ++ AttachmentNameStr.
+    FeedIdStr ++ "_" ++ NodeIdStr ++ "_" ++ AttachmentNameStr.
 
 do_start_pipeline(State = #state{feed_id = FeedIdBin,
                                  channel = Channel,
@@ -57,6 +57,8 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
     {ok, Wiring} = rfc4627:get_field(FeedDefinition, "wiring"),
     {ok, {obj, NodeDefs}} = rfc4627:get_field(Wiring, "nodes"),
     {ok, Edges} = rfc4627:get_field(Wiring, "edges"),
+
+    couchapi:createdb("feed_" ++ FeedId), %% database per feed
 
     error_logger:info_report({?MODULE, start_pipeline,
                               {nodes, NodeDefs},
@@ -75,7 +77,7 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
-                          start_component(PluginSupPid, NodeConfiguration)
+                          start_component(PluginSupPid, FeedId, NodeConfiguration)
                   end, NodeConfigurations),
 
     State.
@@ -106,23 +108,41 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                                                                 durable = true})
                   end,
                   Exchanges),
+    DbName = case rfc4627:get_field(PluginTypeDescription, "database") of
+                 not_found ->
+                     undefined;
+                 {ok, null} ->
+                     undefined;
+                 {ok, {obj, InitialDocs}} ->
+                     D = resource_name(FeedId, NodeId, "db/"),
+                     couchapi:createdb(D),
+                     error_logger:warning_report({?MODULE, ignoring_initial_docs, InitialDocs}),
+                     couchapi:expand(D)
+             end,
     #node_configuration{node_id = NodeId,
-                        plugin_type = PluginType,
+                        plugin_config = NodeSpecJson,
                         plugin_desc = PluginTypeDescription,
                         queues = Queues,
-                        exchanges = Exchanges}.
+                        exchanges = Exchanges,
+                        database = DbName}.
 
-start_component(PluginSupPid, #node_configuration{node_id = NodeId,
-                                                  plugin_type = PluginType,
-                                                  plugin_desc = PluginTypeDescription,
-                                                  queues = Queues,
-                                                  exchanges = Exchanges}) ->
+start_component(PluginSupPid,
+                FeedId,
+                #node_configuration{node_id = NodeId,
+                                    plugin_config = PluginConfig,
+                                    plugin_desc = PluginTypeDescription,
+                                    queues = Queues,
+                                    exchanges = Exchanges,
+                                    database = DbName}) ->
     {ok, HarnessTypeBin} = rfc4627:get_field(PluginTypeDescription, "harness"),
     supervisor:start_child(PluginSupPid, [[HarnessTypeBin,
-                                           PluginType,
+                                           PluginConfig,
+                                           PluginTypeDescription,
+                                           FeedId,
                                            NodeId,
                                            Queues,
-                                           Exchanges]]),
+                                           Exchanges,
+                                           DbName]]),
     ok.
 
 do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->

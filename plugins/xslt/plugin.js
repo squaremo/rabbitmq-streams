@@ -12,5 +12,7 @@
 		       "type": "url"}],
 
     "inputs": [{"name": "input"}],
-    "outputs": [{"name": "output"}]
+    "outputs": [{"name": "output"}],
+
+    "database": null
 }

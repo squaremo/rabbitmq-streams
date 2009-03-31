@@ -7,10 +7,11 @@
     "subtype": "pipeline_component",
     
     "global_configuration": [],
-    "configuration": [],
+    "configuration": [{"label": "URL", "type": "url", "name": "href"}
+                      {"label": "Polling interval", "type": "int", "name": "interval"}],
 
     "inputs": [],
     "outputs": [{"name": "output"}],
 
-    "databases": {"content": {}}
+    "database": {}
 }

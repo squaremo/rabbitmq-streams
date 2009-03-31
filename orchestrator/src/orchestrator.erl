@@ -15,8 +15,9 @@ stop(_State) ->
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of
-    {error, bad_name} ->
-        "./priv";
-    D ->
-        D
+        {error, bad_name} ->
+            {ok, Cwd} = file:get_cwd(),
+            Cwd ++ "/priv";
+        D ->
+            D
     end.

@@ -12,5 +12,7 @@
 		       "type": "datasource"}],
 
     "inputs": [],
-    "outputs": [{"name": "output"}]
+    "outputs": [{"name": "output"}],
+
+    "database": null
 }

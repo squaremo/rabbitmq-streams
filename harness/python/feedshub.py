@@ -29,6 +29,12 @@ def ensure_db(config):
     if dbname not in s:
         s.create(dbname)
 
+def ensure_resource(resource):
+    try:
+        resource.head()
+    except:
+        resource.put(content={})
+
 def db_name(db):
     """Give the name of the database.
     >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontest'))
@@ -67,30 +73,8 @@ def db_from_config(config):
     server = couch.Server(config['server'])
     return server[config['database']]
 
-class AmqpPublisher:
-    def __init__(self, connection, exchange, key):
-        self.__channel = connection.channel()
-        self.__exchange = exchange
-        self.__key = key
-        
-    def publish(self, msg):
-        message = amqp.Message(json.dumps(msg))
-        self.__chan.basic_publish(message,
-                                  exchange=self.__exchange,
-                                  routing_key=self.__key)
-    def close(self):
-        self.__channel.close()
-
-class AmqpSubscriber:
-    def __init__(self, connection, queue, callback):
-        self.__channel = new connection.channel()
-        self.__channel.basic_consume(queue=queue, callback=callback)
-
-    def close(self):
-        self.__channel.close()
-
 def amqp_connection_from_config(hostspec):
-    hostname = hostspec['hostname']
+    hostname = hostspec['host']
     port = str(hostspec['port'])
     host = ":".join([hostname, port])
     virt = hostspec['virtual_host']
@@ -101,119 +85,73 @@ def amqp_connection_from_config(hostspec):
                                  virtual_host=virt)
     return connection
 
-def publisher_from_config(connection, exchangespec):
-    exchange = exchangespec['exchange']
-    destination = exchangespec.get('routingkey', '')
-    return AmqpPublisher(connection, exchange, destination)
+def publish_to_exchange(channel, exchange):
+    return lambda zelf, msg: channel.basic_publish(json.dumps(msg), exchange=exchange)
 
-def subscriber_from_config(connection, queuespec, callback):
-    queue = queuespec['queue']
-    return AmqpSubscriber(connection, queue, callback)
+def subscribe_to_queue(channel, queue, callback):
+    channel.basic_consume(queue=queue, callback=callback)
 
-def Component:
+class Component(object):
+
+    INPUTS = {}
+    OUTPUTS = {}
+
     def __init__(self, config):
-        statespec = config['state']
-        self.__statedb = db_from_config(statespec)
-        self.__statedoc = statespec['documentid']
-        self.__settings = config['settings']
+        msghostspec = config['messageserver']
+        self.__conn = amqp_connection_from_config(msghostspec)
+        self.__channel = self.__conn.channel()
+        
+        # Inputs and outputs are matched by position
+        inputs = [(desc['name'], q) for (q, desc) in
+                     zip(config['inputs'], config['plugin_type']['inputs'])]
+
+        for name, queue in inputs:
+            method = getattr(self, self.INPUTS[name])
+            subscribe_to_queue(self.__channel, queue, method)
+            
+        outputs = [(desc['name'], ex) for (ex, desc) in
+                   zip(config['outputs'], config['plugin_type']['outputs'])]
+        for name, exchange in outputs:
+            setattr(self, self.OUTPUTS[name],
+                    publish_to_exchange(self.__channel, exchange))
+
+        self.__stateresource = couch.Resource(None, config['state'])
+        ensure_resource(self.__stateresource)
+
+        if 'database' in config and config['database'] is not None:
+            self.__db = couch.Database(config['database'])
+        else:
+            self.__db = None
+        self.__config = config['config']['configuration']
 
     def putState(self, state):
         """Record the state of the component"""
-        print "Putting state: "
-        print json.dumps(state)
-        self.__statedb[self.__statedoc] = state
+        #print "Putting state: "
+        #print json.dumps(state)
+        resp, data = self.__stateresource.put(content = state)
+        return self.getState()
 
-    def getState(self):
-        return self.__statedb[self.__statedoc]
+    def getState(self, defaultState = None):
+        try:
+            resp, data = self.__stateresource.get()
+            return couch.Document(data)
+        except couch.ResourceNotFound:
+            return defaultState
 
-    def setting(self, name):
+    def privateDatabase(self):
+        return self.__db
+
+    def setting(self, name, defaultValue = None):
         """Get a configuration setting."""
-        return self.__settings.get(name, None)
+        return self.__config.get(name, defaultValue)
 
-
-class Source:
-    """
-    A source has only an output of messages, generated on some schedule.
-
-    Subclasses get to use
-     - publish() to send an item
-     - putState() and getState() to keep state information
-     - error() to report an error in processing
-     - setting() to retrieve a configuration setting
-    """
-
-    def __init__(self, config):
-        super(Source, self).__init__(config)
-        channelspec = config['channels']
-        msghostspec = channelspec['host']
-        self.__conn = amqp_connection_from_config(msghostspec)
-        emitspec = channelspec['out']
-        self.__out = publisher_from_config(self.__conn, emitspec)
-        errorspec = channelspec['err']
-        self.__err = publisher_from_config(self.__conn, errorspec)
-        
-    def publish(self, msg):
-        """Send an item into the system"""
-        self.__out.publish(msg)
-
-    def error(self, msg):
-        """Report a problem"""
-        self.__err.publish(msg)
+    def run(self):
+        while True:
+            self.__channel.wait() # let the callbacks process
 
     def start(self):
         try:
             self.run()
         finally:
-            self.__out.close()
-            self.__err.close()
-            self.__conn.close()
-
-class Sink:
-    """
-    A sink has an input of messages, and does something (other than
-    putting them back into the pipeline) with them.  For example,
-    archiving them into a database.
-
-    Unlike <code>Source</code>s, which get to set their own shedule,
-    sinks are driven by incoming messages.  For that reason, they
-    essentially use a callback mechanism.
-
-    Subclasses get to use
-      - putState() and getState() to keep state information
-      - error() to report an error in processing
-      - setting() to retrieve a configuration setting
-    and should implement
-      - accept() to do something with each message.
-    """
-
-    def __init__(self, config):
-        super(Sink, self).__init__(config)
-        channelspec = config['channels']
-        msghostspec = channelspec['host']
-        self.__conn = amqp_connection_from_config(msghostspec)
-        subscribespec = channelspec['input']
-        self.__in = subscribe_from_config(self.__conn, subscribespec)
-        #errorspec = channelspec['err']
-        #self.__err = publisher_from_config(self.__conn, errorspec)
-        self.__in = subscribe_from_config(self.__conn, subscribespec, self._message)
-        
-    def error(self, msg):
-        """Report a problem"""
-        self.__err.publish(msg)
-
-    def _message(message):
-        tag = message.delivery_tag
-        self.accept(message.body)
-        self.__in.basic_ack(tag)
-
-    def accept(msg):
-        raise NotImplemented
-
-    def start(self):
-        try:
-            while True:
-                ch.wait() # let the callbacks process
-        finally:
-            self.__in.close()
-            #self.__err.close()
+            self.__channel.close()
             self.__conn.close()

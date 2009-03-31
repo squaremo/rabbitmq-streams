@@ -14,7 +14,17 @@
       }
     ],
 
-    "inputs": {"input": {}},
-    "outputs": {},
-    "databases": {"content": {"views": ["newestfirst"]}}
+    "inputs": [{"name": "input", "label": "Input"}],
+    "outputs": [],
+
+    "database": {
+      "_design/articles": {
+        "language": "javascript",
+        "views": {
+          "newestfirst": {
+            "map": "function (doc) { /* do something */ }"
+          }
+        }
+      }
+    }
 }

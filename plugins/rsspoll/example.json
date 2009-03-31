@@ -1,29 +1,22 @@
 {
-  "channels": {
-    "host": {
-      "hostname": "localhost",
-      "virtual_host": "/",
-      "port": 5672,
-      "username": "guest",
-      "password": "guest"
-    },
-    "out": {
-      "exchange": "",
-      "routingkey": ""
-    },
-    "err": {
-      "exchange": "",
-      "routingkey": ""
+  "plugin_dir": "plugins/rsspoll",
+  
+  "messageserver": {
+    "host": "localhost",
+    "virtual_host": "/",
+    "port": 5672,
+    "username": "guest",
+    "password": "guest"
+  },
+  "outputs": [""],
+  "inputs": [""],
+  "state": "http://localhost:5984/state/45n8v9v7298v62y5689n72498n7696",
+  "database": "http://localhost:5984/rsspoll",
+  "config": {
+    "type": "rsspoll",
+    "configuration": {
+      "interval": 120,
+      "href": "http://www.lshift.net/blog/feed"
     }
-  },
-  "state": {
-    "server": "http://localhost:5984",
-    "database": "state",
-    "documentid": "45n8v9v7298v62y5689n72498n7696"
-  },
-  "settings": {
-    "contentserver": "http://localhost:5984",
-    "pollinterval": 60,
-    "href": "http://www.lshift.net/blog/feed"
   }
 }

@@ -1,7 +1,7 @@
 -module(couchapi).
 
 %% Low-level.
--export([get/1, post/2, put/2, delete/1]).
+-export([expand/1, get/1, post/2, put/2, delete/1]).
 
 %% Mid-level.
 -export([simple_result/1]).
@@ -10,6 +10,14 @@
 -export([all_dbs/0, createdb/1, get_view/3, get_view_rows/3]).
 
 %%---------------------------------------------------------------------------
+
+expand({raw, AbsUrl}) ->
+    AbsUrl;
+expand(RelUrl) ->
+    case application:get_env(couch_base_url) of
+        {ok, CouchBaseUrl} -> CouchBaseUrl ++ RelUrl;
+        undefined -> "http://localhost:5984/" ++ RelUrl
+    end.
 
 get(Url) ->
     get1(Url).
@@ -53,7 +61,7 @@ simple_result({ok, V = {obj, _}}) ->
     end;
 simple_result({ok, Other}) ->
     {error, {not_ok, Other}, <<"Unexpected JSON object.">>};
-simple_result(Other = {error, _}) ->
+simple_result(Other) when element(1, Other) =:= error ->
     Other.
 
 
@@ -81,14 +89,6 @@ request(Method, Url, Term) ->
 
 request1(Method, Request) ->
     process_response(http:request(Method, Request, [{version, "HTTP/1.0"}], [])).
-
-expand({raw, AbsUrl}) ->
-    AbsUrl;
-expand(RelUrl) ->
-    case application:get_env(couch_base_url) of
-        {ok, CouchBaseUrl} -> CouchBaseUrl ++ RelUrl;
-        undefined -> "http://localhost:5984/" ++ RelUrl
-    end.
 
 process_response({ok, {{_HttpVersion, StatusCode, _StatusLine}, _Headers, Body}}) ->
     process_json_response(StatusCode, Body);

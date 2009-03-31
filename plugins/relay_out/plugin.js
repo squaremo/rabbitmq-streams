@@ -18,5 +18,7 @@
 				   "Email": "email"}}],
 
     "inputs": [{"name": "input"}],
-    "outputs": []
+    "outputs": [],
+
+    "database": null
 }

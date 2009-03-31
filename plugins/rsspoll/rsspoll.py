@@ -1,33 +1,25 @@
-from feedshub import Source, cons_db, config_of_db, db_from_config, ensure_db
+from feedshub import Component, cons_db, config_of_db, db_from_config, ensure_db
 from fetch import fetch
 
-class RssPollerSource(Source):
+class RssPollerSource(Component):
     
+    OUTPUTS = {'output': 'publish'}
+
+    def error(self, msg):
+        raise str(msg)
+
     def run(self):
         import time
         state = self.getState()
-        contentdb = None
-        try:
-            # TODO factor this into Component.ensureDatabase() or similar
-            if not state.has_key('content'):
-                contentserver = self.setting('contentserver')
-                contentdb = cons_db(contentserver)
-                state['content'] = config_of_db(contentdb)
-            else:
-                ensure_db(state['content'])
-                contentdb = db_from_config(state['content'])
-        except Exception, e:
-            msg = "Could not find or create content database"
-            self.error(msg)
-            raise msg, e
+        contentdb = self.privateDatabase()
 
-        if not state.has_key('href'):
+        if 'href' not in state:
             state['href'] = self.setting('href')
         href = state['href']
 
-        pollinterval = self.setting('pollinterval')
+        pollinterval = self.setting('interval')
         lastpolled = state.get('lastpolled', 0)
-        self.putState(state)
+        state = self.putState(state)
 
         def modified(state):
             return ('modified' in state) and time.gmtime(state['modified']) or None
@@ -62,12 +54,11 @@ class RssPollerSource(Source):
             # is under load, and waking more often can only make things worse.
             if pollAt < now:
                 state = poll(state)
-                self.putState(state)
+                state = self.putState(state)
                 lastpolled = state['lastpolled']
                 time.sleep(pollinterval)
             else:
                 time.sleep(pollAt - now)
-
 
 def run(config):
     component = RssPollerSource(config)
