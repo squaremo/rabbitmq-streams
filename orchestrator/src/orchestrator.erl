@@ -7,7 +7,9 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
-    inets:start(), %% assume it succeeded
+    ok = inets:start(),
+    {ok, _} = inets:start(httpc, [{profile, couchProfile}]),
+    http:set_options([{ipv6, disabled}], couchProfile), % couch doesn't listen on ipv6
     orchestrator_root_sup:start_link().
 
 stop(_State) ->

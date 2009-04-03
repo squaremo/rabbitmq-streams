@@ -88,7 +88,7 @@ request(Method, Url, Term) ->
     request1(Method, {Url, [], "application/json", rfc4627:encode(Term)}).
 
 request1(Method, Request) ->
-    process_response(http:request(Method, Request, [{version, "HTTP/1.0"}], [])).
+    process_response(http:request(Method, Request, [{version, "HTTP/1.1"}], [], couchProfile)).
 
 process_response({ok, {{_HttpVersion, StatusCode, _StatusLine}, _Headers, Body}}) ->
     process_json_response(StatusCode, Body);

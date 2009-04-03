@@ -1,4 +1,4 @@
-import feedparser, time, sha
+import feedparser, time, sha, types
 
 def autoproperty(propname):
     return property(lambda self: getattr(self, propname),
