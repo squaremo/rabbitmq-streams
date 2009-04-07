@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 26
+/svn/!svn/ver/42/trunk/lib
+END
+commons-codec-1.3.jar
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/!svn/ver/5/trunk/lib/commons-codec-1.3.jar
+END
+commons-collections.jar
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/!svn/ver/5/trunk/lib/commons-collections.jar
+END
+json-lib-2.2.3-MODIFIED-jdk15.jar
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/!svn/ver/40/trunk/lib/json-lib-2.2.3-MODIFIED-jdk15.jar
+END
+httpclient-4.0-beta2.jar
+K 25
+svn:wc:ra_dav:version-url
+V 51
+/svn/!svn/ver/42/trunk/lib/httpclient-4.0-beta2.jar
+END
+commons-lang.jar
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/!svn/ver/5/trunk/lib/commons-lang.jar
+END
+commons-logging-1.1.jar
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/!svn/ver/5/trunk/lib/commons-logging-1.1.jar
+END
+commons-beanutils.jar
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svn/!svn/ver/5/trunk/lib/commons-beanutils.jar
+END
+ezmorph-1.0.3.jar
+K 25
+svn:wc:ra_dav:version-url
+V 43
+/svn/!svn/ver/5/trunk/lib/ezmorph-1.0.3.jar
+END
+httpcore-4.0-beta2.jar
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/!svn/ver/42/trunk/lib/httpcore-4.0-beta2.jar
+END
