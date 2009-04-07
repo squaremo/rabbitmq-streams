@@ -18,7 +18,7 @@ def cons_db(server):
     # TODO How much random do we need here?
     dbname = sha.new(os.urandom(8)).hexdigest()
     s = couch.Server(server)
-    while dbname in s:
+    while dbname in s or dbname[0] < 'a': # dbnames must start with a char, see couchdb api
         dbname = sha.new(os.urandom(8)).hexdigest()
     s.create(dbname)
     return db_from_config(dict(server=server, database=dbname))
