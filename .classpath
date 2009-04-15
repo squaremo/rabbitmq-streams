@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" output="harness/java/bin" path="harness/java/src"/>
+	<classpathentry kind="src" output="plugins/xslt" path="plugins/xslt"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/dist/couchdb4j-0.3.0-SVN.jar" sourcepath="harness/java/lib/couchdb4j-read-only/src/java"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/commons-beanutils.jar"/>
@@ -12,6 +13,6 @@
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/httpclient-4.0-beta2.jar"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/httpcore-4.0-beta2.jar"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/json-lib-2.2.3-MODIFIED-jdk15.jar"/>
-	<classpathentry kind="lib" path="harness/java/lib/rabbitmq-java-client-1.5.4/build/classes"/>
+	<classpathentry kind="lib" path="harness/java/lib/rabbitmq-java-client-1.5.4/build/classes" sourcepath="harness/java/lib/rabbitmq-java-client-1.5.4/src"/>
 	<classpathentry kind="output" path="build/scratch/java"/>
 </classpath>
