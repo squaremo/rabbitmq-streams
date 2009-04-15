@@ -1,4 +1,4 @@
-package net.lshift.feedshub;
+package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 

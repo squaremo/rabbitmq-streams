@@ -1,17 +1,20 @@
 {
     "type": "feed",
-    "active": false,
+    "active": true,
     "user": "testuser",
     "wiring": {
 	"nodes": {
 	    "the_input": {
-		"type": "relay_in"
+		"type": "rsspoll",
+		"configuration": {"href": "http://www.lshift.net/blog/feed",
+                                  "interval": 120}
 	    },
 	    "the_transformer": {
 		"type": "xslt"
 	    },
 	    "the_output": {
-		"type": "relay_out"
+		"type": "webfeed",
+                "configuration": {"title": "Test xslt"}
 	    }
 	},
 	"edges": [
