@@ -1,4 +1,4 @@
-from feedshub import Component, cons_db, config_of_db, db_from_config, ensure_db
+from feedshub import Component
 from fetch import fetch
 
 class RssPollerSource(Component):

@@ -10,25 +10,6 @@ try:
 except:
     import simplejson as json
 
-def cons_db(server):
-    """Construct a storage database
-    @return the fresh database
-    """
-    import os, sha
-    # TODO How much random do we need here?
-    dbname = sha.new(os.urandom(8)).hexdigest()
-    s = couch.Server(server)
-    while dbname in s or dbname[0] < 'a': # dbnames must start with a char, see couchdb api
-        dbname = sha.new(os.urandom(8)).hexdigest()
-    s.create(dbname)
-    return db_from_config(dict(server=server, database=dbname))
-
-def ensure_db(config):
-    s = couch.Server(config['server'])
-    dbname = config['database']
-    if dbname not in s:
-        s.create(dbname)
-
 def ensure_resource(resource):
     try:
         resource.head()
