@@ -23,4 +23,6 @@ public abstract class Plugin {
 		messageServerConnection.close();
 	}
 	
+	public abstract void run();
+	
 }

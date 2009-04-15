@@ -23,6 +23,7 @@ public class Run {
 			Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
 			plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArgs);
 
+			plugin.run();
 		} catch (Exception e) {
 			throw e;
 		} finally {

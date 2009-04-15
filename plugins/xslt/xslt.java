@@ -10,4 +10,9 @@ public class xslt extends Plugin {
 		super(config);
 	}
 
+	@Override
+	public void run() {
+		
+	}
+
 }
