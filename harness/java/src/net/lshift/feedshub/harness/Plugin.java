@@ -18,15 +18,17 @@ public abstract class Plugin {
 	final protected Connection messageServerConnection;
 	final protected Channel messageServerChannel;
 	final protected JSONObject config;
+	final protected JSONObject configuration;
 
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
+		this.configuration = config.getJSONObject("config").getJSONObject("configuration");
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
 		messageServerChannel = messageServerConnection.createChannel();
 	}
-	
+
 	protected void init() throws IOException {
 		JSONObject pluginType = config.getJSONObject("plugin_type");
 
@@ -46,9 +48,7 @@ public abstract class Plugin {
 					public void handleCancelOk(String consumerTag) {
 						try {
 							Object consumer = pluginQueueField.get(Plugin.this);
-							if (null != consumer)
-								((Consumer) consumer)
-										.handleCancelOk(consumerTag);
+							((Consumer) consumer).handleCancelOk(consumerTag);
 						} catch (IllegalArgumentException e) {
 							e.printStackTrace();
 						} catch (IllegalAccessException e) {
@@ -59,9 +59,7 @@ public abstract class Plugin {
 					public void handleConsumeOk(String consumerTag) {
 						try {
 							Object consumer = pluginQueueField.get(Plugin.this);
-							if (null != consumer)
-								((Consumer) consumer)
-										.handleConsumeOk(consumerTag);
+							((Consumer) consumer).handleConsumeOk(consumerTag);
 						} catch (IllegalArgumentException e) {
 							e.printStackTrace();
 						} catch (IllegalAccessException e) {
@@ -74,9 +72,8 @@ public abstract class Plugin {
 							throws IOException {
 						try {
 							Object consumer = pluginQueueField.get(Plugin.this);
-							if (null != consumer)
-								((Consumer) consumer).handleDelivery(arg0,
-										arg1, arg2, arg3);
+							((Consumer) consumer).handleDelivery(arg0, arg1,
+									arg2, arg3);
 						} catch (IllegalArgumentException e) {
 							e.printStackTrace();
 						} catch (IllegalAccessException e) {
@@ -88,9 +85,8 @@ public abstract class Plugin {
 							ShutdownSignalException sig) {
 						try {
 							Object consumer = pluginQueueField.get(Plugin.this);
-							if (null != consumer)
-								((Consumer) consumer).handleShutdownSignal(
-										consumerTag, sig);
+							((Consumer) consumer).handleShutdownSignal(
+									consumerTag, sig);
 						} catch (IllegalArgumentException e) {
 							e.printStackTrace();
 						} catch (IllegalAccessException e) {
@@ -100,7 +96,8 @@ public abstract class Plugin {
 
 				};
 				messageServerChannel.basicConsume(inputsAry.getString(idx),
-						callback);
+						true, callback);
+
 			} catch (NoSuchFieldException e) {
 				e.printStackTrace();
 				shutdown();
@@ -112,6 +109,7 @@ public abstract class Plugin {
 		JSONArray outputTypesAry = pluginType.getJSONArray("outputs");
 
 		final BasicProperties blankBasicProps = new BasicProperties();
+		blankBasicProps.deliveryMode = 2; // persistent
 		for (int idx = 0; idx < outputsAry.size()
 				&& idx < outputTypesAry.size(); ++idx) {
 			final String exchange = outputsAry.getString(idx);

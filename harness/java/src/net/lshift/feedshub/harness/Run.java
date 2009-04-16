@@ -16,10 +16,14 @@ public class Run {
 			JSONObject jsonArgs = JSONObject.fromObject(new BufferedReader(
 					new InputStreamReader(System.in)).readLine());
 			String pluginDir = "file://" + jsonArgs.getString("plugin_dir");
+			if (!pluginDir.endsWith("/")) {
+				pluginDir += "/";
+			}
 			String pluginName = jsonArgs.getJSONObject("config").getString(
 					"type");
 
-			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(pluginDir) });
+			ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
+			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(pluginDir) }, defaultCL);
 			Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
 			plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArgs);
 

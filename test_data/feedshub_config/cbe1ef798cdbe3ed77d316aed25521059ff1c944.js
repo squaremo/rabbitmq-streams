@@ -10,7 +10,8 @@
                                   "interval": 120}
 	    },
 	    "the_transformer": {
-		"type": "xslt"
+		"type": "xslt",
+		"configuration": {"stylesheet_url": "http://dev.lshift.net/matthew/sample.xslt"}
 	    },
 	    "the_output": {
 		"type": "webfeed",
