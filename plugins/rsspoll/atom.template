@@ -1,0 +1,17 @@
+$def with (entry)
+<?xml version="1.0"?>
+<atom:entry xmlns:atom="http://www.w3.org/2005/Atom">
+  <atom:title type="text">$entry['title']</atom:title>
+  $if entry.has_key('author'):
+    <atom:author>$entry['author']</atom:author>
+  $for content in entry['content']:
+    $if not content.has_key('type') or content['type'] == 'text/plain':
+      <atom:content type="text">$:content['value']</atom:content>
+    $elif content['type'] == 'text/html':
+      <atom:content type="html">$:content['value']</atom:content>
+    $elif content['type'] == 'application/xhtml+xml':
+      <atom:content type="xhtml">$:content['value']</atom:content>
+    $else:
+      <atom:content type="$content['type']">$:content['value']</atom:content>
+<!-- TODO: Many other elements -->
+</atom:entry>

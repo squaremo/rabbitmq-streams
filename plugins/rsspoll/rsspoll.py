@@ -1,5 +1,8 @@
 from feedshub import Component
 from fetch import fetch
+import web.template as template
+
+rss = template.frender('atom.template')
 
 class RssPollerSource(Component):
     
@@ -34,7 +37,8 @@ class RssPollerSource(Component):
                 # TODO notify of new items
                 updated = response['updated']
                 for msg in updated:
-                    self.publish(msg)
+                    xml = rss(entry=msg)
+                    self.publish(xml)
                 contentdb.update(updated)
 
             state.update(response)

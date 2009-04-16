@@ -17,7 +17,7 @@ def restrict(d, keys):
 
 entry_fields = [ 'title', 'title_detail', 'link', 'links',
                  'subtitle', 'subtitle_detail', 'rights', 'rights_detail',
-                 'id', 'author', 'author_detail' ]
+                 'id', 'author', 'author_detail', 'content' ]
 
 status_fields = ['status', 'href', 'etags', 'modified']
 
