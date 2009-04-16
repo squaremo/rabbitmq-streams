@@ -17,12 +17,12 @@ do
     cd $SCRATCH
     jar xf $(basename $j)
     rm $(basename $j)
-    rm -rf META-INF
     popd > /dev/null
 done
 
 pushd . > /dev/null
 cd $SCRATCH
+rm -rf META-INF
 jar cf feedshub_harness.jar $(find . -name '*.class' -type f)
 popd > /dev/null
 

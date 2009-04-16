@@ -4,6 +4,7 @@ class FeedArchiver(Component):
     INPUTS = {'input': 'accept'}
 
     def accept(self, msg):
+        print msg
         id = msg['_id']
         db = self.privateDatabase()
         if id not in db:
