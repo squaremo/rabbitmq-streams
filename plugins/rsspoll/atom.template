@@ -1,7 +1,8 @@
 $def with (entry)
 <?xml version="1.0"?>
 <atom:entry xmlns:atom="http://www.w3.org/2005/Atom">
-  <atom:title type="text">$entry['title']</atom:title>
+  $if entry.has_key('title'):
+    <atom:title type="text">$entry['title']</atom:title>
   $if entry.has_key('author'):
     <atom:author>$entry['author']</atom:author>
   $for content in entry['content']:

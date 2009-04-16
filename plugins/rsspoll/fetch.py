@@ -1,4 +1,7 @@
 import feedparser, time, sha, types
+import web.template as template
+
+rss = template.frender('atom.template')
 
 def autoproperty(propname):
     return property(lambda self: getattr(self, propname),
@@ -67,9 +70,10 @@ def fetch(database, href, feed_args):
         
     def doc(e):
         e = restrict(e, entry_fields)
-        return dict(_id=docid(e), entry=e)
+        return dict(_id=docid(e), entry=unicode(rss(entry=e)))
 
     index = dbindex(database)
+    # TODO: do this in two steps, one to get IDs, one to use template
     docs = [d for d in map(doc, feed.entries) if d['_id'] not in index]
     # TODO: updated entries
     return dict(lastpolled=now,
