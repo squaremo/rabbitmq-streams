@@ -63,8 +63,10 @@ public class xslt extends Plugin {
 	                xslt.this.output.publish(output.toByteArray());
 				} catch (TransformerConfigurationException e) {
 					e.printStackTrace();
+					System.exit(1);
 				} catch (TransformerException e) {
 					e.printStackTrace();
+					System.exit(1);
 				}
 		 
 			}
