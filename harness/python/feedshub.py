@@ -67,10 +67,13 @@ def amqp_connection_from_config(hostspec):
     return connection
 
 def publish_to_exchange(channel, exchange):
-    return lambda msg: channel.basic_publish(amqp.Message(json.dumps(msg)), exchange=exchange)
+    def p(msg, **headers):
+        # TODO: treat application_headers specially, and expect a content type
+        channel.basic_publish(amqp.Message(body=msg, children=None, **headers), exchange=exchange)
+    return p
 
 def subscribe_to_queue(channel, queue, method):
-    channel.basic_consume(queue=queue, callback=lambda msg: method(json.loads(msg.body)))
+    channel.basic_consume(queue=queue, callback=lambda msg: method(msg))
 
 class Component(object):
 

@@ -1,0 +1,95 @@
+Please see http://www.rabbitmq.com/build-java-client.html for build 
+instructions.
+
+For your convenience, a text copy of these instructions is available 
+below. Please be aware that the instructions here may not be as up to 
+date as those at the above URL.
+
+===========================================================================
+
+
+                                    RabbitMQ
+
+     * News
+     * Download
+     * Documentation
+     * Examples
+     * Services
+     * FAQ
+
+   --------------------------------------------------------------------------
+
+   This section describes the process for obtaining a copy of the RabbitMQ
+   Java AMQP client source code, as well as instructions for building the
+   Java client from source.
+
+  Table of Contents
+
+     * Obtaining the source
+     * Required Libraries and Tools
+     * Building the Java client libraries
+
+Obtaining the source
+
+     * Either download a released source code distribution from the download
+       page, or
+     * Check the code out directly from our mercurial repositories:
+
+ $ hg clone http://hg.rabbitmq.com/rabbitmq-codegen
+ $ hg clone http://hg.rabbitmq.com/rabbitmq-java-client
+ $ cd rabbitmq-java-client
+ $ ant dist
+
+   If you choose to check the code out using mercurial, be aware that the
+   code-generation module is a dependency of the Java client library. If
+   you're working with a released source code distribution, though, the
+   code-generation module is included.
+
+Required Libraries and Tools
+
+   In order to build RabbitMQ Java AMQP client library, you will need a few
+   tools.
+
+   The Java client libraries requires a recent version of Python and
+   simplejson.py (an implementation of a JSON reader and writer in Python),
+   for generating AMQP framing code. simplejson.py is included as a standard
+   json library in the Python core since 2.6 release.
+
+   Additionally, for building the Java client libraries, you will need
+
+     * a Java compiler, for Java language version 1.5 or newer
+     * Ant, version 1.6 or newer, including the optional ant-trax.jar (if you
+       download ant from the above then this is included; if you are using
+       the ant Debian/Ubuntu package then you also need to install the
+       ant-optional package).
+
+Building the Java client libraries
+
+   Ensure JAVA_HOME is correctly set. Change to the rabbitmq-java-client
+   directory and type ant.
+
+   Other interesting build.xml targets include
+
+   build
+           The default target. Builds the client library classes into
+           build/classes.
+
+   clean
+           Removes the entire build directory, including compiled classes,
+           built jar files, and any distributions placed under build/dist.
+
+   jar
+           Builds a jar file from the client library classes into build/lib.
+
+   dist
+           Constructs a directory, by default build/dist, containing the
+           RabbitMQ Java AMQP client jar files as well as all the libraries
+           the AMQP client depends on from lib. The distribution output
+           directory can be overridden by setting the Ant property dist.out
+           to a new location:
+
+           ant -Ddist.out=/some/place/to/put/a/distribution dist
+
+   --------------------------------------------------------------------------
+
+   RabbitMQ(TM) is a Trademark of Rabbit Technologies Ltd.

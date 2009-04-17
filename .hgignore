@@ -6,3 +6,4 @@
 ~$
 ^couchdb.std(err|out)$
 ^couchlogtail.pid$
+\.class$
