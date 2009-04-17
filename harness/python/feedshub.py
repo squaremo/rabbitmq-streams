@@ -10,25 +10,6 @@ try:
 except:
     import simplejson as json
 
-def cons_db(server):
-    """Construct a storage database
-    @return the fresh database
-    """
-    import os, sha
-    # TODO How much random do we need here?
-    dbname = sha.new(os.urandom(8)).hexdigest()
-    s = couch.Server(server)
-    while dbname in s or dbname[0] < 'a': # dbnames must start with a char, see couchdb api
-        dbname = sha.new(os.urandom(8)).hexdigest()
-    s.create(dbname)
-    return db_from_config(dict(server=server, database=dbname))
-
-def ensure_db(config):
-    s = couch.Server(config['server'])
-    dbname = config['database']
-    if dbname not in s:
-        s.create(dbname)
-
 def ensure_resource(resource):
     try:
         resource.head()
@@ -86,10 +67,13 @@ def amqp_connection_from_config(hostspec):
     return connection
 
 def publish_to_exchange(channel, exchange):
-    return lambda msg: channel.basic_publish(amqp.Message(json.dumps(msg)), exchange=exchange)
+    def p(msg, **headers):
+        # TODO: treat application_headers specially, and expect a content type
+        channel.basic_publish(amqp.Message(body=msg, children=None, **headers), exchange=exchange)
+    return p
 
 def subscribe_to_queue(channel, queue, method):
-    channel.basic_consume(queue=queue, callback=lambda msg: method(json.loads(msg.body)))
+    channel.basic_consume(queue=queue, callback=lambda msg: method(msg))
 
 class Component(object):
 

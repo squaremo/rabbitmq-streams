@@ -1,4 +1,4 @@
-from feedshub import Component, cons_db, config_of_db, db_from_config, ensure_db
+from feedshub import Component
 from fetch import fetch
 
 class RssPollerSource(Component):
@@ -34,7 +34,7 @@ class RssPollerSource(Component):
                 # TODO notify of new items
                 updated = response['updated']
                 for msg in updated:
-                    self.publish(msg)
+                    self.publish(msg['entry'], content_type='application/atom+xml')
                 contentdb.update(updated)
 
             state.update(response)

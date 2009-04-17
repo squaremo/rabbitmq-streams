@@ -7,7 +7,7 @@
 	    "the_input": {
 		"type": "rsspoll",
 		"configuration": {"href": "http://www.lshift.net/blog/feed",
-                                  "interval": 120}
+                                  "interval": 30}
 	    },
 	    "the_transformer": {
 		"type": "xslt",

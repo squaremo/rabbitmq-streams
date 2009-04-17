@@ -1,6 +1,7 @@
 package net.lshift.feedshub.harness;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -10,7 +11,7 @@ import net.sf.json.JSONObject;
 public class Run {
 
 	@SuppressWarnings("unchecked")
-	public static void main(final String[] args) throws Exception {
+	public static void main(final String[] args) throws IOException {
 		Plugin plugin = null;
 		try {
 			JSONObject jsonArgs = JSONObject.fromObject(new BufferedReader(
@@ -29,7 +30,7 @@ public class Run {
 
 			plugin.run();
 		} catch (Exception e) {
-			throw e;
+			e.printStackTrace();
 		} finally {
 			if (null != plugin) {
 				plugin.shutdown();

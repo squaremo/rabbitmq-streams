@@ -31,13 +31,17 @@ public class xslt extends Plugin {
 
 	private final Object lock = new Object();
 
-	public xslt(final JSONObject config) throws IOException {
+	public xslt(final JSONObject config) throws Exception {
 		super(config);
 		String xsltSrc = configuration.getString("stylesheet_url");
-		URLConnection xsltConn = new URL( xsltSrc ).openConnection();
+		URLConnection xsltConn = new URL(xsltSrc).openConnection();
 		xsltConn.connect();
-		final InputStream xsltFileContent = (InputStream) xsltConn.getContent();
-		
+		InputStream xsltFileContent = (InputStream) xsltConn.getContent();
+		StreamSource xsltSource = new StreamSource(xsltFileContent);
+
+		TransformerFactory transFact = TransformerFactory.newInstance();
+		final Transformer trans = transFact.newTransformer(xsltSource);
+
 		input = new Consumer() {
 
 			public void handleCancelOk(String consumerTag) {
@@ -47,20 +51,18 @@ public class xslt extends Plugin {
 			public void handleConsumeOk(String consumerTag) {
 			}
 
-			public void handleDelivery(String arg0, Envelope arg1,
+			public void handleDelivery(String consumerTag, Envelope envelope,
 					BasicProperties arg2, byte[] msg) throws IOException {
 				StreamSource xmlSource = new StreamSource(
 						new ByteArrayInputStream(msg));
-				StreamSource xsltSource = new StreamSource(xsltFileContent);
 				ByteArrayOutputStream output = new ByteArrayOutputStream();
 				StreamResult result = new StreamResult(output);
 
-				TransformerFactory transFact =
-		                TransformerFactory.newInstance();
 				try {
-			        Transformer trans = transFact.newTransformer(xsltSource);
-			        trans.transform(xmlSource, result);
-	                xslt.this.output.publish(output.toByteArray());
+					trans.transform(xmlSource, result);
+					String outputString = output.toString();
+					xslt.this.output.publish(outputString.getBytes());
+					xslt.this.output.acknowledge(envelope.getDeliveryTag());
 				} catch (TransformerConfigurationException e) {
 					e.printStackTrace();
 					System.exit(1);
@@ -68,7 +70,6 @@ public class xslt extends Plugin {
 					e.printStackTrace();
 					System.exit(1);
 				}
-		 
 			}
 
 			public void handleShutdownSignal(String consumerTag,

@@ -1,14 +1,17 @@
 from feedshub import Component
+import sha
+
+import simplejson as json
 
 class FeedArchiver(Component):
     INPUTS = {'input': 'accept'}
 
     def accept(self, msg):
-        print msg
-        id = msg['_id']
+        body = msg.body
+        id = sha.new(body).hexdigest()
         db = self.privateDatabase()
         if id not in db:
-            db[id] = msg
+            db[id] = {'entry': body}
 
     def run(self):
         super(FeedArchiver, self).run()
