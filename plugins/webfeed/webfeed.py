@@ -12,6 +12,7 @@ class FeedArchiver(Component):
         db = self.privateDatabase()
         if id not in db:
             db[id] = {'entry': body}
+        self.ack(msg)
 
     def run(self):
         super(FeedArchiver, self).run()
