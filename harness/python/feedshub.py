@@ -108,6 +108,9 @@ class Component(object):
             self.__db = None
         self.__config = config['config']['configuration']
 
+    def ack(self, msg):
+        self.__channel.basic_ack(msg.delivery_info.delivery_tag)
+
     def putState(self, state):
         """Record the state of the component"""
         #print "Putting state: "
