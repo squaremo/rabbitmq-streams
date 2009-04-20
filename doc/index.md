@@ -1,3 +1,3 @@
 # Index
 
-Documentation.
+ * [Plugin harness development](harness_dev.html)
