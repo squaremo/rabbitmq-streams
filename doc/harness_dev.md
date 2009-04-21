@@ -18,25 +18,25 @@ document) will be kept up-to-date.
 
 ## Harness invocation
 
-The harness is named by the plugin descriptor plugin.js in the plugin
-directory.  The name is treated as a directory under harness/, and the
-file run_plugin.sh in that directory is invoked.  The plugin
-configuration is then printed, as JSON, to that process's STDIN.
+The harness is named by the plugin descriptor `plugin.js` in the
+plugin directory.  The name is treated as a directory under
+`harness/`, and the file `run_plugin.sh` in that directory is invoked.
+The plugin configuration is then printed, as JSON, to that process's
+STDIN.
 
-The harness, then, must ''at least'' read the configuration, extract
-the plugin name (and use it as a directory under plugins/), and run
-the plugin code, supplying the configuration in an appropriate form.
-It may also need to set environment variables, load modules, and so
-on.
+The harness, then, must _at least_ read the configuration, extract the
+plugin name (and use it as a directory under `plugins/`), and run the
+plugin code, supplying the configuration in an appropriate form.  It
+may also need to set environment variables, load modules, and so on.
 
 Each harness will have its own convention for how to run a plugin
 given its name.  For example, the Python harness treats the plugin
-name as the directory ''and'' as a module name, under which it (by
-convention) expects to find a callable named 'run', which it invokes
+name as the directory **and** as a module name, under which it (by
+convention) expects to find a callable named `run`, which it invokes
 with the arguments as a dictionary.  It also puts the harness
-directory on the PYTHON_PATH so that the plugin base class can be
-imported, as well as lib/ in the plugin directory; and, it changes the
-working directory to the plugin directory so that resources can be
+directory on the `PYTHON_PATH` so that the plugin base class can be
+imported, as well as `lib/` in the plugin directory; and, it changes
+the working directory to the plugin directory so that resources can be
 loaded relative to that directory.
 
 ## Harness services
