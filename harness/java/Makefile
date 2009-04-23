@@ -8,3 +8,7 @@ harness-jar: java-harness
 java-harness:
 	- mkdir bin
 	javac -classpath $(CLASSPATH) -d bin $(SOURCE)
+
+clean:
+	rm -rf ./bin
+	rm -f feedshub_harness.jar

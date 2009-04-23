@@ -12,19 +12,17 @@ cp -a bin/* $SCRATCH
 for j in $(find lib -type f -name "*.jar")
 do
     echo $j
-    pushd . > /dev/null
     cp -a $j $SCRATCH
     cd $SCRATCH
     jar xf $(basename $j)
     rm $(basename $j)
-    popd > /dev/null
+    cd $DIR
 done
 
-pushd . > /dev/null
 cd $SCRATCH
 rm -rf META-INF
 jar cf feedshub_harness.jar $(find . -name '*.class' -type f)
-popd > /dev/null
+cd $DIR
 
 cp $SCRATCH/feedshub_harness.jar .
 zip -Tv feedshub_harness.jar
