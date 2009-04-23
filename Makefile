@@ -3,6 +3,13 @@ SHELL=/bin/bash
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
 
+LISTEN_ORCH_PORT := 7565
+LISTEN_RABBIT_PORT := 7566
+LISTEN_COUCH_PORT := 7567
+ORCH_FIFO := build/scratch/orch_fifo
+RABBIT_FIFO := build/scratch/rabbit_fifo
+COUCH_FIFO := build/scratch/couch_fifo
+
 default_target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
@@ -63,6 +70,46 @@ full_reset_core:
 
 create-build-logs-dir:
 	mkdir -p build/logs
+
+###########################################################################
+# Run alternatives which don't create xterms unless you want them to
+
+listen_orchestrator:
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done" &
+
+run_orchestrator:
+	mkfifo $(ORCH_FIFO)
+	( cat $(ORCH_FIFO) | \
+	  ( $(MAKE) -C orchestrator run ; \
+	    echo "Orchestrator died" ; \
+	    pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)" ) 2>&1 | \
+	  nc localhost $(LISTEN_ORCH_PORT) > $(ORCH_FIFO) 2>&1 ; rm -f $(ORCH_FIFO) ) 2>/dev/null &
+
+listen_couch:
+	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done" &
+
+run_couch:
+	mkfifo $(COUCH_FIFO)
+	( cat $(COUCH_FIFO) | \
+	  ( $(OPT_COUCH)/bin/couchdb -i ; \
+	    echo "CouchDb died" ; \
+	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) 2>&1 | \
+	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
+
+listen_rabbit:
+	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done" &
+
+run_rabbit:
+	mkfifo $(RABBIT_FIFO)
+	( cat $(RABBIT_FIFO) | \
+	  ( ./start-feedshub-rabbit.sh ; \
+	    echo "Myxomatosis" ; \
+	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) 2>&1 | \
+	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
+
+listen_all: listen_orchestrator listen_couch listen_rabbit
+
+run_core_nox: run_couch run_rabbit
 
 ###########################################################################
 # CouchDB
@@ -166,7 +213,7 @@ install-debs:
 
 install-dev-debs:
 	: # these come from the couchdb README.
-	sudo apt-get install automake autoconf libtool help2man
-	sudo apt-get install build-essential erlang libicu38 libicu-dev libmozjs-dev libcurl4-openssl-dev
-	: # these are (this is) RabbitMQ server build dependencies
-	sudo apt-get install elinks python-json python-simplejson
+	- sudo apt-get install automake autoconf libtool help2man netcat-openbsd \
+	                       build-essential erlang libicu38 libicu-dev \
+	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
+	                       elinks python-json python-simplejson
