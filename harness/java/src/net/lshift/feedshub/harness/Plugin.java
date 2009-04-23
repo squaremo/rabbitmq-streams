@@ -29,6 +29,9 @@ public abstract class Plugin {
 
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
+                // TODO:  global configuration
+                // e.g., JSONObject globalConfig = config.getJSONObject("global_configuration");
+                // etc.
 		this.configuration = config.getJSONObject("configuration");
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
