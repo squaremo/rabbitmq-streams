@@ -7,4 +7,4 @@
 ^couchdb.std(err|out)$
 ^couchlogtail.pid$
 \.class$
-^harness/java/feedshub_harness.jar$
+^harness/java/feedshub_harness\.jar$
