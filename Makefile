@@ -75,7 +75,7 @@ create-build-logs-dir:
 # Run alternatives which don't create xterms unless you want them to
 
 listen_orchestrator:
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "nc -k -l $(LISTEN_ORCH_PORT)" &
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done" &
 
 run_orchestrator:
 	mkfifo $(ORCH_FIFO)
@@ -86,7 +86,7 @@ run_orchestrator:
 	  nc localhost $(LISTEN_ORCH_PORT) > $(ORCH_FIFO) 2>&1 ; rm -f $(ORCH_FIFO) ) 2>/dev/null &
 
 listen_couch:
-	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "nc -k -l $(LISTEN_COUCH_PORT)" &
+	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done" &
 
 run_couch:
 	mkfifo $(COUCH_FIFO)
@@ -97,7 +97,7 @@ run_couch:
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 
 listen_rabbit:
-	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "nc -k -l $(LISTEN_RABBIT_PORT)" &
+	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done" &
 
 run_rabbit:
 	mkfifo $(RABBIT_FIFO)
