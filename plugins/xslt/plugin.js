@@ -7,12 +7,12 @@
     "subtype": "pipeline_component",
 
     "global_configuration": [],
-    "configuration": [{"name": "stylesheet_url",
+    "configuration_specification": [{"name": "stylesheet_url",
 		       "label": "Stylesheet URL",
 		       "type": "url"}],
 
-    "inputs": [{"name": "input"}],
-    "outputs": [{"name": "output"}],
+    "inputs_specification": [{"name": "input"}],
+    "outputs_specification": [{"name": "output"}],
 
-    "database": null
+    "database_specification": null
 }

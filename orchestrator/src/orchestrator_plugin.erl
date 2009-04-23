@@ -44,6 +44,7 @@ plugin_not_found(PluginId) ->
 init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
+    {ok, PluginUserConfig}  = rfc4627:get_field(PluginConfig, "configuration"),
     PluginType = binary_to_list(PluginTypeBin),
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = harness_path(HarnessType, ""),
@@ -56,11 +57,12 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
     StateDocUrl = couchapi:expand("feed_" ++ FeedId ++ "/state_" ++ NodeId),
     ConfigDoc = {obj,
                  [{"harness_type", HarnessTypeBin},
+                  {"plugin_name", PluginTypeBin},
                   {"plugin_dir", list_to_binary(plugin_path(PluginType, ""))},
                   {"feed_id", list_to_binary(FeedId)},
                   {"node_id", list_to_binary(NodeId)},
                   {"plugin_type", PluginTypeConfig},
-                  {"config", PluginConfig},
+                  {"configuration", PluginUserConfig},
                   {"messageserver",
                    {obj, [{"host", <<"localhost">>}, %% TODO thread thru from root config
                           {"port", 5672}, %% TODO thread thru from root config
@@ -68,7 +70,7 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                           {"username", <<"feedshub_admin">>}, %% TODO use per-feed username
                           {"password", <<"feedshub_admin">>} %% TODO use per-feed username
                           ]}},
-                  {"inputs", [list_to_binary(Q) || Q <- Queues]}, %% TODO thread thru queue names
+                  {"inputs", [list_to_binary(Q) || Q <- Queues]}, %% TODO thread thru queue names?
                   {"outputs", [list_to_binary(X) || X <- Exchanges]},
                   {"state", list_to_binary(StateDocUrl)},
                   {"database", case DbName of

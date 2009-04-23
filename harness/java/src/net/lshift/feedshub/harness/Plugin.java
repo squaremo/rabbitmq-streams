@@ -22,8 +22,7 @@ public abstract class Plugin {
 
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
-		this.configuration = config.getJSONObject("config").getJSONObject(
-				"configuration");
+		this.configuration = config.getJSONObject("configuration");
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
@@ -34,7 +33,7 @@ public abstract class Plugin {
 		JSONObject pluginType = config.getJSONObject("plugin_type");
 
 		JSONArray inputsAry = config.getJSONArray("inputs");
-		JSONArray inputTypesAry = pluginType.getJSONArray("inputs");
+		JSONArray inputTypesAry = pluginType.getJSONArray("inputs_specification");
 
 		for (int idx = 0; idx < inputsAry.size() && idx < inputTypesAry.size(); ++idx) {
 			final String fieldName = inputTypesAry.getJSONObject(idx)
@@ -106,7 +105,7 @@ public abstract class Plugin {
 		}
 
 		JSONArray outputsAry = config.getJSONArray("outputs");
-		JSONArray outputTypesAry = pluginType.getJSONArray("outputs");
+		JSONArray outputTypesAry = pluginType.getJSONArray("outputs_specification");
 
 		final BasicProperties blankBasicProps = new BasicProperties();
 		blankBasicProps.deliveryMode = 2; // persistent

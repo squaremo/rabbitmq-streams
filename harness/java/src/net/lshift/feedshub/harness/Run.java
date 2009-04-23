@@ -20,8 +20,7 @@ public class Run {
 			if (!pluginDir.endsWith("/")) {
 				pluginDir += "/";
 			}
-			String pluginName = jsonArgs.getJSONObject("config").getString(
-					"type");
+			String pluginName = jsonArgs.getString("plugin_name");
 
 			ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
 			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(pluginDir) }, defaultCL);
