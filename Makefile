@@ -82,7 +82,7 @@ run_orchestrator:
 	( cat $(ORCH_FIFO) | \
 	  ( $(MAKE) -C orchestrator run ; \
 	    echo "Orchestrator died" ; \
-	    pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)" ) | \
+	    pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_ORCH_PORT) > $(ORCH_FIFO) 2>&1 ; rm -f $(ORCH_FIFO) ) 2>/dev/null &
 
 listen_couch:
@@ -93,7 +93,7 @@ run_couch:
 	( cat $(COUCH_FIFO) | \
 	  ( $(OPT_COUCH)/bin/couchdb -i ; \
 	    echo "CouchDb died" ; \
-	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) | \
+	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 
 listen_rabbit:
@@ -104,7 +104,7 @@ run_rabbit:
 	( cat $(RABBIT_FIFO) | \
 	  ( ./start-feedshub-rabbit.sh ; \
 	    echo "Myxomatosis" ; \
-	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) | \
+	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
 
 listen_all: listen_orchestrator listen_couch listen_rabbit
