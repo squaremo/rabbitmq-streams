@@ -2,10 +2,14 @@ package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URL;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
+import com.fourspaces.couchdb.Database;
+import com.fourspaces.couchdb.Document;
+import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Consumer;
@@ -19,6 +23,9 @@ public abstract class Plugin {
 	final protected Channel messageServerChannel;
 	final protected JSONObject config;
 	final protected JSONObject configuration;
+	final private Database stateDb;
+	final private String stateDocName;
+	final protected Database privateDb;
 
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
@@ -27,6 +34,31 @@ public abstract class Plugin {
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
 		messageServerChannel = messageServerConnection.createChannel();
+
+		URL dbURL = new URL(config.getString("state"));
+		String path = dbURL.getPath();
+		int loc = path.lastIndexOf('/');
+		String db = path.substring(0, loc);
+
+		Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(),
+				"", "");
+		stateDocName = path.substring(1 + loc);
+		stateDb = couchSession.getDatabase(db);
+		
+		String privDb = config.getString("database");
+		if (null == privDb) {
+			privateDb = null;
+		} else {
+			privateDb = couchSession.createDatabase(privDb);
+		}
+	}
+
+	protected Document getState() throws IOException {
+		return stateDb.getDocument(stateDocName);
+	}
+
+	protected void setState(Document state) throws IOException {
+		stateDb.saveDocument(state, stateDocName);
 	}
 
 	protected void init() throws Exception {
