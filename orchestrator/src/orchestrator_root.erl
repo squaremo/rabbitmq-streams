@@ -108,10 +108,10 @@ startup_couch_scan() ->
 check_active_feeds() ->
     FeedIds = [rfc4627:get_field(R, "id", undefined)
                || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
-    lists:foreach(fun check_feed/1, FeedIds),
+    lists:foreach(fun activate_feed/1, FeedIds),
     ok.
 
-check_feed(FeedId) ->
+activate_feed(FeedId) ->
     case supervisor:start_child(orchestrator_root_sup,
                                 {FeedId,
                                  {orchestrator_feed_sup, start_link, [FeedId]},
@@ -124,8 +124,46 @@ check_feed(FeedId) ->
         {error, {already_started, _Child}} ->
             ok;
         {error, {shutdown, _}} ->
-            error_logger:error_report({?MODULE, check_feed, start_error, FeedId}),
+            error_logger:error_report({?MODULE, activate_feed, start_error, FeedId}),
             {error, start_error}
+    end.
+
+deactivate_feed(FeedId) ->
+    Res =
+	case supervisor:terminate_child(orchestrator_root_sup,
+					FeedId) of
+	    ok ->
+		ok;
+	    {error, not_found} ->
+		ok;
+	    {error, simple_one_for_one} ->
+		error_logger:error_report({?MODULE, deactivate_feed, supervision_config_error, FeedId}),
+		{error, supervision_config_error}
+	end,
+    case Res of
+	ok ->
+	    case supervisor:delete_child(orchestrator_root_sup, FeedId) of
+		ok ->
+		    ok;
+		{error, Err} ->
+		    error_logger:error_report({?MODULE, deactivate_feed, Err, FeedId})
+	    end;
+	_ -> Res
+    end.
+
+status_change(FeedId) when is_binary(FeedId) ->
+    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(FeedId)) of
+	{ok, Doc} ->
+	    case rfc4627:get_field(Doc, "active") of
+		{ok, true} ->
+	    	    activate_feed(FeedId);
+	     	{ok, false} ->
+	     	    deactivate_feed(FeedId);
+	     	Err ->
+	     	    error_logger:error_report({?MODULE, status_change, Err, FeedId})
+	    end;
+	{error, DecodeError} ->
+	    error_logger:error_report({?MODULE, status_change, DecodeError, FeedId})
     end.
 
 %%---------------------------------------------------------------------------
@@ -160,13 +198,13 @@ handle_info(#'basic.consume_ok'{}, State) ->
     %% As part of setup_core_messaging, we subscribe to a few
     %% things. Ignore the success notices.
     {noreply, State};
-handle_info(Msg = {#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
-				      'delivery_tag' = DeliveryTag,
-				      'routing_key' = RoutingKey
-				     },
-		   #content { payload_fragments_rev = [<<"status change">>]}},
+handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
+				'delivery_tag' = DeliveryTag,
+				'routing_key' = RoutingKey
+			       },
+	     #content { payload_fragments_rev = [<<"status change">>]}},
 	    State = #state{ch = Ch}) ->
-    io:format("got config message~n~p~n", [Msg]),
+    status_change(RoutingKey),
     lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
 handle_info(_Info, State) ->
