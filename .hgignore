@@ -8,3 +8,4 @@
 ^couchlogtail.pid$
 \.class$
 ^harness/java/feedshub_harness\.jar$
+^site/.*\.timestamp$
