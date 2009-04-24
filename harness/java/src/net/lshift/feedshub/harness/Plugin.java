@@ -21,6 +21,7 @@ public abstract class Plugin {
 
 	final protected Connection messageServerConnection;
 	final protected Channel messageServerChannel;
+        final protected JSONObject pluginType;
 	final protected JSONObject config;
 	final protected JSONObject configuration;
 	final private Database stateDb;
@@ -29,8 +30,17 @@ public abstract class Plugin {
 
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
-		this.configuration = config.getJSONObject("config").getJSONObject(
-				"configuration");
+		pluginType = config.getJSONObject("plugin_type");
+                JSONArray globalConfig = pluginType.getJSONArray("global_configuration");
+                JSONObject mergedConfig = new JSONObject();
+                for (Object configItem: globalConfig) {
+                  JSONObject item = (JSONObject)configItem;
+                  mergedConfig.put(item.getString("name"),
+                                   JSONObject.fromObject(item.get("value")));
+                }
+                JSONObject userConfig = config.getJSONObject("configuration");
+                mergedConfig.putAll(userConfig);
+                this.configuration = mergedConfig;
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
@@ -63,10 +73,9 @@ public abstract class Plugin {
 	}
 
 	protected void init() throws Exception {
-		JSONObject pluginType = config.getJSONObject("plugin_type");
 
 		JSONArray inputsAry = config.getJSONArray("inputs");
-		JSONArray inputTypesAry = pluginType.getJSONArray("inputs");
+		JSONArray inputTypesAry = pluginType.getJSONArray("inputs_specification");
 
 		for (int idx = 0; idx < inputsAry.size() && idx < inputTypesAry.size(); ++idx) {
 			final String fieldName = inputTypesAry.getJSONObject(idx)
@@ -138,7 +147,7 @@ public abstract class Plugin {
 		}
 
 		JSONArray outputsAry = config.getJSONArray("outputs");
-		JSONArray outputTypesAry = pluginType.getJSONArray("outputs");
+		JSONArray outputTypesAry = pluginType.getJSONArray("outputs_specification");
 
 		final BasicProperties blankBasicProps = new BasicProperties();
 		blankBasicProps.deliveryMode = 2; // persistent

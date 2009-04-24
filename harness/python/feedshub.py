@@ -87,14 +87,14 @@ class Component(object):
         
         # Inputs and outputs are matched by position
         inputs = [(desc['name'], q) for (q, desc) in
-                     zip(config['inputs'], config['plugin_type']['inputs'])]
+                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
 
         for name, queue in inputs:
             method = getattr(self, self.INPUTS[name])
             subscribe_to_queue(self.__channel, queue, method)
             
         outputs = [(desc['name'], ex) for (ex, desc) in
-                   zip(config['outputs'], config['plugin_type']['outputs'])]
+                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
         for name, exchange in outputs:
             setattr(self, self.OUTPUTS[name],
                     publish_to_exchange(self.__channel, exchange))
@@ -106,7 +106,9 @@ class Component(object):
             self.__db = couch.Database(config['database'])
         else:
             self.__db = None
-        self.__config = config['config']['configuration']
+        settings = dict((item['name'], item['value']) for item in config['plugin_type']['global_configuration'])
+        settings.update(config['configuration'])
+        self.__config = settings
 
     def ack(self, msg):
         self.__channel.basic_ack(msg.delivery_info['delivery_tag'])

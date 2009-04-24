@@ -15,7 +15,7 @@ def main():
     
     here = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-    plugin_type = args["config"]["type"]
+    plugin_type = args["plugin_name"]
     plugin_dir = args["plugin_dir"]
     
     #plugin_path = os.path.join(plugin_dir, plugin_type)
