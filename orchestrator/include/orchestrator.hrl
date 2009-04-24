@@ -4,3 +4,6 @@
 
 -define(FEEDSHUB_CONFIG_DBNAME, "feedshub_config/").
 -define(FEEDSHUB_CONFIG_DBNAME_B, <<"feedshub_config">>).
+
+-define(FEEDSHUB_STATUS_DBNAME, "feedshub_status/").
+-define(FEEDSHUB_STATUS_DBNAME_B, <<"feedshub_status">>).

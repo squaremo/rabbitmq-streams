@@ -23,9 +23,11 @@ public class Run {
 			String pluginName = jsonArgs.getString("plugin_name");
 
 			ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
-			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(pluginDir) }, defaultCL);
+			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(
+					pluginDir) }, defaultCL);
 			Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
-			plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArgs);
+			plugin = clazz.getConstructor(JSONObject.class).newInstance(
+					jsonArgs);
 
 			plugin.run();
 		} catch (Exception e) {

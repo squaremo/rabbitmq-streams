@@ -12,6 +12,7 @@
 -define(ROOT_CONFIG_DOCID, ?FEEDSHUB_CONFIG_DBNAME "root_config").
 
 -include("orchestrator.hrl").
+-include("rabbit.hrl").
 -include("rabbit_framing.hrl").
 
 start_link() ->
@@ -35,10 +36,13 @@ setup_core_messaging(Ch) ->
     ok.
 
 install_views() ->
-    lists:foreach(fun install_view/1,
-                  filelib:wildcard(orchestrator:priv_dir()++"/views/*")).
+    lists:foreach(fun(Dir) -> install_view(?FEEDSHUB_CONFIG_DBNAME, Dir) end,
+                  filelib:wildcard(orchestrator:priv_dir()++"/feedshub_config/views/*")),
+    lists:foreach(fun(Dir) -> install_view(?FEEDSHUB_STATUS_DBNAME, Dir) end,
+                  filelib:wildcard(orchestrator:priv_dir()++"/feedshub_status/views/*")).
+    
 
-install_view(ViewDir) ->
+install_view(DbName, ViewDir) ->
     ViewCollectionName = filename:basename(ViewDir),
     Views = lists:foldl(fun (FileName, V) ->
                                 Base = filename:basename(FileName, ".js"),
@@ -55,12 +59,13 @@ install_view(ViewDir) ->
                                             dict:store(FunctionName, FunctionText, dict:new()),
                                             V)
                         end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
-    {ok, _} = couchapi:put(?FEEDSHUB_CONFIG_DBNAME"_design/" ++ ViewCollectionName,
+    {ok, _} = couchapi:put(DbName ++ "_design/" ++ ViewCollectionName,
                            {obj, [{"views", Views},
                                   {"language", <<"javascript">>}]}).
 
 setup_core_couch() ->
     ok = couchapi:createdb(?FEEDSHUB_CONFIG_DBNAME),
+    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
     {ok, _} = couchapi:put(?ROOT_CONFIG_DOCID,
                            {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
                                   {"rabbitmq", {obj, [{"host", <<"localhost">>},
@@ -102,7 +107,7 @@ startup_couch_scan() ->
 
 check_active_feeds() ->
     FeedIds = [rfc4627:get_field(R, "id", undefined)
-               || R <- couchapi:get_view_rows(?FEEDSHUB_CONFIG_DBNAME, "feeds", "active")],
+               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
     lists:foreach(fun check_feed/1, FeedIds),
     ok.
 
@@ -154,6 +159,15 @@ handle_cast(_Message, State) ->
 handle_info(#'basic.consume_ok'{}, State) ->
     %% As part of setup_core_messaging, we subscribe to a few
     %% things. Ignore the success notices.
+    {noreply, State};
+handle_info(Msg = {#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
+				      'delivery_tag' = DeliveryTag,
+				      'routing_key' = RoutingKey
+				     },
+		   #content { payload_fragments_rev = [<<"status change">>]}},
+	    State = #state{ch = Ch}) ->
+    io:format("got config message~n~p~n", [Msg]),
+    lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.

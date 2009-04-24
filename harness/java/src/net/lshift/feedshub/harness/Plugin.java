@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 
 import net.sf.json.JSONArray;
+import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Database;
@@ -21,7 +22,7 @@ public abstract class Plugin {
 
 	final protected Connection messageServerConnection;
 	final protected Channel messageServerChannel;
-        final protected JSONObject pluginType;
+	final protected JSONObject pluginType;
 	final protected JSONObject config;
 	final protected JSONObject configuration;
 	final private Database stateDb;
@@ -31,16 +32,17 @@ public abstract class Plugin {
 	protected Plugin(final JSONObject config) throws IOException {
 		this.config = config;
 		pluginType = config.getJSONObject("plugin_type");
-                JSONArray globalConfig = pluginType.getJSONArray("global_configuration");
-                JSONObject mergedConfig = new JSONObject();
-                for (Object configItem: globalConfig) {
-                  JSONObject item = (JSONObject)configItem;
-                  mergedConfig.put(item.getString("name"),
-                                   JSONObject.fromObject(item.get("value")));
-                }
-                JSONObject userConfig = config.getJSONObject("configuration");
-                mergedConfig.putAll(userConfig);
-                this.configuration = mergedConfig;
+		JSONArray globalConfig = pluginType
+				.getJSONArray("global_configuration");
+		JSONObject mergedConfig = new JSONObject();
+		for (Object configItem : globalConfig) {
+			JSONObject item = (JSONObject) configItem;
+			mergedConfig.put(item.getString("name"), JSONObject.fromObject(item
+					.get("value")));
+		}
+		JSONObject userConfig = config.getJSONObject("configuration");
+		mergedConfig.putAll(userConfig);
+		this.configuration = mergedConfig;
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
@@ -55,13 +57,15 @@ public abstract class Plugin {
 				"", "");
 		stateDocName = path.substring(1 + loc);
 		stateDb = couchSession.getDatabase(db);
-		
-		String privDb = config.getString("database");
-		if (null == privDb) {
-			privateDb = null;
-		} else {
-			privateDb = couchSession.createDatabase(privDb);
+
+		Database privDb = null;
+		if (config.has("database")
+				&& !JSONNull.getInstance().equals(
+						JSONObject.fromObject(config.get("database")))) {
+			String privDbStr = config.getString("database");
+			privDb = couchSession.createDatabase(privDbStr);
 		}
+		privateDb = privDb;
 	}
 
 	protected Document getState() throws IOException {
@@ -75,7 +79,8 @@ public abstract class Plugin {
 	protected void init() throws Exception {
 
 		JSONArray inputsAry = config.getJSONArray("inputs");
-		JSONArray inputTypesAry = pluginType.getJSONArray("inputs_specification");
+		JSONArray inputTypesAry = pluginType
+				.getJSONArray("inputs_specification");
 
 		for (int idx = 0; idx < inputsAry.size() && idx < inputTypesAry.size(); ++idx) {
 			final String fieldName = inputTypesAry.getJSONObject(idx)
@@ -147,7 +152,8 @@ public abstract class Plugin {
 		}
 
 		JSONArray outputsAry = config.getJSONArray("outputs");
-		JSONArray outputTypesAry = pluginType.getJSONArray("outputs_specification");
+		JSONArray outputTypesAry = pluginType
+				.getJSONArray("outputs_specification");
 
 		final BasicProperties blankBasicProps = new BasicProperties();
 		blankBasicProps.deliveryMode = 2; // persistent
