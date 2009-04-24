@@ -5,7 +5,9 @@ import net.liftweb.http._
 import net.liftweb.sitemap._
 import net.liftweb.sitemap.Loc._
 import Helpers._
- 
+
+import net.lshift.feedshub.management.controller._
+
 /**
   * A class that's instantiated early and run.  It allows the application
   * to modify lift's environment
@@ -13,11 +15,11 @@ import Helpers._
 class Boot {
   def boot {
     // where to search snippet
-    LiftRules.addToPackages("feedshub.management")
+    LiftRules.addToPackages("net.lshift.feedshub.management")
 
     // Build SiteMap
     val entries = Menu(Loc("Home", "/", "Home")) :: Nil 
     LiftRules.setSiteMap(SiteMap(entries:_*))
+    Feeds ! Init("http://localhost:5984")
   }
 }
-

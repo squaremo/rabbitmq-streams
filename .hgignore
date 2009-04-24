@@ -9,3 +9,4 @@
 \.class$
 ^harness/java/feedshub_harness\.jar$
 ^site/.*\.timestamp$
+^site/target/
