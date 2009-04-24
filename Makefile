@@ -117,23 +117,23 @@ sleeper:
 	sleep 2
 
 stop_orchestrator_nox:
-	echo "q()." >> $(ORCH_FIFO) && sleep 3
+	echo -e "\nok.\nq()." >> $(ORCH_FIFO) && sleep 3
 	- pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)"
 	rm -f $(ORCH_FIFO)
 
 stop_couch_nox:
-	echo "q()." >> $(COUCH_FIFO) && sleep 3
+	echo -e "\nok.\nq()." >> $(COUCH_FIFO) && sleep 3
 	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
 	rm -f $(COUCH_FIFO)
 
 stop_rabbit_nox:
-	echo "q()." >> $(RABBIT_FIFO) && sleep 3
+	echo -e "\nok.\nq()." >> $(RABBIT_FIFO) && sleep 3
 	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
 	rm -f $(RABBIT_FIFO)
 
 stop_core_nox:
-	echo "q()." >> $(RABBIT_FIFO)
-	echo "q()." >> $(COUCH_FIFO)
+	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)
+	echo -e "\nok.\nq()." >> $(COUCH_FIFO)
 	sleep 3
 	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
 	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"

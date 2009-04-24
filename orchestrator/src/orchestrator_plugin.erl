@@ -8,6 +8,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -include("orchestrator.hrl").
+-include("rabbit_framing.hrl").
+-include("rabbit.hrl").
 
 start_link(InitParameters) ->
     gen_server:start_link(?MODULE, InitParameters, []).
@@ -37,12 +39,21 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {port, output_acc}).
+-record(state, {port, output_acc, control_exchange_name, channel, plugin_pid}).
 
 %%---------------------------------------------------------------------------
 
-init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
+init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
+    ControlExchangeName = list_to_binary([FeedId, pid_to_list(self())]),
+    #'exchange.declare_ok'{} =
+	amqp_channel:call(Channel, #'exchange.declare'{exchange = ControlExchangeName,
+						       type = <<"direct">>,
+						       durable = false}),
+    PrivateQ = lib_amqp:declare_private_queue(Channel),
+    #'queue.bind_ok'{} = lib_amqp:bind_queue(Channel, ControlExchangeName, PrivateQ, <<"from_plugin">>),
+    _ConsumerTag = lib_amqp:subscribe(Channel, PrivateQ, self()),
+
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = rfc4627:get_field(PluginConfig, "configuration"),
     PluginType = binary_to_list(PluginTypeBin),
@@ -78,12 +89,17 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                    null;
                    Url ->
                    list_to_binary(Url)
-                   end}
+                   end},
+		  {"control_exchange", ControlExchangeName}
                   ]},
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
     {ok, #state{port = Port,
-                output_acc = []}}.
+                output_acc = [],
+		control_exchange_name = ControlExchangeName,
+		channel = Channel,
+		plugin_pid = undefined
+	       }}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
@@ -103,10 +119,29 @@ handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State};
+handle_info(#'basic.consume_ok'{}, State) ->
+    {noreply, State};
+handle_info({#'basic.deliver' { 'exchange' = ControlExchangeName,
+				'delivery_tag' = DeliveryTag,
+				'routing_key' = <<"from_plugin">>
+			       },
+	     #content { payload_fragments_rev = [PluginPidStr]}},
+	    State = #state{channel = Channel,
+			   control_exchange_name = ControlExchangeName,
+			   plugin_pid = undefined
+			  }) ->
+    lib_amqp:ack(Channel, DeliveryTag),
+    PluginPid = list_to_integer(binary_to_list(PluginPidStr)),
+    {noreply, State #state { plugin_pid = PluginPid }};
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{port = Port, output_acc = Acc, channel = Channel,
+			  control_exchange_name = ControlExchangeName, plugin_pid = PluginPid}) ->
+    error_logger:info_report({?MODULE, plugin_terminating, lists:flatten(lists:reverse(Acc))}),
+    lib_amqp:publish(Channel, ControlExchangeName, <<"from_orchestrator">>, <<"die">>),
+    true = port_close(Port),
+    os:cmd("kill "++(integer_to_list(PluginPid))),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

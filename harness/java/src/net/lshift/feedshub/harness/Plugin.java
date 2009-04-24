@@ -1,6 +1,8 @@
 package net.lshift.feedshub.harness;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.net.URL;
 
@@ -22,6 +24,7 @@ public abstract class Plugin {
 
 	final protected Connection messageServerConnection;
 	final protected Channel messageServerChannel;
+	final private String controlQueue;
 	final protected JSONObject pluginType;
 	final protected JSONObject config;
 	final protected JSONObject configuration;
@@ -29,7 +32,7 @@ public abstract class Plugin {
 	final private String stateDocName;
 	final protected Database privateDb;
 
-	protected Plugin(final JSONObject config) throws IOException {
+	protected Plugin(final int pid, final JSONObject config) throws IOException {
 		this.config = config;
 		pluginType = config.getJSONObject("plugin_type");
 		JSONArray globalConfig = pluginType
@@ -43,6 +46,7 @@ public abstract class Plugin {
 		JSONObject userConfig = config.getJSONObject("configuration");
 		mergedConfig.putAll(userConfig);
 		this.configuration = mergedConfig;
+
 		JSONObject messageServerSpec = config.getJSONObject("messageserver");
 		messageServerConnection = AMQPConnection
 				.amqConnectionFromConfig(messageServerSpec);
@@ -66,6 +70,47 @@ public abstract class Plugin {
 			privDb = couchSession.createDatabase(privDbStr);
 		}
 		privateDb = privDb;
+
+		String controlExchange = config.getString("control_exchange");
+		controlQueue = messageServerChannel.queueDeclare("", false, false,
+				true, true, null).getQueue();
+		messageServerChannel.queueBind(controlQueue, controlExchange,
+				"from_orchestrator");
+
+		messageServerChannel.basicPublish(controlExchange, "from_plugin",
+				new BasicProperties(), String.valueOf(pid).getBytes());
+		messageServerChannel.basicConsume(controlQueue, new Consumer() {
+
+			public void handleCancelOk(String consumerTag) {
+			}
+
+			public void handleConsumeOk(String consumerTag) {
+			}
+
+			public void handleDelivery(String arg0, Envelope envelope,
+					BasicProperties arg2, byte[] arg3) throws IOException {
+				try {
+					messageServerChannel.basicAck(envelope.getDeliveryTag(),
+							false);
+					Plugin.this.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					System.exit(0);
+				}
+			}
+
+			public void handleShutdownSignal(String consumerTag,
+					ShutdownSignalException sig) {
+				try {
+					Plugin.this.shutdown();
+				} catch (IOException e) {
+					e.printStackTrace();
+				} finally {
+					System.exit(0);
+				}
+			}
+		});
 	}
 
 	protected Document getState() throws IOException {
@@ -76,7 +121,7 @@ public abstract class Plugin {
 		stateDb.saveDocument(state, stateDocName);
 	}
 
-	protected void init() throws Exception {
+	protected final void init() throws Exception {
 
 		JSONArray inputsAry = config.getJSONArray("inputs");
 		JSONArray inputTypesAry = pluginType
@@ -178,10 +223,17 @@ public abstract class Plugin {
 	}
 
 	public void shutdown() throws IOException {
+		messageServerChannel.queueDelete(controlQueue);
 		messageServerChannel.close();
 		messageServerConnection.close();
 	}
 
-	public abstract void run() throws IOException;
+	public final void run() throws IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(
+				System.in));
+		while (null != reader.readLine()) {
+		}
+		shutdown();
+	}
 
 }

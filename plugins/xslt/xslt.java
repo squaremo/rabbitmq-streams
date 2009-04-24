@@ -31,8 +31,8 @@ public class xslt extends Plugin {
 
 	private final Object lock = new Object();
 
-	public xslt(final JSONObject config) throws Exception {
-		super(config);
+	public xslt(final int pid, final JSONObject config) throws Exception {
+		super(pid, config);
 		String xsltSrc = configuration.getString("stylesheet_url");
 		URLConnection xsltConn = new URL(xsltSrc).openConnection();
 		xsltConn.connect();
@@ -89,18 +89,5 @@ public class xslt extends Plugin {
 		// init can't be called from the superconstructor because input and
 		// output won't be initialised until after the superconstructor
 		init();
-	}
-
-	@Override
-	public void run() throws IOException {
-		// we don't actually do any work in this thread at all
-		synchronized (lock) {
-			while (!exit) {
-				try {
-					lock.wait();
-				} catch (InterruptedException e) {
-				}
-			}
-		}
 	}
 }

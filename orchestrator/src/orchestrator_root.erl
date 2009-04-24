@@ -36,11 +36,14 @@ setup_core_messaging(Ch) ->
     ok.
 
 install_views() ->
-    lists:foreach(fun(Dir) -> install_view(?FEEDSHUB_CONFIG_DBNAME, Dir) end,
-                  filelib:wildcard(orchestrator:priv_dir()++"/feedshub_config/views/*")),
-    lists:foreach(fun(Dir) -> install_view(?FEEDSHUB_STATUS_DBNAME, Dir) end,
-                  filelib:wildcard(orchestrator:priv_dir()++"/feedshub_status/views/*")).
-    
+    lists:foreach(
+      fun({WC, DB}) ->
+	      lists:foreach(fun(Dir) -> install_view(DB, Dir) end,
+			    filelib:wildcard(orchestrator:priv_dir() ++ WC))
+      end, [{"/feedshub_config/views/*", ?FEEDSHUB_CONFIG_DBNAME},
+	    {"/feedshub_status/views/*", ?FEEDSHUB_STATUS_DBNAME}
+	   ]),
+    ok.
 
 install_view(DbName, ViewDir) ->
     ViewCollectionName = filename:basename(ViewDir),

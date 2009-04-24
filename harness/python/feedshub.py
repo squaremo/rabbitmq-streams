@@ -4,6 +4,9 @@ Interfaces for plugin components to use.
 
 import couchdb.client as couch
 import amqplib.client_0_8 as amqp
+import os
+import sys
+from threading import Thread
 
 try:
     import json
@@ -110,6 +113,15 @@ class Component(object):
         settings.update(config['configuration'])
         self.__config = settings
 
+        control_exchange = config['control_exchange']
+        (control_queue, _, _) = self.__channel.queue_declare(exclusive=True, auto_delete=True)
+        self.__control_queue = control_queue
+        self.__channel.queue_bind(control_queue, control_exchange, routing_key='from_orchestrator')
+
+        self.__channel.basic_publish(amqp.Message(body=str(os.getpid()), children=None),
+                                     exchange=control_exchange, routing_key='from_plugin')
+        self.__channel.basic_consume(queue=control_queue, callback=lambda msg: sys.exit(0))
+
     def ack(self, msg):
         self.__channel.basic_ack(msg.delivery_info['delivery_tag'])
 
@@ -135,12 +147,25 @@ class Component(object):
         return self.__config.get(name, defaultValue)
 
     def run(self):
-        while True:
-            self.__channel.wait() # let the callbacks process
+        callbacks = RunCallback(self.__channel)
+        callbacks.start()
+        while not sys.stdin.closed:
+            sys.stdin.read(1)
+    
+        sys.exit(0)
+        # self.__channel.queue_delete(queue = self.__control_queue)
+        # self.__channel.close()
+        # self.__conn.close()
+        # sys.exit(0)
 
     def start(self):
-#        try:
         self.run()
-        #finally:
-        #    self.__channel.close()
-        #    self.__conn.close()
+
+class RunCallback(Thread):
+    def __init__(self, channel):
+        Thread.__init__(self)
+        self.__channel = channel
+
+    def run(self):
+        while True:
+            self.__channel.wait()

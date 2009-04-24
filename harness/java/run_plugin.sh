@@ -1,2 +1,2 @@
 #!/bin/sh
-java -cp feedshub_harness.jar net.lshift.feedshub.harness.Run
+exec java -cp feedshub_harness.jar net.lshift.feedshub.harness.Run $$
