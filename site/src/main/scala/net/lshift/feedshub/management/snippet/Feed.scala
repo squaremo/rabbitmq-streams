@@ -15,13 +15,9 @@ import scala.xml.NodeSeq
 import net.lshift.feedshub.management.controller._
 
 class Feed {
-    def list : NodeSeq = {
-        <lift:comet type="FeedsActor">
-            <lift:view>Loading list ..</lift:view>
-        </lift:comet>
-    }
 
     def add : NodeSeq = {
-        SHtml.submit("Add a feed", ignore => Feeds ! AddFeed(new FeedDefinition))
+        Console.println("Add form render")
+        SHtml.submit("Add a feed", () => Feeds ! AddFeed(new FeedDefinition))
     }
 }

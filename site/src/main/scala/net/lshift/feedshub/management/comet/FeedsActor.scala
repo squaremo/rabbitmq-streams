@@ -12,31 +12,31 @@ import scala.xml.{NodeSeq, Text}
 
 import net.liftweb.http._
 import net.liftweb.http.js.JsCmds.Noop
-import net.liftweb.util.Can
+import net.liftweb.util.{Box, Full}
 
 import net.lshift.feedshub.management.controller._
 
-class FeedsActor(theSession: LiftSession, name: Can[String],
-                defaultXml: NodeSeq, attributes: Map[String, String])
-    extends CometActor(theSession, name, defaultXml, attributes) {
+class FeedsActor extends CometActor {
 
     var feeds : List[Feed] = Nil
 
-    def defaultPrefix = "feeds"
+    override def defaultPrefix = Full("f")
 
-    def render = {
-        <ul>
-            {feeds.map(f => <li>Feed</li>)}
-        </ul>
+    override def render : RenderOut = {
+        Console.println("Bind happens")
+        bind("list" ->
+            (<ul>
+                {feeds.map(f => <li>Feed</li>)}
+            </ul>))
     }
 
     override def localSetup {
-        Feeds !? AddListener(this) match {
-            case UpdateFeedList(feedlist) => feeds = feedlist
-        }
+        Console.println("Local setup")
+        Feeds ! AddListener(this)
     }
 
     override def localShutdown {
+        Console.println("Local shutdown")
         Feeds ! RemoveListener(this)
     }
 

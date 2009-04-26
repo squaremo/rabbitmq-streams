@@ -18,7 +18,7 @@ class Boot {
     LiftRules.addToPackages("net.lshift.feedshub.management")
 
     // Build SiteMap
-    val entries = Menu(Loc("Home", "/", "Home")) :: Nil 
+    val entries = Menu(Loc("Home", List("index"), "Home")) :: Nil
     LiftRules.setSiteMap(SiteMap(entries:_*))
     Feeds ! Init("http://localhost:5984")
   }

@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>feedshub.management</groupId>
   <artifactId>site</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <packaging>war</packaging>
   <name>site</name>
   <inceptionYear>2007</inceptionYear>
   <properties>
-    <scala.version>2.7.1</scala.version>
+    <scala.version>2.7.3</scala.version>
   </properties>
 
   <repositories>
@@ -36,7 +36,7 @@
     <dependency>
       <groupId>net.liftweb</groupId>
       <artifactId>lift-webkit</artifactId>
-      <version>0.8</version>
+      <version>1.0</version>
     </dependency>
     <dependency>
       <groupId>javax.servlet</groupId>
@@ -94,7 +94,7 @@
         <artifactId>maven-jetty-plugin</artifactId>
         <configuration>
           <contextPath>/</contextPath>
-          <scanIntervalSeconds>5</scanIntervalSeconds>
+          <scanIntervalSeconds>0</scanIntervalSeconds>
         </configuration>
       </plugin>
       <plugin>
