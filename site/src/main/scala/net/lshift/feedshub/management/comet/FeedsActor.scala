@@ -18,7 +18,7 @@ import net.lshift.feedshub.management.controller._
 
 class FeedsActor extends CometActor {
 
-    var feeds : List[Feed] = Nil
+    var feeds : List[FeedStatus] = Nil
 
     override def defaultPrefix = Full("f")
 
@@ -26,7 +26,7 @@ class FeedsActor extends CometActor {
         Console.println("Bind happens")
         bind("list" ->
             (<ul>
-                {feeds.map(f => <li>Feed</li>)}
+                {feeds.map(f => <li>{f.getId}<span class="active">{f.getActive.toString}</span></li>)}
             </ul>))
     }
 
