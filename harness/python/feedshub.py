@@ -7,6 +7,8 @@ import amqplib.client_0_8 as amqp
 import os
 import sys
 
+feedshub_log_xname = 'feedshub/log'
+
 try:
     import json
 except:
@@ -68,12 +70,12 @@ def amqp_connection_from_config(hostspec):
                                  virtual_host=virt)
     return connection
 
-def publish_to_exchange(channel, exchange):
+def publish_to_exchange(channel, exchange, routing_key=''):
     def p(msg, **headers):
         message = amqp.Message(body=msg, children=None, **headers)
         message.delivery_mode = 2 # persistent
         # TODO: treat application_headers specially, and expect a content type
-        channel.basic_publish(message, exchange=exchange)
+        channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
     return p
 
 def subscribe_to_queue(channel, queue, method):
@@ -99,6 +101,9 @@ class Component(object):
         self.__conn = amqp_connection_from_config(msghostspec)
         self.__channel = self.__conn.channel()
         self.__channel.tx_select()
+
+        self.__log = self.__conn.channel() # a new channel which isn't tx'd
+        self.build_logger(config)
         
         self.__stateresource = couch.Resource(None, config['state'])
         ensure_resource(self.__stateresource)
@@ -131,6 +136,15 @@ class Component(object):
 
     def rollback(self):
         self.__channel.tx_rollback()
+
+    def build_logger(self, config):
+        feed_id = config['feed_id']
+        node_id = config['node_id']
+        plugin_name = config['plugin_name']
+        for level in ['info', 'warn', 'fatal']:
+            rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
+            setattr(self, level, publish_to_exchange(self.__log, feedshub_log_xname,
+                                                     routing_key = rk))
 
     def putState(self, state):
         """Record the state of the component"""

@@ -20,17 +20,23 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
 
 public abstract class Plugin implements Runnable {
+	
+	static final private String logExchange = "feedshug/log";
 
 	final protected Connection messageServerConnection;
 	final protected ChannelN messageServerChannel;
+	final private ChannelN logChannel;
+	final private String logRoutingKey;
 	final protected JSONObject pluginType;
 	final protected JSONObject config;
 	final protected JSONObject configuration;
 	final private Database stateDb;
 	final private String stateDocName;
 	final protected Database privateDb;
+	final BasicProperties basicPropsPersistent = new BasicProperties();
 
 	protected Plugin(final JSONObject config) throws IOException {
+		basicPropsPersistent.deliveryMode = 2; // persistent
 		this.config = config;
 		pluginType = config.getJSONObject("plugin_type");
 		JSONArray globalConfig = pluginType
@@ -50,6 +56,13 @@ public abstract class Plugin implements Runnable {
 				.amqConnectionFromConfig(messageServerSpec);
 		messageServerChannel = (ChannelN) messageServerConnection
 				.createChannel();
+		logChannel = (ChannelN) messageServerConnection.createChannel();
+
+		String feedId = config.getString("feed_id");
+		String nodeId = config.getString("node_id");
+		String pluginName = config.getString("plugin_name");
+
+		logRoutingKey = "." + feedId + "." + pluginName + "." + nodeId;
 
 		URL dbURL = new URL(config.getString("state"));
 		String path = dbURL.getPath();
@@ -87,8 +100,6 @@ public abstract class Plugin implements Runnable {
 		JSONArray outputTypesAry = pluginType
 				.getJSONArray("outputs_specification");
 
-		final BasicProperties blankBasicProps = new BasicProperties();
-		blankBasicProps.deliveryMode = 2; // persistent
 		for (int idx = 0; idx < outputsAry.size()
 				&& idx < outputTypesAry.size(); ++idx) {
 			final String exchange = outputsAry.getString(idx);
@@ -96,7 +107,7 @@ public abstract class Plugin implements Runnable {
 
 				public void publish(byte[] body) throws IOException {
 					messageServerChannel.basicPublish(exchange, "",
-							blankBasicProps, body);
+							basicPropsPersistent, body);
 				}
 
 			};
@@ -144,6 +155,24 @@ public abstract class Plugin implements Runnable {
 				}
 			}).start();
 		}
+	}
+
+	public void info(String message) throws IOException {
+		String rk = "info" + logRoutingKey;
+		logChannel.basicPublish(logExchange, rk, false, false,
+				basicPropsPersistent, message.getBytes());
+	}
+
+	public void warn(String message) throws IOException {
+		String rk = "warn" + logRoutingKey;
+		logChannel.basicPublish(logExchange, rk, false, false,
+				basicPropsPersistent, message.getBytes());
+	}
+
+	public void fatal(String message) throws IOException {
+		String rk = "fatal" + logRoutingKey;
+		logChannel.basicPublish(logExchange, rk, false, false,
+				basicPropsPersistent, message.getBytes());
 	}
 
 	public void run() {

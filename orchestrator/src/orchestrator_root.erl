@@ -33,6 +33,10 @@ setup_core_messaging(Ch) ->
     PrivateQ = lib_amqp:declare_private_queue(Ch),
     #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"#">>),
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
+    #'exchange.declare_ok'{} =
+        amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_LOG_XNAME,
+                                                  type = <<"topic">>,
+                                                  durable = true}),
     ok.
 
 install_views() ->
