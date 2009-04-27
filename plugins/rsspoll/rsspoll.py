@@ -1,5 +1,6 @@
 from feedshub import Component
 from fetch import fetch
+import sys
 
 class RssPollerSource(Component):
     
@@ -35,6 +36,7 @@ class RssPollerSource(Component):
                 updated = response['updated']
                 for msg in updated:
                     self.publish(msg['entry'], content_type='application/atom+xml')
+                self.commit()
                 contentdb.update(updated)
 
             state.update(response)

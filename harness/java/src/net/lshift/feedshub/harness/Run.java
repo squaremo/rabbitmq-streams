@@ -30,7 +30,7 @@ public class Run {
 			plugin = clazz.getConstructor(JSONObject.class).newInstance(
 					jsonArgs);
 
-			plugin.run();
+			plugin.start();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {

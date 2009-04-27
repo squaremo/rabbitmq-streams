@@ -70,12 +70,24 @@ def amqp_connection_from_config(hostspec):
 
 def publish_to_exchange(channel, exchange):
     def p(msg, **headers):
+        message = amqp.Message(body=msg, children=None, **headers)
+        message.delivery_mode = 2 # persistent
         # TODO: treat application_headers specially, and expect a content type
-        channel.basic_publish(amqp.Message(body=msg, children=None, **headers), exchange=exchange)
+        channel.basic_publish(message, exchange=exchange)
     return p
 
 def subscribe_to_queue(channel, queue, method):
-    channel.basic_consume(queue=queue, callback=lambda msg: method(msg))
+    # no_ack: If this field is set the server does not expect
+    # acknowledgements for messages.
+    channel.basic_consume(queue=queue, no_ack=False, callback=lambda msg: txifyPlugin(channel, method, msg))
+
+def txifyPlugin(channel, method, msg):
+    try:
+        method(msg)
+        channel.basic_ack(msg.delivery_info['delivery_tag'])
+        channel.tx_commit()
+    except Exception:
+        channel.tx_rollback()
 
 class Component(object):
 
@@ -86,21 +98,8 @@ class Component(object):
         msghostspec = config['messageserver']
         self.__conn = amqp_connection_from_config(msghostspec)
         self.__channel = self.__conn.channel()
+        self.__channel.tx_select()
         
-        # Inputs and outputs are matched by position
-        inputs = [(desc['name'], q) for (q, desc) in
-                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
-
-        for name, queue in inputs:
-            method = getattr(self, self.INPUTS[name])
-            subscribe_to_queue(self.__channel, queue, method)
-            
-        outputs = [(desc['name'], ex) for (ex, desc) in
-                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
-        for name, exchange in outputs:
-            setattr(self, self.OUTPUTS[name],
-                    publish_to_exchange(self.__channel, exchange))
-
         self.__stateresource = couch.Resource(None, config['state'])
         ensure_resource(self.__stateresource)
 
@@ -112,8 +111,26 @@ class Component(object):
         settings.update(config['configuration'])
         self.__config = settings
 
-    def ack(self, msg):
-        self.__channel.basic_ack(msg.delivery_info['delivery_tag'])
+        # Inputs and outputs are matched by position
+        outputs = [(desc['name'], ex) for (ex, desc) in
+                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
+        for name, exchange in outputs:
+            setattr(self, self.OUTPUTS[name],
+                    publish_to_exchange(self.__channel, exchange))
+
+        inputs = [(desc['name'], q) for (q, desc) in
+                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
+
+        for name, queue in inputs:
+            method = getattr(self, self.INPUTS[name])
+            subscribe_to_queue(self.__channel, queue, method)
+            
+
+    def commit(self):
+        self.__channel.tx_commit()
+
+    def rollback(self):
+        self.__channel.tx_rollback()
 
     def putState(self, state):
         """Record the state of the component"""
