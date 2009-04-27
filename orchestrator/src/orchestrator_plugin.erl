@@ -45,15 +45,6 @@ plugin_not_found(PluginId) ->
 
 init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
-    ControlExchangeName = list_to_binary([FeedId, pid_to_list(self())]),
-    #'exchange.declare_ok'{} =
-	amqp_channel:call(Channel, #'exchange.declare'{exchange = ControlExchangeName,
-						       type = <<"direct">>,
-						       durable = false}),
-    PrivateQ = lib_amqp:declare_private_queue(Channel),
-    #'queue.bind_ok'{} = lib_amqp:bind_queue(Channel, ControlExchangeName, PrivateQ, <<"from_plugin">>),
-    _ConsumerTag = lib_amqp:subscribe(Channel, PrivateQ, self()),
-
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = rfc4627:get_field(PluginConfig, "configuration"),
     PluginType = binary_to_list(PluginTypeBin),
@@ -89,14 +80,12 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                    null;
                    Url ->
                    list_to_binary(Url)
-                   end},
-		  {"control_exchange", ControlExchangeName}
+                   end}
                   ]},
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
     {ok, #state{port = Port,
                 output_acc = [],
-		control_exchange_name = ControlExchangeName,
 		channel = Channel,
 		plugin_pid = undefined
 	       }}.
@@ -107,6 +96,9 @@ handle_call(_Message, _From, State) ->
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
+handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, plugin_pid = undefined})
+  when P =:= Port ->
+    {noreply, State #state {plugin_pid = list_to_integer(Fragment)}};
 handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     case X of
@@ -119,29 +111,15 @@ handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State};
-handle_info(#'basic.consume_ok'{}, State) ->
-    {noreply, State};
-handle_info({#'basic.deliver' { 'exchange' = ControlExchangeName,
-				'delivery_tag' = DeliveryTag,
-				'routing_key' = <<"from_plugin">>
-			       },
-	     #content { payload_fragments_rev = [PluginPidStr]}},
-	    State = #state{channel = Channel,
-			   control_exchange_name = ControlExchangeName,
-			   plugin_pid = undefined
-			  }) ->
-    lib_amqp:ack(Channel, DeliveryTag),
-    PluginPid = list_to_integer(binary_to_list(PluginPidStr)),
-    {noreply, State #state { plugin_pid = PluginPid }};
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
-terminate(_Reason, #state{port = Port, output_acc = Acc, channel = Channel,
-			  control_exchange_name = ControlExchangeName, plugin_pid = PluginPid}) ->
+terminate(_Reason, #state{port = Port, output_acc = Acc, plugin_pid = PluginPid}) ->
     error_logger:info_report({?MODULE, plugin_terminating, lists:flatten(lists:reverse(Acc))}),
-    lib_amqp:publish(Channel, ControlExchangeName, <<"from_orchestrator">>, <<"die">>),
     true = port_close(Port),
-    os:cmd("kill "++(integer_to_list(PluginPid))),
+    if undefined =:= PluginPid -> true;
+       true -> os:cmd("kill "++(integer_to_list(PluginPid)))
+    end,
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

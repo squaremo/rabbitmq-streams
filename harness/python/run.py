@@ -7,10 +7,14 @@ try:
     import json
 except:
     import simplejson as json
+from threading import Thread
+import threading
 
 def main():
     import sys, os.path
     from imp import find_module, load_module
+    sys.stdout.write(sys.argv[1] + '\n')
+    sys.stdout.flush()
     args = json.loads(sys.stdin.readline())
     
     here = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -35,10 +39,26 @@ def main():
         if 'run' not in dir(module):
             raise "Module %r does not contain a run procedure" % module
         print json.dumps({"status": "ok"})
-        module.run(args)
+
+        moduleThread = ModuleThread(module, args)
+        moduleThread.daemon = True
+        moduleThread.start()
+        while not '' == sys.stdin.readline():
+            True
+
+        sys.exit()
     finally:
         if f is not None:
             f.close()
+
+class ModuleThread(Thread):
+    def __init__(self, module, args):
+        Thread.__init__(self)
+        self.__module = module
+        self.__args = args
+
+    def run(self):
+        self.__module.run(self.__args)
 
 # This is not intended to be used as a module, but
 # we follow Python idiom anyway.
