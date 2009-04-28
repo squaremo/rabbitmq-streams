@@ -2,6 +2,8 @@ CLASSPATH := lib/couchdb4j-read-only/dist/couchdb4j-0.3.0-SVN.jar:lib/couchdb4j-
 
 SOURCE := $(shell find src -type f -name "*.java")
 
+all: harness-jar
+
 harness-jar: java-harness
 	./build_harness_jar.sh
 
