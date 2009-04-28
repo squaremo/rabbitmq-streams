@@ -20,8 +20,6 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
 
 public abstract class Plugin implements Runnable {
-	
-	static final private String logExchange = "feedshug/log";
 
 	final protected Connection messageServerConnection;
 	final protected ChannelN messageServerChannel;
@@ -33,6 +31,7 @@ public abstract class Plugin implements Runnable {
 	final private Database stateDb;
 	final private String stateDocName;
 	final protected Database privateDb;
+	final protected Logger log;
 	final BasicProperties basicPropsPersistent = new BasicProperties();
 
 	protected Plugin(final JSONObject config) throws IOException {
@@ -63,6 +62,9 @@ public abstract class Plugin implements Runnable {
 		String pluginName = config.getString("plugin_name");
 
 		logRoutingKey = "." + feedId + "." + pluginName + "." + nodeId;
+		log = new Logger(logChannel, logRoutingKey, basicPropsPersistent);
+		new Thread(log).start();
+		log.info("Starting up...");
 
 		URL dbURL = new URL(config.getString("state"));
 		String path = dbURL.getPath();
@@ -92,7 +94,9 @@ public abstract class Plugin implements Runnable {
 		stateDb.saveDocument(state, stateDocName);
 	}
 
-	protected void postConstructorInit() throws Exception {
+	protected void postConstructorInit() throws IOException,
+			IllegalArgumentException, IllegalAccessException,
+			SecurityException, NoSuchFieldException {
 		messageServerChannel.txSelect();
 
 		// set up outputs FIRST
@@ -131,23 +135,24 @@ public abstract class Plugin implements Runnable {
 			new Thread(new Runnable() {
 
 				public void run() {
-					while (true) {
+					while (messageServerChannel.isOpen()) {
 						try {
 							Delivery delivery = consumer.nextDelivery();
 							Object pluginConsumer = pluginQueueField
 									.get(Plugin.this);
-							if (null != pluginConsumer)
+							if (null != pluginConsumer) {
 								((InputReader) pluginConsumer)
 										.handleDelivery(delivery);
-							messageServerChannel.basicAck(delivery
-									.getEnvelope().getDeliveryTag(), false);
-							messageServerChannel.txCommit();
+								messageServerChannel.basicAck(delivery
+										.getEnvelope().getDeliveryTag(), false);
+								messageServerChannel.txCommit();
+							}
 						} catch (Exception e) {
-							e.printStackTrace();
 							try {
+								log.error(e);
 								messageServerChannel.txRollback();
 							} catch (IOException e1) {
-								e1.printStackTrace();
+								log.error(e1);
 							}
 						}
 					}
@@ -157,30 +162,15 @@ public abstract class Plugin implements Runnable {
 		}
 	}
 
-	public void info(String message) throws IOException {
-		String rk = "info" + logRoutingKey;
-		logChannel.basicPublish(logExchange, rk, false, false,
-				basicPropsPersistent, message.getBytes());
-	}
-
-	public void warn(String message) throws IOException {
-		String rk = "warn" + logRoutingKey;
-		logChannel.basicPublish(logExchange, rk, false, false,
-				basicPropsPersistent, message.getBytes());
-	}
-
-	public void fatal(String message) throws IOException {
-		String rk = "fatal" + logRoutingKey;
-		logChannel.basicPublish(logExchange, rk, false, false,
-				basicPropsPersistent, message.getBytes());
-	}
-
 	public void run() {
 	}
 
 	public void shutdown() throws IOException {
-		messageServerChannel.close();
-		messageServerConnection.close();
+		if (messageServerChannel.isOpen())
+			messageServerChannel.close();
+		log.shutdown();
+		if (messageServerConnection.isOpen())
+			messageServerConnection.close();
 	}
 
 	public final void start() throws Exception {

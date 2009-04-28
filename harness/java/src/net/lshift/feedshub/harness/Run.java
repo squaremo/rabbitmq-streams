@@ -11,7 +11,7 @@ import net.sf.json.JSONObject;
 public class Run {
 
 	@SuppressWarnings("unchecked")
-	public static void main(final String[] args) throws IOException {
+	public static void main(final String[] args) throws IOException, InterruptedException {
 		System.out.println(args[0]);
 		Plugin plugin = null;
 		try {
@@ -33,6 +33,9 @@ public class Run {
 			plugin.start();
 		} catch (Exception e) {
 			e.printStackTrace();
+			if (null != plugin) {
+				plugin.log.error(e);
+			}
 		} finally {
 			if (null != plugin) {
 				plugin.shutdown();

@@ -104,6 +104,7 @@ class Component(object):
 
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
         self.build_logger(config)
+        self.info('Starting up...')
         
         self.__stateresource = couch.Resource(None, config['state'])
         ensure_resource(self.__stateresource)
@@ -129,7 +130,6 @@ class Component(object):
         for name, queue in inputs:
             method = getattr(self, self.INPUTS[name])
             subscribe_to_queue(self.__channel, queue, method)
-            
 
     def commit(self):
         self.__channel.tx_commit()
@@ -141,7 +141,7 @@ class Component(object):
         feed_id = config['feed_id']
         node_id = config['node_id']
         plugin_name = config['plugin_name']
-        for level in ['info', 'warn', 'fatal']:
+        for level in ['info', 'warn', 'error', 'fatal']:
             rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
             setattr(self, level, publish_to_exchange(self.__log, feedshub_log_xname,
                                                      routing_key = rk))
