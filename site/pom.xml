@@ -249,7 +249,7 @@
         <artifactId>maven-jetty-plugin</artifactId>
         <configuration>
           <contextPath>/</contextPath>
-          <scanIntervalSeconds>0</scanIntervalSeconds>
+          <scanIntervalSeconds>5</scanIntervalSeconds>
         </configuration>
       </plugin>
       <plugin>

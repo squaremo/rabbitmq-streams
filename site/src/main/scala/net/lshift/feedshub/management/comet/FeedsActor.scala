@@ -26,7 +26,7 @@ class FeedsActor extends CometActor {
         Console.println("Bind happens")
         bind("list" ->
             (<ul>
-                {feeds.map(f => <li>{f.getId}<span class="active">{f.getActive.toString}</span></li>)}
+                {feeds.map(f => <li>{f.id}<span class="active">{f.active}</span></li>)}
             </ul>))
     }
 

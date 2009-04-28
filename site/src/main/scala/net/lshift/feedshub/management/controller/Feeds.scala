@@ -16,15 +16,8 @@ import org.jcouchdb.document.{BaseDocument, ViewResult, ValueRow}
 import org.jcouchdb.document.ViewResult
 import org.svenson.JSONProperty
 
-// TODO can we make this a bit nicerer
-class FeedStatus extends BaseDocument {
-    var active = false
-
-    @JSONProperty{val value="active"}
-    def getActive : boolean = active
-    def setActive(value: boolean) : Unit = {
-        active = value
-    }
+case class FeedStatus(id: String, active: Boolean) {
+    // case class so we get the handy accessors
 }
 
 abstract class FeedsCmd
@@ -71,8 +64,8 @@ object Feeds extends Actor {
         val db = new Database("localhost", 5984, "feedshub_status")
 
         // Get our list
-        val vr = db.queryView("feeds", classOf[FeedStatus], null, null).getRows
-        tempFeedList = vr.map(v => v.getValue).toList
+        val vr = db.queryView("feeds/all", classOf[Boolean], null, null).getRows
+        tempFeedList = vr.map(v => new FeedStatus(v.getId, v.getValue)).toList
     }
 
     def updateStatusDocument(feedid: String, newStatus: boolean) : Unit = {
