@@ -16,6 +16,7 @@ import org.jcouchdb.document.{BaseDocument, ViewResult, ValueRow}
 import org.jcouchdb.document.ViewResult
 import org.svenson.JSONProperty
 
+// This should go in the model
 case class FeedStatus(id: String, active: Boolean) {
     // case class so we get the handy accessors
 }
@@ -27,6 +28,8 @@ case class ListFeeds() extends FeedsCmd
 case class UpdateFeedList(feeds: List[FeedStatus]) extends FeedsCmd
 case class Init(couchUrl : String) extends FeedsCmd
 case class AddFeed(definition: FeedDefinition) extends FeedsCmd
+case class StartFeed(feedid: String) extends FeedsCmd
+case class StopFeed(feedid: String) extends FeedsCmd
 
 class FeedDefinition
 
@@ -36,19 +39,31 @@ class FeedDefinition
  */
 object Feeds extends Actor {
     val listeners = new HashSet[Actor]
-    var tempFeedList = List[FeedStatus]() // temp because we'll get this from couch
+    var feedMap = Map[String, Boolean]() // temp because we'll get this from couch
 
     var channel : Option[Channel] = None
     var statusDb : Option[Database] = None
 
     def feeds : List[FeedStatus] =
-        tempFeedList
+        feedMap.projection.map { case (id, active) => new FeedStatus(id, active)} toList
 
-    def notifyListeners =
+    def notifyListeners {
+        val fs = feeds
         for (listener <- listeners)
-            listener ! UpdateFeedList(feeds)
+            listener ! UpdateFeedList(fs)
+    }
 
-    def initFromCouch(url: String) : Unit = {
+    def readFeedMap {
+        // TODO set up the feed status database properly from URL
+        statusDb match {
+            case Some(db) =>
+                // Get our list
+                val vr = db.queryView("feeds/all", classOf[Boolean], null, null).getRows
+                feedMap = Map(vr.map(v => (v.getId -> v.getValue)):_*)
+        }
+    }
+
+    def initFromCouch(url: String) {
         // TODO get from couch
         // TODO set up couch databases
 
@@ -59,21 +74,28 @@ object Feeds extends Actor {
         parameters.setVirtualHost("/")
         val cf = new ConnectionFactory(parameters)
         channel = Some(cf.newConnection("localhost", 5672).createChannel)
-
-        // TODO set up the feed status database properly from URL
-        val db = new Database("localhost", 5984, "feedshub_status")
-
-        // Get our list
-        val vr = db.queryView("feeds/all", classOf[Boolean], null, null).getRows
-        tempFeedList = vr.map(v => new FeedStatus(v.getId, v.getValue)).toList
+        statusDb = Some(new Database("localhost", 5984, "feedshub_status"))
+        readFeedMap
     }
 
-    def updateStatusDocument(feedid: String, newStatus: boolean) : Unit = {
-        // put in couch
+    def updateStatusDocument(feedid: String, newStatus: boolean) {
+        // TODO put in couch
+        // TODO: this should be indirect, in the sense that we should listen to
+        // the command exchange and rearead our map when we get a status change
+        statusDb match {
+            case Some(db) =>
+                // get the doc, put the doc
+        }
     }
 
-    def sendStatusChange(feedid: String) : Unit = {
-        // put in couch
+    def sendStatusChange(feedid: String) {
+        channel match {
+            case Some(c) =>
+                c.basicPublish("feedshub/config", feedid,
+                     MessageProperties.PERSISTENT_TEXT_PLAIN,
+                     "status change".toByteArray)
+        }
+
     }
 
     def updateFeedStatus(newStatus: boolean)(feedid: String) : Unit = {
@@ -95,11 +117,12 @@ object Feeds extends Actor {
                     listener ! UpdateFeedList(feeds)
                 case RemoveListener(listener: Actor) =>
                     listeners.excl(listener)
-                case ListFeeds() => reply(UpdateFeedList(feeds))
+                case ListFeeds() => reply(UpdateFeedList(feeds)) // FIXME do we need this?
                 case AddFeed(dfn) =>
                     // put the definition in CouchDB
-                    
                     notifyListeners
+                case StartFeed(id) => startFeed(id); notifyListeners
+                case StopFeed(id) => stopFeed(id); notifyListeners
             }
         }
     }

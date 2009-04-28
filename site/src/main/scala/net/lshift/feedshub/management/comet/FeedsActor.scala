@@ -22,11 +22,22 @@ class FeedsActor extends CometActor {
 
     override def defaultPrefix = Full("f")
 
+    def feedControl(feed : FeedStatus) : NodeSeq = {
+        def sendCommand(msg : FeedsCmd) = {
+            Feeds ! msg
+            Noop
+        }
+        if (feed.active)
+            SHtml.ajaxButton("Stop", () => sendCommand(StopFeed(feed.id)))
+        else
+            SHtml.ajaxButton("Start", () => sendCommand(StartFeed(feed.id)))
+    }
+
     override def render : RenderOut = {
         Console.println("Bind happens")
         bind("list" ->
             (<ul>
-                {feeds.map(f => <li>{f.id}<span class="active">{f.active}</span></li>)}
+                {feeds.map(f => <li>{f.id} {feedControl(f)}</li>)}
             </ul>))
     }
 
