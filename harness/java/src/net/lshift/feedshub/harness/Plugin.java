@@ -15,6 +15,7 @@ import com.fourspaces.couchdb.Document;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
@@ -167,10 +168,16 @@ public abstract class Plugin implements Runnable {
 
 	public void shutdown() throws IOException {
 		if (messageServerChannel.isOpen())
-			messageServerChannel.close();
+			try {
+				messageServerChannel.close();
+			} catch (ShutdownSignalException sse) {
+			}
 		log.shutdown();
 		if (messageServerConnection.isOpen())
-			messageServerConnection.close();
+			try {
+				messageServerConnection.close();
+			} catch (ShutdownSignalException sse) {
+			}
 	}
 
 	public final void start() throws Exception {

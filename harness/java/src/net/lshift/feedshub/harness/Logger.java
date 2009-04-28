@@ -10,6 +10,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 
 import com.rabbitmq.client.AlreadyClosedException;
+import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.impl.ChannelN;
 
@@ -128,10 +129,12 @@ public class Logger implements Runnable {
 				msg.log();
 			}
 		}
-		try {
-			logChannel.close();
-		} catch (IOException e) {
-		}
+		if (logChannel.isOpen())
+			try {
+				logChannel.close();
+			} catch (ShutdownSignalException sse) {
+			} catch (IOException e) {
+			}
 	}
 
 	private class LogMessage {
