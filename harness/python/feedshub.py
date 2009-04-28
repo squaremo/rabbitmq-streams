@@ -4,6 +4,10 @@ Interfaces for plugin components to use.
 
 import couchdb.client as couch
 import amqplib.client_0_8 as amqp
+import os
+import sys
+
+feedshub_log_xname = 'feedshub/log'
 
 try:
     import json
@@ -66,14 +70,25 @@ def amqp_connection_from_config(hostspec):
                                  virtual_host=virt)
     return connection
 
-def publish_to_exchange(channel, exchange):
+def publish_to_exchange(channel, exchange, routing_key=''):
     def p(msg, **headers):
+        message = amqp.Message(body=msg, children=None, delivery_mode=2, **headers)
         # TODO: treat application_headers specially, and expect a content type
-        channel.basic_publish(amqp.Message(body=msg, children=None, **headers), exchange=exchange)
+        channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
     return p
 
 def subscribe_to_queue(channel, queue, method):
-    channel.basic_consume(queue=queue, callback=lambda msg: method(msg))
+    # no_ack: If this field is set the server does not expect
+    # acknowledgements for messages.
+    channel.basic_consume(queue=queue, no_ack=False, callback=lambda msg: txifyPlugin(channel, method, msg))
+
+def txifyPlugin(channel, method, msg):
+    try:
+        method(msg)
+        channel.basic_ack(msg.delivery_info['delivery_tag'])
+        channel.tx_commit()
+    except Exception:
+        channel.tx_rollback()
 
 class Component(object):
 
@@ -84,21 +99,11 @@ class Component(object):
         msghostspec = config['messageserver']
         self.__conn = amqp_connection_from_config(msghostspec)
         self.__channel = self.__conn.channel()
+        self.__channel.tx_select()
+
+        self.__log = self.__conn.channel() # a new channel which isn't tx'd
+        self.build_logger(config)
         
-        # Inputs and outputs are matched by position
-        inputs = [(desc['name'], q) for (q, desc) in
-                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
-
-        for name, queue in inputs:
-            method = getattr(self, self.INPUTS[name])
-            subscribe_to_queue(self.__channel, queue, method)
-            
-        outputs = [(desc['name'], ex) for (ex, desc) in
-                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
-        for name, exchange in outputs:
-            setattr(self, self.OUTPUTS[name],
-                    publish_to_exchange(self.__channel, exchange))
-
         self.__stateresource = couch.Resource(None, config['state'])
         ensure_resource(self.__stateresource)
 
@@ -110,8 +115,35 @@ class Component(object):
         settings.update(config['configuration'])
         self.__config = settings
 
-    def ack(self, msg):
-        self.__channel.basic_ack(msg.delivery_info['delivery_tag'])
+        # Inputs and outputs are matched by position
+        outputs = [(desc['name'], ex) for (ex, desc) in
+                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
+        for name, exchange in outputs:
+            setattr(self, self.OUTPUTS[name],
+                    publish_to_exchange(self.__channel, exchange))
+
+        inputs = [(desc['name'], q) for (q, desc) in
+                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
+
+        for name, queue in inputs:
+            method = getattr(self, self.INPUTS[name])
+            subscribe_to_queue(self.__channel, queue, method)
+            
+
+    def commit(self):
+        self.__channel.tx_commit()
+
+    def rollback(self):
+        self.__channel.tx_rollback()
+
+    def build_logger(self, config):
+        feed_id = config['feed_id']
+        node_id = config['node_id']
+        plugin_name = config['plugin_name']
+        for level in ['info', 'warn', 'fatal']:
+            rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
+            setattr(self, level, publish_to_exchange(self.__log, feedshub_log_xname,
+                                                     routing_key = rk))
 
     def putState(self, state):
         """Record the state of the component"""
@@ -136,11 +168,7 @@ class Component(object):
 
     def run(self):
         while True:
-            self.__channel.wait() # let the callbacks process
+            self.__channel.wait()
 
     def start(self):
-#        try:
         self.run()
-        #finally:
-        #    self.__channel.close()
-        #    self.__conn.close()

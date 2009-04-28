@@ -12,6 +12,7 @@
 -define(ROOT_CONFIG_DOCID, ?FEEDSHUB_CONFIG_DBNAME "root_config").
 
 -include("orchestrator.hrl").
+-include("rabbit.hrl").
 -include("rabbit_framing.hrl").
 
 start_link() ->
@@ -32,13 +33,23 @@ setup_core_messaging(Ch) ->
     PrivateQ = lib_amqp:declare_private_queue(Ch),
     #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"#">>),
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
+    #'exchange.declare_ok'{} =
+        amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_LOG_XNAME,
+                                                  type = <<"topic">>,
+                                                  durable = true}),
     ok.
 
 install_views() ->
-    lists:foreach(fun install_view/1,
-                  filelib:wildcard(orchestrator:priv_dir()++"/views/*")).
+    lists:foreach(
+      fun({WC, DB}) ->
+	      lists:foreach(fun(Dir) -> install_view(DB, Dir) end,
+			    filelib:wildcard(orchestrator:priv_dir() ++ WC))
+      end, [{"/feedshub_config/views/*", ?FEEDSHUB_CONFIG_DBNAME},
+	    {"/feedshub_status/views/*", ?FEEDSHUB_STATUS_DBNAME}
+	   ]),
+    ok.
 
-install_view(ViewDir) ->
+install_view(DbName, ViewDir) ->
     ViewCollectionName = filename:basename(ViewDir),
     Views = lists:foldl(fun (FileName, V) ->
                                 Base = filename:basename(FileName, ".js"),
@@ -55,12 +66,13 @@ install_view(ViewDir) ->
                                             dict:store(FunctionName, FunctionText, dict:new()),
                                             V)
                         end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
-    {ok, _} = couchapi:put(?FEEDSHUB_CONFIG_DBNAME"_design/" ++ ViewCollectionName,
+    {ok, _} = couchapi:put(DbName ++ "_design/" ++ ViewCollectionName,
                            {obj, [{"views", Views},
                                   {"language", <<"javascript">>}]}).
 
 setup_core_couch() ->
     ok = couchapi:createdb(?FEEDSHUB_CONFIG_DBNAME),
+    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
     {ok, _} = couchapi:put(?ROOT_CONFIG_DOCID,
                            {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
                                   {"rabbitmq", {obj, [{"host", <<"localhost">>},
@@ -102,11 +114,11 @@ startup_couch_scan() ->
 
 check_active_feeds() ->
     FeedIds = [rfc4627:get_field(R, "id", undefined)
-               || R <- couchapi:get_view_rows(?FEEDSHUB_CONFIG_DBNAME, "feeds", "active")],
-    lists:foreach(fun check_feed/1, FeedIds),
+               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
+    lists:foreach(fun activate_feed/1, FeedIds),
     ok.
 
-check_feed(FeedId) ->
+activate_feed(FeedId) ->
     case supervisor:start_child(orchestrator_root_sup,
                                 {FeedId,
                                  {orchestrator_feed_sup, start_link, [FeedId]},
@@ -119,8 +131,46 @@ check_feed(FeedId) ->
         {error, {already_started, _Child}} ->
             ok;
         {error, {shutdown, _}} ->
-            error_logger:error_report({?MODULE, check_feed, start_error, FeedId}),
+            error_logger:error_report({?MODULE, activate_feed, start_error, FeedId}),
             {error, start_error}
+    end.
+
+deactivate_feed(FeedId) ->
+    Res =
+	case supervisor:terminate_child(orchestrator_root_sup,
+					FeedId) of
+	    ok ->
+		ok;
+	    {error, not_found} ->
+		ok;
+	    {error, simple_one_for_one} ->
+		error_logger:error_report({?MODULE, deactivate_feed, supervision_config_error, FeedId}),
+		{error, supervision_config_error}
+	end,
+    case Res of
+	ok ->
+	    case supervisor:delete_child(orchestrator_root_sup, FeedId) of
+		ok ->
+		    ok;
+		{error, Err} ->
+		    error_logger:error_report({?MODULE, deactivate_feed, Err, FeedId})
+	    end;
+	_ -> Res
+    end.
+
+status_change(FeedId) when is_binary(FeedId) ->
+    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(FeedId)) of
+	{ok, Doc} ->
+	    case rfc4627:get_field(Doc, "active") of
+		{ok, true} ->
+	    	    activate_feed(FeedId);
+	     	{ok, false} ->
+	     	    deactivate_feed(FeedId);
+	     	Err ->
+	     	    error_logger:error_report({?MODULE, status_change, Err, FeedId})
+	    end;
+	{error, DecodeError} ->
+	    error_logger:error_report({?MODULE, status_change, DecodeError, FeedId})
     end.
 
 %%---------------------------------------------------------------------------
@@ -154,6 +204,15 @@ handle_cast(_Message, State) ->
 handle_info(#'basic.consume_ok'{}, State) ->
     %% As part of setup_core_messaging, we subscribe to a few
     %% things. Ignore the success notices.
+    {noreply, State};
+handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
+				'delivery_tag' = DeliveryTag,
+				'routing_key' = RoutingKey
+			       },
+	     #content { payload_fragments_rev = [<<"status change">>]}},
+	    State = #state{ch = Ch}) ->
+    status_change(RoutingKey),
+    lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.

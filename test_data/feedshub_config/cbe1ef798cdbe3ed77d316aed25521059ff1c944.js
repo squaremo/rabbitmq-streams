@@ -1,6 +1,5 @@
 {
     "type": "feed",
-    "active": true,
     "user": "testuser",
     "wiring": {
 	"nodes": {

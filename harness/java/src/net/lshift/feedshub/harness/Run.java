@@ -12,6 +12,7 @@ public class Run {
 
 	@SuppressWarnings("unchecked")
 	public static void main(final String[] args) throws IOException {
+		System.out.println(args[0]);
 		Plugin plugin = null;
 		try {
 			JSONObject jsonArgs = JSONObject.fromObject(new BufferedReader(
@@ -23,11 +24,13 @@ public class Run {
 			String pluginName = jsonArgs.getString("plugin_name");
 
 			ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
-			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(pluginDir) }, defaultCL);
+			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(
+					pluginDir) }, defaultCL);
 			Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
-			plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArgs);
+			plugin = clazz.getConstructor(JSONObject.class).newInstance(
+					jsonArgs);
 
-			plugin.run();
+			plugin.start();
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {

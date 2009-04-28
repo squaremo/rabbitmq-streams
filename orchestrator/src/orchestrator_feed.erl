@@ -77,7 +77,7 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
-                          start_component(PluginSupPid, FeedId, NodeConfiguration)
+                          start_component(PluginSupPid, FeedId, Channel, NodeConfiguration)
                   end, NodeConfigurations),
 
     State.
@@ -127,7 +127,7 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                         database = DbName}.
 
 start_component(PluginSupPid,
-                FeedId,
+                FeedId, Channel,
                 #node_configuration{node_id = NodeId,
                                     plugin_config = PluginConfig,
                                     plugin_desc = PluginTypeDescription,
@@ -142,7 +142,8 @@ start_component(PluginSupPid,
                                            NodeId,
                                            Queues,
                                            Exchanges,
-                                           DbName]]),
+                                           DbName,
+					   Channel]]),
     ok.
 
 do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->

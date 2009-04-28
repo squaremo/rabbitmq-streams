@@ -7,10 +7,14 @@ try:
     import json
 except:
     import simplejson as json
+from threading import Thread
+import threading
 
 def main():
     import sys, os.path
     from imp import find_module, load_module
+    sys.stdout.write(sys.argv[1] + '\n')
+    sys.stdout.flush()
     args = json.loads(sys.stdin.readline())
     
     here = os.path.dirname(os.path.abspath(sys.argv[0]))
@@ -29,16 +33,48 @@ def main():
     sys.path.insert(0, os.path.join(here, 'lib'))
     f = None
     os.chdir(plugin_dir)
-    try:
-        f, p, d = find_module(plugin_type, [plugin_dir])
-        module = load_module(plugin_type, f, p, d)
-        if 'run' not in dir(module):
-            raise "Module %r does not contain a run procedure" % module
-        print json.dumps({"status": "ok"})
-        module.run(args)
-    finally:
-        if f is not None:
-            f.close()
+    
+    f, p, d = find_module(plugin_type, [plugin_dir])
+    module = load_module(plugin_type, f, p, d)
+    if 'run' not in dir(module):
+        raise "Module %r does not contain a run procedure" % module
+
+    moduleThread = ModuleThread(module, args)
+    moduleThread.daemon = True
+    moduleThread.start()
+
+    waiter = StdInWatcher(f)
+    waiter.daemon = True
+    waiter.start()
+
+    # let main thread exit. All other threads are daemon threads, so
+    # anyone calling sys.exit() causes python to exit
+
+class StdInWatcher(Thread):
+    def __init__(self, f):
+        Thread.__init__(self)
+        self.__f = f
+
+    def run(self):
+        try:
+            import sys
+            while not '' == sys.stdin.readline():
+                True
+
+        finally:
+            if self.__f is not None:
+                self.__f.close()
+
+        sys.exit()
+
+class ModuleThread(Thread):
+    def __init__(self, module, args):
+        Thread.__init__(self)
+        self.__module = module
+        self.__args = args
+
+    def run(self):
+        self.__module.run(self.__args)
 
 # This is not intended to be used as a module, but
 # we follow Python idiom anyway.
