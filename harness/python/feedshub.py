@@ -72,8 +72,7 @@ def amqp_connection_from_config(hostspec):
 
 def publish_to_exchange(channel, exchange, routing_key=''):
     def p(msg, **headers):
-        message = amqp.Message(body=msg, children=None, **headers)
-        message.delivery_mode = 2 # persistent
+        message = amqp.Message(body=msg, children=None, delivery_mode=2, **headers)
         # TODO: treat application_headers specially, and expect a content type
         channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
     return p
