@@ -5,6 +5,10 @@
 -define(SERVER, ?MODULE).
 
 start_link(LogCh) ->
-    {ok, Pid} = gen_event:start_link({local, orchestrator_logger}),
-    ok = gen_event:add_handler(orchestrator_logger, orchestrator_terminal_logger, ["#", LogCh]),
-    {ok, Pid}.
+    case gen_event:start_link({local, orchestrator_logger}) of
+	{ok, Pid} ->
+	    ok = gen_event:add_handler(orchestrator_logger, orchestrator_terminal_logger, ["#", LogCh]),
+	    {ok, Pid};
+	{error,{already_started,Pid}} ->
+	    {ok, Pid}
+    end.

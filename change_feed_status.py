@@ -18,7 +18,8 @@ feedStatus = False
 if string.lower(sys.argv[2]) in ["true", "on", "activate", "yes", "indubitably", "positive", "1"]:
     feedStatus = True
 
-feedStatusResource = couch.Resource(None, "http://localhost:5984/feedshub_status/" + feedId)
+url = "http://localhost:5984/feedshub_status/" + feedId + "_status"
+feedStatusResource = couch.Resource(None, url)
 
 try:
     feedStatusResource.head()
