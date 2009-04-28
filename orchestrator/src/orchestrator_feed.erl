@@ -87,8 +87,8 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     PluginType = binary_to_list(PluginTypeBin),
     {ok, PluginTypeDescription} = orchestrator_plugin:describe(PluginType),
     error_logger:info_report({?MODULE, node_configuration, FeedId, NodeId, PluginTypeDescription}),
-    {ok, Inputs} = rfc4627:get_field(PluginTypeDescription, "inputs"),
-    {ok, Outputs} = rfc4627:get_field(PluginTypeDescription, "outputs"),
+    {ok, Inputs} = rfc4627:get_field(PluginTypeDescription, "inputs_specification"),
+    {ok, Outputs} = rfc4627:get_field(PluginTypeDescription, "outputs_specification"),
     Queues = [resource_name(FeedId, NodeId, AttachmentName) ||
                  Input <- Inputs,
                  {ok, AttachmentName} <- [rfc4627:get_field(Input, "name")]],
@@ -108,7 +108,7 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                                                                 durable = true})
                   end,
                   Exchanges),
-    DbName = case rfc4627:get_field(PluginTypeDescription, "database") of
+    DbName = case rfc4627:get_field(PluginTypeDescription, "database_specification") of
                  not_found ->
                      undefined;
                  {ok, null} ->

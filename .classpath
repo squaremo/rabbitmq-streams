@@ -12,7 +12,11 @@
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/ezmorph-1.0.3.jar"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/httpclient-4.0-beta2.jar"/>
 	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/httpcore-4.0-beta2.jar"/>
-	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/json-lib-2.2.3-MODIFIED-jdk15.jar"/>
+	<classpathentry kind="lib" path="harness/java/lib/couchdb4j-read-only/lib/json-lib-2.2.3-MODIFIED-jdk15.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="http://json-lib.sourceforge.net/apidocs/jdk15/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="lib" path="harness/java/lib/rabbitmq-java-client-1.5.4/build/lib/rabbitmq-client.jar" sourcepath="harness/java/lib/rabbitmq-java-client-1.5.4/src"/>
 	<classpathentry kind="output" path="build/scratch/java"/>
 </classpath>
