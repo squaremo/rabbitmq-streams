@@ -34,7 +34,6 @@ class FeedsActor extends CometActor {
     }
 
     override def render : RenderOut = {
-        Console.println("Bind happens")
         bind("list" ->
             (<ul>
                 {feeds.map(f => <li>{f.id} {feedControl(f)}</li>)}
@@ -47,7 +46,6 @@ class FeedsActor extends CometActor {
     }
 
     override def localShutdown {
-        Console.println("Local shutdown")
         Feeds ! RemoveListener(this)
     }
 

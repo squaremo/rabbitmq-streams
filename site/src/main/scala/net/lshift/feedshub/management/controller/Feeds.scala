@@ -38,6 +38,11 @@ class FeedDefinition
  * TODO factor out the command channel
  */
 object Feeds extends Actor {
+    val StatusDb = "feedshub_status"
+    val ConfigExchange = "feedshub/config"
+    val StatusView = "feeds/all"
+    val StatusChange = "status change".getBytes("US-ASCII")
+
     val listeners = new HashSet[Actor]
     var feedMap = Map[String, Boolean]() // temp because we'll get this from couch
 
@@ -58,10 +63,12 @@ object Feeds extends Actor {
         statusDb match {
             case Some(db) =>
                 // Get our list
-                val vr = db.queryView("feeds/all", classOf[Boolean], null, null).getRows
-                feedMap = Map(vr.map(v => (v.getId -> v.getValue)):_*)
+                val vr = db.queryView(StatusView, classOf[Boolean], null, null).getRows
+                feedMap = Map(vr.map(v => (v.getKey.toString -> v.getValue)):_*)
         }
     }
+
+    def statusDocName(id : String) : String = id + "_status"
 
     def initFromCouch(url: String) {
         // TODO get from couch
@@ -74,7 +81,7 @@ object Feeds extends Actor {
         parameters.setVirtualHost("/")
         val cf = new ConnectionFactory(parameters)
         channel = Some(cf.newConnection("localhost", 5672).createChannel)
-        statusDb = Some(new Database("localhost", 5984, "feedshub_status"))
+        statusDb = Some(new Database("localhost", 5984, StatusDb))
         readFeedMap
     }
 
@@ -85,15 +92,19 @@ object Feeds extends Actor {
         statusDb match {
             case Some(db) =>
                 // get the doc, put the doc
+                Console.println("Retrieving doc "+statusDocName(feedid))
+                val doc = db.getDocument(classOf[java.util.Map[String, Object]], statusDocName(feedid))
+                doc.put("active", boolean2Boolean(newStatus))
+                db.updateDocument(doc)
         }
     }
 
     def sendStatusChange(feedid: String) {
         channel match {
             case Some(c) =>
-                c.basicPublish("feedshub/config", feedid,
+                c.basicPublish(ConfigExchange, feedid,
                      MessageProperties.PERSISTENT_TEXT_PLAIN,
-                     "status change".toByteArray)
+                     StatusChange)
         }
 
     }
