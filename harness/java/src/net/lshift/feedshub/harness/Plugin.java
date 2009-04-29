@@ -22,6 +22,8 @@ import com.rabbitmq.client.impl.ChannelN;
 
 public abstract class Plugin implements Runnable {
 
+	public static final String newline = System.getProperty("line.separator");
+
 	final protected Connection messageServerConnection;
 	final protected ChannelN messageServerChannel;
 	final private ChannelN logChannel;
@@ -35,7 +37,7 @@ public abstract class Plugin implements Runnable {
 	final protected Logger log;
 	final BasicProperties basicPropsPersistent = new BasicProperties();
 
-	protected Plugin(final JSONObject config) throws IOException {
+	public Plugin(final JSONObject config) throws IOException {
 		basicPropsPersistent.deliveryMode = 2; // persistent
 		this.config = config;
 		pluginType = config.getJSONObject("plugin_type");

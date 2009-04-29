@@ -16,8 +16,6 @@ import com.rabbitmq.client.impl.ChannelN;
 
 public class Logger implements Runnable {
 
-	private static final String newline = System.getProperty("line.separator");
-
 	private static final String logExchange = "feedshub/log";
 
 	private final LogMessage shutdownMessage = new LogMessage(
@@ -36,14 +34,6 @@ public class Logger implements Runnable {
 		this.persistent = persistent;
 	}
 
-	public void info(String message) {
-		try {
-			logQueue.put(new LogMessage(LogLevel.Info, message));
-		} catch (InterruptedException e) {
-			info(message);
-		}
-	}
-
 	private String throwableToString(Throwable t) {
 		try {
 			PipedOutputStream pos = new PipedOutputStream();
@@ -56,13 +46,17 @@ public class Logger implements Runnable {
 			StringBuilder sb = new StringBuilder();
 			String line = br.readLine();
 			while (null != line) {
-				sb.append(line + newline);
+				sb.append(line + Plugin.newline);
 				line = br.readLine();
 			}
 			return sb.toString();
 		} catch (IOException e) {
 			return t.getLocalizedMessage();
 		}
+	}
+
+	public void debug(Throwable t) {
+		info(throwableToString(t));
 	}
 
 	public void info(Throwable t) {
@@ -79,6 +73,22 @@ public class Logger implements Runnable {
 
 	public void fatal(Throwable t) {
 		fatal(throwableToString(t));
+	}
+
+	public void debug(String message) {
+		try {
+			logQueue.put(new LogMessage(LogLevel.Debug, message));
+		} catch (InterruptedException e) {
+			debug(message);
+		}
+	}
+
+	public void info(String message) {
+		try {
+			logQueue.put(new LogMessage(LogLevel.Info, message));
+		} catch (InterruptedException e) {
+			info(message);
+		}
 	}
 
 	public void warn(String message) {
@@ -153,7 +163,7 @@ public class Logger implements Runnable {
 
 	private static enum LogLevel {
 		Info("info"), Warn("warn"), Error("error"), Fatal("fatal"), Shutdown(
-				"shutdown");
+				"shutdown"), Debug("debug");
 
 		private final String level;
 

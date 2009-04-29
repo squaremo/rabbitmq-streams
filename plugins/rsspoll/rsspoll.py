@@ -6,9 +6,6 @@ class RssPollerSource(Component):
     
     OUTPUTS = {'output': 'publish'}
 
-    def error(self, msg):
-        raise Exception(str(msg))
-
     def run(self):
         import time
         state = self.getState()
@@ -29,8 +26,8 @@ class RssPollerSource(Component):
             response = fetch(contentdb, href, dict(etag=state.get('etag', None),
                                                    modified=modified(state)))
             if 'error' in response:
-                self.error(response['error'])
-            
+                self.error(str(response['error']))
+
             if 'updated' in response:
                 # TODO notify of new items
                 updated = response['updated']

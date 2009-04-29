@@ -11,7 +11,7 @@ feedshub_harness.jar: $(CLASS) $(JARS)
 
 bin/%.class: src/%.java
 	mkdir -p bin
-	javac -classpath $(CLASSPATH) -d bin $<
+	javac -classpath $(CLASSPATH) -d bin $(SOURCE)
 
 clean:
 	rm -rf ./bin

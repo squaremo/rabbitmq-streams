@@ -1,5 +1,5 @@
 import sys
-sys.path.append("harness/python/lib")
+sys.path.append("../harness/python/lib")
 
 import couchdb
 import os.path
@@ -11,7 +11,7 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob("test_data/feedshub_config/*"):
+for dbdir in glob.glob("../test_data/feedshub_status/*"):
     dbname = os.path.splitext(os.path.basename(dbdir))[0]
     try:
         print "Deleting feed_%s" % dbname
