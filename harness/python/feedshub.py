@@ -125,6 +125,8 @@ class Component(object):
         outputs = [(desc['name'], ex) for (ex, desc) in
                    zip(config['outputs'], config['plugin_type']['outputs_specification'])]
         for name, exchange in outputs:
+            if name not in self.OUTPUTS:
+                self.OUTPUTS[name] = name
             setattr(self, self.OUTPUTS[name],
                     publish_to_exchange(self, self.__channel, exchange))
 
@@ -132,6 +134,8 @@ class Component(object):
                      zip(config['inputs'], config['plugin_type']['inputs_specification'])]
 
         for name, queue in inputs:
+            if name not in self.INPUTS:
+                self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
             subscribe_to_queue(self.__channel, queue, method)
 

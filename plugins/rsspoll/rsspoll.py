@@ -6,9 +6,6 @@ class RssPollerSource(Component):
     
     OUTPUTS = {'output': 'publish'}
 
-    def error(self, msg):
-        raise Exception(str(msg))
-
     def run(self):
         import time
         state = self.getState()

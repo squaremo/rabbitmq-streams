@@ -20,6 +20,15 @@
 				  "dotall": true
 			         }
 	    },
+	    "the_replacer": {
+	        "type": "regexp_replace",
+		"configuration": {"regexp": "(ra)bbit",
+				  "replacement": "\\1dical",
+                                  "multiline": false,
+				  "caseinsensitive": true,
+				  "dotall": false
+				 }
+	    },
 	    "the_output_pos": {
 		"type": "webfeed",
                 "configuration": {"title": "Test xslt with Rabbit"}
@@ -32,8 +41,10 @@
 	"edges": [
 	    ["the_input", "output", "the_transformer", "input"],
 	    ["the_transformer", "output", "the_regexp", "input"],
-	    ["the_regexp", "positive", "the_output_pos", "input"],
-	    ["the_regexp", "negative", "the_output_neg", "input"]
+	    ["the_regexp", "positive", "the_replacer", "input"],
+	    ["the_regexp", "negative", "the_output_neg", "input"],
+	    ["the_replacer", "positive", "the_output_pos", "input"],
+	    ["the_replacer", "negative", "the_output_neg", "input"]
 	]
     }
 }
