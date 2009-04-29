@@ -30,6 +30,7 @@ case class Init(couchUrl : String) extends FeedsCmd
 case class AddFeed(definition: FeedDefinition) extends FeedsCmd
 case class StartFeed(feedid: String) extends FeedsCmd
 case class StopFeed(feedid: String) extends FeedsCmd
+case class ConfigChange(feedid: String, bondy: Array[Byte]) extends FeedsCmd
 
 class FeedDefinition
 
@@ -41,7 +42,8 @@ object Feeds extends Actor {
     val StatusDb = "feedshub_status"
     val ConfigExchange = "feedshub/config"
     val StatusView = "feeds/all"
-    val StatusChange = "status change".getBytes("US-ASCII")
+    val StatusChange = "status change"
+    val StatusChangeMsg = configMessageEncode(StatusChange)
 
     val listeners = new HashSet[Actor]
     var feedMap = Map[String, Boolean]() // temp because we'll get this from couch
@@ -58,6 +60,10 @@ object Feeds extends Actor {
             listener ! UpdateFeedList(fs)
     }
 
+    // The orchestrators interpret config messages as ASCII strings
+    def configMessageEncode(msg: String) : Array[Byte] = msg.getBytes("US-ASCII")
+    def configMessageDecode(body: Array[Byte]) = new String(body, "US-ASCII")
+
     def readFeedMap {
         // TODO set up the feed status database properly from URL
         statusDb match {
@@ -66,6 +72,10 @@ object Feeds extends Actor {
                 val vr = db.queryView(StatusView, classOf[Boolean], null, null).getRows
                 feedMap = Map(vr.map(v => (v.getKey.toString -> v.getValue)):_*)
         }
+    }
+
+    def changedStatus(feedid: String) {
+        readFeedMap // TODO for now, just reload everything
     }
 
     def statusDocName(id : String) : String = id + "_status"
@@ -80,9 +90,34 @@ object Feeds extends Actor {
         parameters.setPassword("feedshub_admin")
         parameters.setVirtualHost("/")
         val cf = new ConnectionFactory(parameters)
-        channel = Some(cf.newConnection("localhost", 5672).createChannel)
+        val ch = cf.newConnection("localhost", 5672).createChannel
+        channel = Some(ch)
         statusDb = Some(new Database("localhost", 5984, StatusDb))
         readFeedMap
+        subscribeToStatusChanges(ch)
+    }
+
+    def subscribeToStatusChanges(channel : Channel) {
+        val listener = this
+        object ConfigConsumer extends DefaultConsumer(channel) {
+            override def handleDelivery(consumerTag : String,
+                                              envelope : Envelope,
+                                              properties : AMQP.BasicProperties,
+                                              body : Array[Byte]) = {
+                      val tag = envelope.getDeliveryTag
+                      listener ! ConfigChange(envelope.getRoutingKey, body)
+                      channel.basicAck(tag, false)
+                  }
+        }
+
+        val queue = channel.queueDeclare().getQueue
+        //Console.println("Binding "+queue+" to "+ConfigExchange)
+        channel.queueBind(queue, ConfigExchange, "#")
+        channel.basicConsume(
+            queue, // queue name
+              false, // that's a negatory on, um, not acking ..
+              ConfigConsumer
+            )
     }
 
     def updateStatusDocument(feedid: String, newStatus: boolean) {
@@ -104,7 +139,7 @@ object Feeds extends Actor {
             case Some(c) =>
                 c.basicPublish(ConfigExchange, feedid,
                      MessageProperties.PERSISTENT_TEXT_PLAIN,
-                     StatusChange)
+                     StatusChangeMsg)
         }
 
     }
@@ -134,6 +169,10 @@ object Feeds extends Actor {
                     notifyListeners
                 case StartFeed(id) => startFeed(id); notifyListeners
                 case StopFeed(id) => stopFeed(id); notifyListeners
+                case ConfigChange(id, bytes) =>
+                        configMessageDecode(bytes) match {
+                            case StatusChange => changedStatus(id); notifyListeners
+                        }
             }
         }
     }
