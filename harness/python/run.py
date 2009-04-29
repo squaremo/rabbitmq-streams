@@ -36,17 +36,21 @@ def main():
     try:
         f, p, d = find_module(plugin_type, [plugin_dir])
         module = load_module(plugin_type, f, p, d)
+        f.close()
+        f = None
+
         if 'run' not in dir(module):
             raise "Module %r does not contain a run procedure" % module
-        print json.dumps({"status": "ok"})
+        #print json.dumps({"status": "ok"})
 
         moduleThread = ModuleThread(module, args)
         moduleThread.daemon = True
         moduleThread.start()
-        while not '' == sys.stdin.readline():
-            True
 
+        while not '' == sys.stdin.readline():
+            pass
         sys.exit()
+
     finally:
         if f is not None:
             f.close()
