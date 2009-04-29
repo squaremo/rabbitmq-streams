@@ -1,5 +1,5 @@
 import sys, os.path, string
-sys.path.append("harness/python/lib")
+sys.path.append("../harness/python/lib")
 
 try:
     import json

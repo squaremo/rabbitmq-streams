@@ -1,5 +1,5 @@
 import sys
-sys.path.append("harness/python/lib")
+sys.path.append("../harness/python/lib")
 
 import couchdb
 import os.path
@@ -12,7 +12,7 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob("test_data/*"):
+for dbdir in glob.glob("../test_data/*"):
     dbname = os.path.split(dbdir)[1]
     try:
         db = server.create(dbname)
