@@ -36,7 +36,10 @@
 	    "the_output_neg": {
 		"type": "webfeed",
                 "configuration": {"title": "Test xslt without Rabbit"}
-	    }
+	    },
+	    "a_logger": {
+	        "type": "logger"
+            }
 	},
 	"edges": [
 	    ["the_input", "output", "the_transformer", "input"],
@@ -44,7 +47,8 @@
 	    ["the_regexp", "positive", "the_replacer", "input"],
 	    ["the_regexp", "negative", "the_output_neg", "input"],
 	    ["the_replacer", "positive", "the_output_pos", "input"],
-	    ["the_replacer", "negative", "the_output_neg", "input"]
+	    ["the_replacer", "negative", "the_output_neg", "input"],
+	    ["the_replacer", "positive", "a_logger", "input"]
 	]
     }
 }

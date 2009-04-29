@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" output="harness/java/bin" path="harness/java/src"/>
+	<classpathentry kind="src" output="plugins/logger" path="plugins/logger"/>
 	<classpathentry kind="src" output="plugins/regexp_split" path="plugins/regexp_split"/>
 	<classpathentry kind="src" output="plugins/xslt" path="plugins/xslt"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>

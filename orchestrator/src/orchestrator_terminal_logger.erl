@@ -42,6 +42,7 @@ handle_info({#'basic.deliver' { 'delivery_tag' = DeliveryTag,
 		    end, [], binary_to_list(RoutingKey)),
     RKFormatted = " | " ++ lists:flatmap(fun (T) -> T ++ " | " end, RKRest),
     case Level of
+	"debug" -> error_logger:info_msg("*** DEBUG ***~n~s~n ~s~n", [RKFormatted, Message]);
 	"info" -> error_logger:info_msg("~s~n ~s~n", [RKFormatted, Message]);
 	"warn" -> error_logger:warning_msg("~s~n ~s~n", [RKFormatted, Message]);
 	"error" -> error_logger:error_msg("~s~n ~s~n", [RKFormatted, Message]);

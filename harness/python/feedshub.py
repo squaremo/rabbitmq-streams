@@ -149,7 +149,7 @@ class Component(object):
         feed_id = config['feed_id']
         node_id = config['node_id']
         plugin_name = config['plugin_name']
-        for level in ['info', 'warn', 'error', 'fatal']:
+        for level in ['debug', 'info', 'warn', 'error', 'fatal']:
             rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
             setattr(self, level, publish_to_exchange(self, self.__log, feedshub_log_xname,
                                                      routing_key = rk))

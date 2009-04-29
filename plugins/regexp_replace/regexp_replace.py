@@ -22,8 +22,6 @@ class RegexpReplacer(Component):
             flags |= re.DOTALL
         self.__regexp = re.compile(match, flags)
         self.__replacement = replacement
-        self.info(match)
-
 
     def input(self, msg):
         body = msg.body

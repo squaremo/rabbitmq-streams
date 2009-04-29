@@ -34,14 +34,6 @@ public class Logger implements Runnable {
 		this.persistent = persistent;
 	}
 
-	public void info(String message) {
-		try {
-			logQueue.put(new LogMessage(LogLevel.Info, message));
-		} catch (InterruptedException e) {
-			info(message);
-		}
-	}
-
 	private String throwableToString(Throwable t) {
 		try {
 			PipedOutputStream pos = new PipedOutputStream();
@@ -63,6 +55,10 @@ public class Logger implements Runnable {
 		}
 	}
 
+	public void debug(Throwable t) {
+		info(throwableToString(t));
+	}
+
 	public void info(Throwable t) {
 		info(throwableToString(t));
 	}
@@ -77,6 +73,22 @@ public class Logger implements Runnable {
 
 	public void fatal(Throwable t) {
 		fatal(throwableToString(t));
+	}
+
+	public void debug(String message) {
+		try {
+			logQueue.put(new LogMessage(LogLevel.Debug, message));
+		} catch (InterruptedException e) {
+			debug(message);
+		}
+	}
+
+	public void info(String message) {
+		try {
+			logQueue.put(new LogMessage(LogLevel.Info, message));
+		} catch (InterruptedException e) {
+			info(message);
+		}
 	}
 
 	public void warn(String message) {
@@ -151,7 +163,7 @@ public class Logger implements Runnable {
 
 	private static enum LogLevel {
 		Info("info"), Warn("warn"), Error("error"), Fatal("fatal"), Shutdown(
-				"shutdown");
+				"shutdown"), Debug("debug");
 
 		private final String level;
 
