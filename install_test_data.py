@@ -4,6 +4,7 @@ sys.path.append("harness/python/lib")
 import couchdb
 import os.path
 import glob
+import string
 try:
     import json
 except ImportError:
@@ -18,7 +19,7 @@ for dbdir in glob.glob("test_data/*"):
     except couchdb.PreconditionFailed:
         db = server[dbname]
     for docfilename in glob.glob(dbdir + "/*.js"):
-        docid = os.path.splitext(os.path.basename(docfilename))[0]
+        docid = string.replace(os.path.splitext(os.path.basename(docfilename))[0], '.', '_')
         f = open(docfilename)
         d = json.loads(f.read())
         f.close()
