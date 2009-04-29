@@ -70,11 +70,16 @@ def amqp_connection_from_config(hostspec):
                                  virtual_host=virt)
     return connection
 
-def publish_to_exchange(channel, exchange, routing_key=''):
+def publish_to_exchange(component, channel, exchange, routing_key=''):
     def p(msg, **headers):
         message = amqp.Message(body=msg, children=None, delivery_mode=2, **headers)
         # TODO: treat application_headers specially, and expect a content type
-        channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
+        try:
+            channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
+        except:
+            errMsg = str("Exception when trying to publish to exchange " +
+                         exchange + " with routing key " + routing_key)
+            component.error(errMsg)
     return p
 
 def subscribe_to_queue(channel, queue, method):
@@ -121,7 +126,7 @@ class Component(object):
                    zip(config['outputs'], config['plugin_type']['outputs_specification'])]
         for name, exchange in outputs:
             setattr(self, self.OUTPUTS[name],
-                    publish_to_exchange(self.__channel, exchange))
+                    publish_to_exchange(self, self.__channel, exchange))
 
         inputs = [(desc['name'], q) for (q, desc) in
                      zip(config['inputs'], config['plugin_type']['inputs_specification'])]
@@ -142,7 +147,7 @@ class Component(object):
         plugin_name = config['plugin_name']
         for level in ['info', 'warn', 'error', 'fatal']:
             rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
-            setattr(self, level, publish_to_exchange(self.__log, feedshub_log_xname,
+            setattr(self, level, publish_to_exchange(self, self.__log, feedshub_log_xname,
                                                      routing_key = rk))
 
     def putState(self, state):

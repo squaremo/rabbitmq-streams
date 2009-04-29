@@ -18,20 +18,15 @@ feedStatus = False
 if string.lower(sys.argv[2]) in ["true", "on", "activate", "yes", "indubitably", "positive", "1"]:
     feedStatus = True
 
-url = "http://localhost:5984/feedshub_status/" + feedId + "_status"
-feedStatusResource = couch.Resource(None, url)
+db = couch.Database('http://localhost:5984/feedshub_status/')
+statusDoc = db.get(feedId + "_status")
 
-try:
-    feedStatusResource.head()
-except:
+if statusDoc == None:
     print "Unable to find the status for feed id " + feedId
     sys.exit(1)
 
-resp, data = feedStatusResource.get()
-statusDoc = couch.Document(data)
-
 oldActive = statusDoc['active']
 statusDoc['active'] = feedStatus
-feedStatusResource.put(content = statusDoc)
+db.update([statusDoc])
 
 channel.basic_publish(amqp.Message(body="status change", children=None), exchange=exchange, routing_key=feedId)

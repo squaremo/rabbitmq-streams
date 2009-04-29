@@ -80,9 +80,16 @@ install_view(DbName, ViewDir) ->
                                             dict:store(FunctionName, FunctionText, dict:new()),
                                             V)
                         end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
-    {ok, _} = couchapi:put(DbName ++ "_design/" ++ ViewCollectionName,
-                           {obj, [{"views", Views},
-                                  {"language", <<"javascript">>}]}).
+    Path = DbName ++ "_design/" ++ ViewCollectionName,
+    Doc = {obj, [{"views", Views},
+		 {"language", <<"javascript">>}]},
+    Doc2 =
+	case couchapi:get(Path) of
+	     {ok, InstalledViews} -> {ok, RevId} = rfc4627:get_field(InstalledViews, "_rev"),
+				     rfc4627:set_field(Doc, "_rev", RevId);
+	     _ -> Doc
+	 end,
+    {ok, _} = couchapi:put(Path, Doc2).
 
 setup_core_couch() ->
     ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
