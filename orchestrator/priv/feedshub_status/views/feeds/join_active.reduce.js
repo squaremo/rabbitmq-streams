@@ -6,10 +6,9 @@ function(keys, values, rereduce) {
 	for (idx in values) {
 	    output[values[idx].type] = values[idx];
 	}
-	if (output["feed-status"]["active"]) {
-	    return output;
-	} else {
-	    return {};
+	if (!(output["feed-status"] && output["feed-status"]["active"])) {
+	    output = null;
 	}
+	return output;
     }
 }
