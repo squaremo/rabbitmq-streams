@@ -16,8 +16,6 @@ import com.rabbitmq.client.impl.ChannelN;
 
 public class Logger implements Runnable {
 
-	private static final String newline = System.getProperty("line.separator");
-
 	private static final String logExchange = "feedshub/log";
 
 	private final LogMessage shutdownMessage = new LogMessage(
@@ -56,7 +54,7 @@ public class Logger implements Runnable {
 			StringBuilder sb = new StringBuilder();
 			String line = br.readLine();
 			while (null != line) {
-				sb.append(line + newline);
+				sb.append(line + Plugin.newline);
 				line = br.readLine();
 			}
 			return sb.toString();
