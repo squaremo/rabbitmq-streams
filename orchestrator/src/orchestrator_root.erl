@@ -239,6 +239,14 @@ handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
     status_change(RoutingKey),
     lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
+handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
+				'delivery_tag' = DeliveryTag
+			       },
+	     #content { payload_fragments_rev = [<<"install views">>]}},
+	    State = #state{ch = Ch}) ->
+    ok = install_views(),
+    lib_amqp:ack(Ch, DeliveryTag),
+    {noreply, State};
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
