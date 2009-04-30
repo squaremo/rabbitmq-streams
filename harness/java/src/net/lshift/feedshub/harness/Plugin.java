@@ -24,6 +24,8 @@ public abstract class Plugin implements Runnable {
 
 	public static final String newline = System.getProperty("line.separator");
 
+	final private Object privateLock = new Object();
+
 	final protected Connection messageServerConnection;
 	final protected ChannelN messageServerChannel;
 	final private ChannelN logChannel;
@@ -141,22 +143,29 @@ public abstract class Plugin implements Runnable {
 					while (messageServerChannel.isOpen()) {
 						try {
 							Delivery delivery = consumer.nextDelivery();
-							Object pluginConsumer = pluginQueueField
-									.get(Plugin.this);
-							if (null != pluginConsumer) {
-								((InputReader) pluginConsumer)
-										.handleDelivery(delivery);
-								messageServerChannel.basicAck(delivery
-										.getEnvelope().getDeliveryTag(), false);
-								messageServerChannel.txCommit();
+							synchronized (privateLock) {
+								try {
+									Object pluginConsumer = pluginQueueField
+											.get(Plugin.this);
+									if (null != pluginConsumer) {
+										((InputReader) pluginConsumer)
+												.handleDelivery(delivery);
+										messageServerChannel.basicAck(
+												delivery.getEnvelope()
+														.getDeliveryTag(),
+												false);
+										messageServerChannel.txCommit();
+									}
+								} catch (Exception e) {
+									try {
+										log.error(e);
+										messageServerChannel.txRollback();
+									} catch (IOException e1) {
+										log.error(e1);
+									}
+								}
 							}
-						} catch (Exception e) {
-							try {
-								log.error(e);
-								messageServerChannel.txRollback();
-							} catch (IOException e1) {
-								log.error(e1);
-							}
+						} catch (InterruptedException _) {
 						}
 					}
 
