@@ -22,70 +22,70 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class xslt extends Plugin {
 
-	public InputReader input;
+    public InputReader input;
 
-	public Publisher output;
+    public Publisher output;
 
-	private final ErrorListener xsltErrorLogger = new ErrorListener() {
+    private final ErrorListener xsltErrorLogger = new ErrorListener() {
 
-		public void error(TransformerException exception)
-				throws TransformerException {
-			xslt.this.log.error(exception);
-		}
+        public void error(TransformerException exception)
+                throws TransformerException {
+            xslt.this.log.error(exception);
+        }
 
-		public void fatalError(TransformerException exception)
-				throws TransformerException {
-			xslt.this.log.fatal(exception);
-		}
+        public void fatalError(TransformerException exception)
+                throws TransformerException {
+            xslt.this.log.fatal(exception);
+        }
 
-		public void warning(TransformerException exception)
-				throws TransformerException {
-			xslt.this.log.warn(exception);
-		}
-	};
+        public void warning(TransformerException exception)
+                throws TransformerException {
+            xslt.this.log.warn(exception);
+        }
+    };
 
-	public xslt(final JSONObject config) throws IOException,
-			IllegalArgumentException, SecurityException,
-			IllegalAccessException, NoSuchFieldException {
-		super(config);
-		String xsltSrc = configuration.getString("stylesheet_url");
-		URLConnection xsltConn = new URL(xsltSrc).openConnection();
-		xsltConn.connect();
-		InputStream xsltFileContent = (InputStream) xsltConn.getContent();
-		StreamSource xsltSource = new StreamSource(xsltFileContent);
+    public xslt(final JSONObject config) throws IOException,
+            IllegalArgumentException, SecurityException,
+            IllegalAccessException, NoSuchFieldException {
+        super(config);
+        String xsltSrc = configuration.getString("stylesheet_url");
+        URLConnection xsltConn = new URL(xsltSrc).openConnection();
+        xsltConn.connect();
+        InputStream xsltFileContent = (InputStream) xsltConn.getContent();
+        StreamSource xsltSource = new StreamSource(xsltFileContent);
 
-		TransformerFactory transFact = TransformerFactory.newInstance();
-		transFact.setErrorListener(xsltErrorLogger);
-		Transformer transTmp;
-		try {
-			transTmp = transFact.newTransformer(xsltSource);
-		} catch (TransformerConfigurationException e) {
-			log.fatal(e);
-			transTmp = null;
-			System.exit(1);
-		}
-		final Transformer trans = transTmp;
-		trans.setErrorListener(xsltErrorLogger);
+        TransformerFactory transFact = TransformerFactory.newInstance();
+        transFact.setErrorListener(xsltErrorLogger);
+        Transformer transTmp;
+        try {
+            transTmp = transFact.newTransformer(xsltSource);
+        } catch (TransformerConfigurationException e) {
+            log.fatal(e);
+            transTmp = null;
+            System.exit(1);
+        }
+        final Transformer trans = transTmp;
+        trans.setErrorListener(xsltErrorLogger);
 
-		input = new InputReader() {
+        input = new InputReader() {
 
-			public void handleDelivery(Delivery message) throws IOException,
-					InterruptedException {
-				StreamSource xmlSource = new StreamSource(
-						new ByteArrayInputStream(message.getBody()));
-				ByteArrayOutputStream output = new ByteArrayOutputStream();
-				StreamResult result = new StreamResult(output);
+            public void handleDelivery(Delivery message) throws IOException,
+                    InterruptedException {
+                StreamSource xmlSource = new StreamSource(
+                        new ByteArrayInputStream(message.getBody()));
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                StreamResult result = new StreamResult(output);
 
-				try {
-					trans.transform(xmlSource, result);
-				} catch (TransformerException e) {
-					log.error(e);
-				}
-				String outputString = output.toString();
-				xslt.this.output.publish(outputString.getBytes());
-			}
+                try {
+                    trans.transform(xmlSource, result);
+                } catch (TransformerException e) {
+                    log.error(e);
+                }
+                String outputString = output.toString();
+                xslt.this.output.publish(outputString.getBytes());
+            }
 
-		};
-		postConstructorInit();
-	}
+        };
+        postConstructorInit();
+    }
 }

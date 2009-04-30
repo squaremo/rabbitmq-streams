@@ -14,50 +14,50 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class regexp_split extends Plugin {
 
-	public InputReader input;
+    public InputReader input;
 
-	public Publisher positive;
-	public Publisher negative;
+    public Publisher positive;
+    public Publisher negative;
 
-	public regexp_split(JSONObject config) throws IOException,
-			IllegalArgumentException, SecurityException,
-			IllegalAccessException, NoSuchFieldException {
-		super(config);
+    public regexp_split(JSONObject config) throws IOException,
+            IllegalArgumentException, SecurityException,
+            IllegalAccessException, NoSuchFieldException {
+        super(config);
 
-		String regexp = configuration.getString("regexp");
-		int flags = (configuration.getBoolean("multiline") ? Pattern.MULTILINE
-				: 0)
-				| (configuration.getBoolean("caseinsensitive") ? Pattern.CASE_INSENSITIVE
-						: 0)
-				| (configuration.getBoolean("dotall") ? Pattern.DOTALL : 0);
+        String regexp = configuration.getString("regexp");
+        int flags = (configuration.getBoolean("multiline") ? Pattern.MULTILINE
+                : 0)
+                | (configuration.getBoolean("caseinsensitive") ? Pattern.CASE_INSENSITIVE
+                        : 0)
+                | (configuration.getBoolean("dotall") ? Pattern.DOTALL : 0);
 
-		final Pattern pattern = Pattern.compile(regexp, flags);
+        final Pattern pattern = Pattern.compile(regexp, flags);
 
-		input = new InputReader() {
+        input = new InputReader() {
 
-			public void handleDelivery(Delivery message) throws Exception {
-				byte[] body = message.getBody();
+            public void handleDelivery(Delivery message) throws Exception {
+                byte[] body = message.getBody();
 
-				BufferedReader br = new BufferedReader(new InputStreamReader(
-						new ByteArrayInputStream(body)));
-				StringBuilder sb = new StringBuilder();
-				String line = br.readLine();
-				while (null != line) {
-					sb.append(line);
-					sb.append(newline);
-					line = br.readLine();
-				}
+                BufferedReader br = new BufferedReader(new InputStreamReader(
+                        new ByteArrayInputStream(body)));
+                StringBuilder sb = new StringBuilder();
+                String line = br.readLine();
+                while (null != line) {
+                    sb.append(line);
+                    sb.append(newline);
+                    line = br.readLine();
+                }
 
-				Matcher matcher = pattern.matcher(sb);
-				if (matcher.matches()) {
-					positive.publish(body);
-				} else {
-					negative.publish(body);
-				}
+                Matcher matcher = pattern.matcher(sb);
+                if (matcher.matches()) {
+                    positive.publish(body);
+                } else {
+                    negative.publish(body);
+                }
 
-			}
-		};
+            }
+        };
 
-		postConstructorInit();
-	}
+        postConstructorInit();
+    }
 }
