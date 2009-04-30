@@ -140,6 +140,15 @@ public abstract class Plugin implements Runnable {
                 public void run() {
                     while (messageServerChannel.isOpen()) {
                         try {
+                            // We may have many input queues, so to avoid interleaving transactions,
+                            // we have to choose either to have a channel for each, or serialise the
+                            // message handing.
+                            // Since there are a maximum of 15 channels, we choose to serialise
+                            // message handling by way of this mutex.
+                            // Note: Transactions are only on outgoing messages, so it doesn't
+                            // matter that two or more threads could receive messages before one
+                            // acquires the lock; the transaction will be complete or abandoned
+                            // before another consumer can start sending anything.
                             Delivery delivery = consumer.nextDelivery();
                             synchronized (privateLock) {
                                 try {
