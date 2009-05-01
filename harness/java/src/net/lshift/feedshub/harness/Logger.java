@@ -2,10 +2,8 @@ package net.lshift.feedshub.harness;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 
@@ -35,24 +33,9 @@ public class Logger implements Runnable {
     }
 
     private String throwableToString(Throwable t) {
-        try {
-            PipedOutputStream pos = new PipedOutputStream();
-            PipedInputStream pis = new PipedInputStream(pos);
-            PrintStream ps = new PrintStream(pos);
-            t.printStackTrace(ps);
-            ps.close();
-            InputStreamReader isr = new InputStreamReader(pis);
-            BufferedReader br = new BufferedReader(isr);
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (null != line) {
-                sb.append(line + Plugin.newline);
-                line = br.readLine();
-            }
-            return sb.toString();
-        } catch (IOException e) {
-            return t.getLocalizedMessage();
-        }
+        StringWriter out = new StringWriter();
+        t.printStackTrace(new PrintWriter(out));
+        return out.toString();
     }
 
     public void debug(Throwable t) {
