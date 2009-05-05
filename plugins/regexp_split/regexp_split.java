@@ -48,7 +48,8 @@ public class regexp_split extends Plugin {
                     line = br.readLine();
                 }
 
-                Matcher matcher = pattern.matcher(sb);
+                // Unless there's no body at all, we've added an extra line ending
+                Matcher matcher = pattern.matcher(sb.substring(0, sb.length() > 0 ? sb.length() - newline.length() : 0));
                 if (matcher.matches()) {
                     positive.publish(body);
                 } else {
