@@ -201,47 +201,44 @@ check_active_feeds() ->
     lists:foreach(fun activate_feed/1, FeedIds),
     ok.
 
-activate_terminal(TermId, TermStatusDoc) ->
-    ok.
+activate_terminal(TermId) ->
+    todo.
 
-deactivate_terminal(TermId, TermStatusDoc) ->
-    ok.
+deactivate_terminal(TermId) ->
+    todo.
 
 check_active_terminals() ->
-    TermIdsServerRef =
-	[{lists:takewhile(fun (C) -> C /= $_ end,
-			  binary_to_list(rfc4627:get_field(R, "id", undefined))),
-	  R}
-	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
-    lists:foreach(fun ({TermId, ServerRef}) -> activate_terminal(TermId, ServerRef) end,
-		  TermIdsServerRef),
+    TermIds =
+	[lists:takewhile(fun (C) -> C /= $_ end,
+			  binary_to_list(rfc4627:get_field(R, "id", undefined)))
+	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
+    lists:foreach(fun activate_terminal/1, TermIds),
     ok.
     
-
-status_change(FeedId) when is_binary(FeedId) ->
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(FeedId) ++ "_status") of
+status_change(ThingId) when is_binary(ThingId) ->
+    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status") of
 	{ok, Doc} ->
-	    {On, Off, Args} =
+	    {On, Off} =
 		case rfc4627:get_field(Doc, "type") of
 		    {ok, <<"feed-status">>} ->
-			{fun activate_feed/1, fun deactivate_feed/1, [FeedId]};
+			{fun activate_feed/1, fun deactivate_feed/1};
 		    {ok, <<"terminal-status">>} ->
-			{fun activate_terminal/2, fun deactivate_terminal/2, [FeedId, Doc]};
+			{fun activate_terminal/1, fun deactivate_terminal/1};
 		    {ok, <<"server-status">>} ->
-			{fun activate_server/1, fun deactivate_server/1, [FeedId]};
+			{fun activate_server/1, fun deactivate_server/1};
 		    Err ->
-			error_logger:error_report({?MODULE, status_change, Err, FeedId})
+			error_logger:error_report({?MODULE, status_change, Err, ThingId})
 		end,
 	    case rfc4627:get_field(Doc, "active") of
 		{ok, true} ->
-	    	    apply(On, Args);
+	    	    On(ThingId);
 	     	{ok, false} ->
-	     	    apply(Off, Args);
+	     	    Off(ThingId);
 	     	Err2 ->
-	     	    error_logger:error_report({?MODULE, status_change, Err2, FeedId})
+	     	    error_logger:error_report({?MODULE, status_change, Err2, ThingId})
 	    end;
 	{error, DecodeError} ->
-	    error_logger:error_report({?MODULE, status_change, DecodeError, FeedId})
+	    error_logger:error_report({?MODULE, status_change, DecodeError, ThingId})
     end.
 
 %%---------------------------------------------------------------------------
