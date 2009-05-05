@@ -132,17 +132,10 @@ startup_couch_scan() ->
     end,
     {ok, #root_config{}} = read_root_config().
 
-check_active_feeds() ->
-    FeedIds = [lists:takewhile(fun (C) -> C /= $_ end,
-			       binary_to_list(rfc4627:get_field(R, "id", undefined)))
-               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
-    lists:foreach(fun activate_feed/1, FeedIds),
-    ok.
-
-activate_feed(FeedId) when is_binary(FeedId) ->
+activate_thing(ThingId, Module) when is_binary(ThingId) ->
     case supervisor:start_child(orchestrator_root_sup,
-                                {FeedId,
-                                 {orchestrator_feed_sup, start_link, [FeedId]},
+                                {ThingId,
+                                 {Module, start_link, [ThingId]},
                                  transient,
                                  5000,
                                  supervisor,
@@ -152,47 +145,100 @@ activate_feed(FeedId) when is_binary(FeedId) ->
         {error, {already_started, _Child}} ->
             ok;
         {error, {shutdown, _}} ->
-            error_logger:error_report({?MODULE, activate_feed, start_error, FeedId}),
+            error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module}}),
             {error, start_error}
     end;
-activate_feed(FeedId) ->
-    activate_feed(list_to_binary(FeedId)).
+activate_thing(ThingId, Module) ->
+    activate_thing(list_to_binary(ThingId), Module).
 
-deactivate_feed(FeedId) when is_binary(FeedId) ->
+deactivate_thing(ThingId) when is_binary(ThingId) ->
     Res =
-	case supervisor:terminate_child(orchestrator_root_sup,
-					FeedId) of
+	case supervisor:terminate_child(orchestrator_root_sup, ThingId) of
 	    ok ->
 		ok;
 	    {error, not_found} ->
 		ok;
 	    {error, simple_one_for_one} ->
-		error_logger:error_report({?MODULE, deactivate_feed, supervision_config_error, FeedId}),
+		error_logger:error_report({?MODULE, deactivate_thing, supervision_config_error, ThingId}),
 		{error, supervision_config_error}
 	end,
     case Res of
 	ok ->
-	    case supervisor:delete_child(orchestrator_root_sup, FeedId) of
+	    case supervisor:delete_child(orchestrator_root_sup, ThingId) of
 		ok ->
 		    ok;
 		{error, Err} ->
-		    error_logger:error_report({?MODULE, deactivate_feed, Err, FeedId})
+		    error_logger:error_report({?MODULE, deactivate_feed, Err, ThingId})
 	    end;
 	_ -> Res
     end;
+deactivate_thing(ThingId) ->
+    deactivate_thing(list_to_binary(ThingId)).
+
+activate_server(ServerId) ->
+    activate_thing(ServerId, orchestrator_server_sup).
+
+deactivate_server(ServerId) ->
+    deactivate_server(ServerId).
+
+check_active_servers() ->
+    ServerIds = [lists:takewhile(fun (C) -> C /= $_ end,
+				 binary_to_list(rfc4627:get_field(R, "id", undefined)))
+		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
+    lists:foreach(fun activate_server/1, ServerIds),
+    ok.
+
+activate_feed(FeedId) ->
+    activate_thing(FeedId, orchestrator_feed_sup).
+
 deactivate_feed(FeedId) ->
-    deactivate_feed(list_to_binary(FeedId)).
+    deactivate_thing(FeedId).
+
+check_active_feeds() ->
+    FeedIds = [lists:takewhile(fun (C) -> C /= $_ end,
+			       binary_to_list(rfc4627:get_field(R, "id", undefined)))
+               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
+    lists:foreach(fun activate_feed/1, FeedIds),
+    ok.
+
+activate_terminal(TermId, TermStatusDoc) ->
+    ok.
+
+deactivate_terminal(TermId, TermStatusDoc) ->
+    ok.
+
+check_active_terminals() ->
+    TermIdsServerRef =
+	[{lists:takewhile(fun (C) -> C /= $_ end,
+			  binary_to_list(rfc4627:get_field(R, "id", undefined))),
+	  R}
+	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
+    lists:foreach(fun ({TermId, ServerRef}) -> activate_terminal(TermId, ServerRef) end,
+		  TermIdsServerRef),
+    ok.
+    
 
 status_change(FeedId) when is_binary(FeedId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(FeedId) ++ "_status") of
 	{ok, Doc} ->
+	    {On, Off, Args} =
+		case rfc4627:get_field(Doc, "type") of
+		    {ok, <<"feed-status">>} ->
+			{fun activate_feed/1, fun deactivate_feed/1, [FeedId]};
+		    {ok, <<"terminal-status">>} ->
+			{fun activate_terminal/2, fun deactivate_terminal/2, [FeedId, Doc]};
+		    {ok, <<"server-status">>} ->
+			{fun activate_server/1, fun deactivate_server/1, [FeedId]};
+		    Err ->
+			error_logger:error_report({?MODULE, status_change, Err, FeedId})
+		end,
 	    case rfc4627:get_field(Doc, "active") of
 		{ok, true} ->
-	    	    activate_feed(FeedId);
+	    	    apply(On, Args);
 	     	{ok, false} ->
-	     	    deactivate_feed(FeedId);
-	     	Err ->
-	     	    error_logger:error_report({?MODULE, status_change, Err, FeedId})
+	     	    apply(Off, Args);
+	     	Err2 ->
+	     	    error_logger:error_report({?MODULE, status_change, Err2, FeedId})
 	    end;
 	{error, DecodeError} ->
 	    error_logger:error_report({?MODULE, status_change, DecodeError, FeedId})
@@ -212,7 +258,7 @@ init([]) ->
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch, LogCh),
     gen_server:cast(self(), setup_logger), %% do this after we're fully running.
-    gen_server:cast(self(), check_active_feeds), %% do this after we're fully running.
+    gen_server:cast(self(), check_active_things), %% do this after we're fully running.
     {ok, #state{config = Configuration,
                 amqp_connection = AmqpConnectionPid,
                 ch = Ch,
@@ -227,7 +273,9 @@ handle_call(_Message, _From, State) ->
 handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     ok = setup_logger(LogCh),
     {noreply, State};
-handle_cast(check_active_feeds, State) ->
+handle_cast(check_active_things, State) ->
+    ok = check_active_servers(),
+    ok = check_active_terminals(),
     ok = check_active_feeds(),
     {noreply, State};
 handle_cast(_Message, State) ->
