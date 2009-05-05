@@ -69,7 +69,7 @@ def amqp_connection_from_config(hostspec):
 def publish_to_exchange(channel, exchange):
     def p(msg, **headers):
         # TODO: treat application_headers specially, and expect a content type
-        channel.basic_publish(amqp.Message(body=msg, children=None, **headers), exchange=exchange)
+        channel.basic_publish(amqp.Message(body=msg, children=None, delivery_mode=2, **headers), exchange=exchange)
     return p
 
 def subscribe_to_queue(channel, queue, method):
