@@ -8,6 +8,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -include("orchestrator.hrl").
+-include("rabbit_framing.hrl").
+-include("rabbit.hrl").
 
 start_link(InitParameters) ->
     gen_server:start_link(?MODULE, InitParameters, []).
@@ -37,11 +39,11 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {port, output_acc}).
+-record(state, {port, output_acc, control_exchange_name, channel, plugin_pid}).
 
 %%---------------------------------------------------------------------------
 
-init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
+init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = rfc4627:get_field(PluginConfig, "configuration"),
@@ -83,7 +85,10 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
     {ok, #state{port = Port,
-                output_acc = []}}.
+                output_acc = [],
+		channel = Channel,
+		plugin_pid = undefined
+	       }}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
@@ -91,6 +96,9 @@ handle_call(_Message, _From, State) ->
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
+handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, plugin_pid = undefined})
+  when P =:= Port ->
+    {noreply, State #state {plugin_pid = list_to_integer(Fragment)}};
 handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     case X of
@@ -106,7 +114,12 @@ handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{port = Port, output_acc = Acc, plugin_pid = PluginPid}) ->
+    error_logger:info_report({?MODULE, plugin_terminating, lists:flatten(lists:reverse(Acc))}),
+    true = port_close(Port),
+    if undefined =:= PluginPid -> true;
+       true -> os:cmd("kill "++(integer_to_list(PluginPid)))
+    end,
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

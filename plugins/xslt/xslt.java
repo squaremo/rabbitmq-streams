@@ -12,24 +12,19 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import net.lshift.feedshub.harness.InputReader;
 import net.lshift.feedshub.harness.Plugin;
 import net.lshift.feedshub.harness.Publisher;
 import net.sf.json.JSONObject;
 
-import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 
 public class xslt extends Plugin {
 
-	public Consumer input;
+	public InputReader input;
 
 	public Publisher output;
-
-	private boolean exit = false;
-
-	private final Object lock = new Object();
 
 	public xslt(final JSONObject config) throws Exception {
 		super(config);
@@ -42,17 +37,10 @@ public class xslt extends Plugin {
 		TransformerFactory transFact = TransformerFactory.newInstance();
 		final Transformer trans = transFact.newTransformer(xsltSource);
 
-		input = new Consumer() {
-
-			public void handleCancelOk(String consumerTag) {
-
-			}
-
-			public void handleConsumeOk(String consumerTag) {
-			}
+		input = new InputReader() {
 
 			public void handleDelivery(String consumerTag, Envelope envelope,
-					BasicProperties arg2, byte[] msg) throws IOException {
+					BasicProperties properties, byte[] msg) throws IOException {
 				StreamSource xmlSource = new StreamSource(
 						new ByteArrayInputStream(msg));
 				ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -62,7 +50,6 @@ public class xslt extends Plugin {
 					trans.transform(xmlSource, result);
 					String outputString = output.toString();
 					xslt.this.output.publish(outputString.getBytes());
-					xslt.this.output.acknowledge(envelope.getDeliveryTag());
 				} catch (TransformerConfigurationException e) {
 					e.printStackTrace();
 					System.exit(1);
@@ -72,35 +59,9 @@ public class xslt extends Plugin {
 				}
 			}
 
-			public void handleShutdownSignal(String consumerTag,
-					ShutdownSignalException sig) {
-				synchronized (lock) {
-					exit = true;
-					lock.notifyAll();
-				}
-				try {
-					shutdown();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-
 		};
 		// init can't be called from the superconstructor because input and
 		// output won't be initialised until after the superconstructor
 		init();
-	}
-
-	@Override
-	public void run() throws IOException {
-		// we don't actually do any work in this thread at all
-		synchronized (lock) {
-			while (!exit) {
-				try {
-					lock.wait();
-				} catch (InterruptedException e) {
-				}
-			}
-		}
 	}
 }

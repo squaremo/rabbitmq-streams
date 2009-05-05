@@ -4,6 +4,8 @@ Interfaces for plugin components to use.
 
 import couchdb.client as couch
 import amqplib.client_0_8 as amqp
+import os
+import sys
 
 try:
     import json
@@ -136,11 +138,7 @@ class Component(object):
 
     def run(self):
         while True:
-            self.__channel.wait() # let the callbacks process
+            self.__channel.wait()
 
     def start(self):
-#        try:
         self.run()
-        #finally:
-        #    self.__channel.close()
-        #    self.__conn.close()

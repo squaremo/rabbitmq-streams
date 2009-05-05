@@ -77,7 +77,7 @@ create-build-logs-dir:
 listen_orchestrator:
 	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done" &
 
-run_orchestrator:
+start_orchestrator_nox: stop_orchestrator_nox
 	mkfifo $(ORCH_FIFO)
 	( cat $(ORCH_FIFO) | \
 	  ( $(MAKE) -C orchestrator run ; \
@@ -88,7 +88,7 @@ run_orchestrator:
 listen_couch:
 	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done" &
 
-run_couch:
+start_couch_nox: stop_couch_nox
 	mkfifo $(COUCH_FIFO)
 	( cat $(COUCH_FIFO) | \
 	  ( $(OPT_COUCH)/bin/couchdb -i ; \
@@ -99,7 +99,7 @@ run_couch:
 listen_rabbit:
 	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done" &
 
-run_rabbit:
+start_rabbit_nox: stop_rabbit_nox
 	mkfifo $(RABBIT_FIFO)
 	( cat $(RABBIT_FIFO) | \
 	  ( ./start-feedshub-rabbit.sh ; \
@@ -109,7 +109,38 @@ run_rabbit:
 
 listen_all: listen_orchestrator listen_couch listen_rabbit
 
-run_core_nox: run_couch run_rabbit
+start_core_nox: start_couch_nox start_rabbit_nox
+
+start_all_nox: start_core_nox sleeper start_orchestrator_nox
+
+sleeper:
+	sleep 2
+
+stop_orchestrator_nox:
+	echo -e "\nok.\nq()." >> $(ORCH_FIFO) && sleep 3
+	- pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)"
+	rm -f $(ORCH_FIFO)
+
+stop_couch_nox:
+	echo -e "\nok.\nq()." >> $(COUCH_FIFO) && sleep 3
+	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
+	rm -f $(COUCH_FIFO)
+
+stop_rabbit_nox:
+	echo -e "\nok.\nq()." >> $(RABBIT_FIFO) && sleep 3
+	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
+	rm -f $(RABBIT_FIFO)
+
+stop_core_nox:
+	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)
+	echo -e "\nok.\nq()." >> $(COUCH_FIFO)
+	sleep 3
+	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
+	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
+	rm -f $(RABBIT_FIFO)
+	rm -f $(COUCH_FIFO)
+
+stop_all_nox: stop_orchestrator_nox stop_core_nox
 
 ###########################################################################
 # CouchDB
