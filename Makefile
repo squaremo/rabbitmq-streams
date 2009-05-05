@@ -9,6 +9,7 @@ LISTEN_COUCH_PORT := 7567
 ORCH_FIFO := build/scratch/orch_fifo
 RABBIT_FIFO := build/scratch/rabbit_fifo
 COUCH_FIFO := build/scratch/couch_fifo
+PLUGIN_MAKEFILES := $(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 default_target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
@@ -25,13 +26,21 @@ update: update-erlang-rfc4627 update-rabbitmq-erlang-client update-rabbitmq
 
 all:
 	$(MAKE) -C orchestrator all
+	$(MAKE) -C harness/java all
+	for p in $(PLUGIN_MAKEFILES); \
+		do $(MAKE) -C $$(dirname $$p) all; \
+	done
 
 docs:
 	$(MAKE) -C doc
 
 clean:
 	$(MAKE) -C orchestrator clean
+	$(MAKE) -C harness/java clean
 	$(MAKE) -C doc clean
+	for p in $(PLUGIN_MAKEFILES); \
+		do $(MAKE) -C $$(dirname $$p) clean; \
+	done
 	rm -f couchdb.stderr couchdb.stdout
 
 cleandb:
@@ -141,6 +150,10 @@ stop_core_nox:
 	rm -f $(COUCH_FIFO)
 
 stop_all_nox: stop_orchestrator_nox stop_core_nox
+
+full_reset_core_nox:
+	$(MAKE) stop_core_nox cleandb start_core_nox sleeper
+	./setup-core.sh
 
 ###########################################################################
 # CouchDB

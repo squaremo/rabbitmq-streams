@@ -46,7 +46,10 @@ plugin_not_found(PluginId) ->
 init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
-    {ok, PluginUserConfig}  = rfc4627:get_field(PluginConfig, "configuration"),
+    {ok, PluginUserConfig}  = case rfc4627:get_field(PluginConfig, "configuration") of
+				  {ok, PUC} -> {ok, PUC};
+				  not_found -> {ok, {obj, []}}
+			      end,
     PluginType = binary_to_list(PluginTypeBin),
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = harness_path(HarnessType, ""),

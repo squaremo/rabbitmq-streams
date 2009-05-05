@@ -1,12 +1,10 @@
 from feedshub import Component
 from fetch import fetch
+import sys
 
 class RssPollerSource(Component):
     
     OUTPUTS = {'output': 'publish'}
-
-    def error(self, msg):
-        raise Exception(str(msg))
 
     def run(self):
         import time
@@ -28,13 +26,14 @@ class RssPollerSource(Component):
             response = fetch(contentdb, href, dict(etag=state.get('etag', None),
                                                    modified=modified(state)))
             if 'error' in response:
-                self.error(response['error'])
-            
+                self.error(str(response['error']))
+
             if 'updated' in response:
                 # TODO notify of new items
                 updated = response['updated']
                 for msg in updated:
                     self.publish(msg['entry'], content_type='application/atom+xml')
+                self.commit()
                 contentdb.update(updated)
 
             state.update(response)

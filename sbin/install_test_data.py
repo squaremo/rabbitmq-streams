@@ -1,9 +1,10 @@
 import sys
-sys.path.append("harness/python/lib")
+sys.path.append("../harness/python/lib")
 
 import couchdb
 import os.path
 import glob
+import string
 try:
     import json
 except ImportError:
@@ -11,14 +12,14 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob("test_data/*"):
+for dbdir in glob.glob("../test_data/*"):
     dbname = os.path.split(dbdir)[1]
     try:
         db = server.create(dbname)
     except couchdb.PreconditionFailed:
         db = server[dbname]
     for docfilename in glob.glob(dbdir + "/*.js"):
-        docid = os.path.splitext(os.path.basename(docfilename))[0]
+        docid = string.replace(os.path.splitext(os.path.basename(docfilename))[0], '.', '_')
         f = open(docfilename)
         d = json.loads(f.read())
         f.close()

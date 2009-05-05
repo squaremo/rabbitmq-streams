@@ -1,4 +1,0 @@
-{
-    "type": "feed",
-    "user": "testuser"
-}

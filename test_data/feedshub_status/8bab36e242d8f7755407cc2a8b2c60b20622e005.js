@@ -1,4 +1,4 @@
 {
-    "type": "feed-status",
-    "active": false
+    "type": "feed",
+    "user": "testuser"
 }

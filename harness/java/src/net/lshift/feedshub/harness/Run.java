@@ -10,33 +10,41 @@ import net.sf.json.JSONObject;
 
 public class Run {
 
-	@SuppressWarnings("unchecked")
-	public static void main(final String[] args) throws IOException {
-		System.out.println(args[0]);
-		Plugin plugin = null;
-		try {
-			JSONObject jsonArgs = JSONObject.fromObject(new BufferedReader(
-					new InputStreamReader(System.in)).readLine());
-			String pluginDir = "file://" + jsonArgs.getString("plugin_dir");
-			if (!pluginDir.endsWith("/")) {
-				pluginDir += "/";
-			}
-			String pluginName = jsonArgs.getString("plugin_name");
+    @SuppressWarnings("unchecked")
+    public static void main(final String[] args) throws IOException,
+            InterruptedException {
+        System.out.println(args[0]);
+        Plugin plugin = null;
+        try {
+            JSONObject jsonArgs = JSONObject.fromObject(new BufferedReader(
+                    new InputStreamReader(System.in)).readLine());
+            String pluginDir = "file://" + jsonArgs.getString("plugin_dir");
+            if (!pluginDir.endsWith("/")) {
+                pluginDir += "/";
+            }
+            String pluginName = jsonArgs.getString("plugin_name");
 
-			ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
-			URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(
-					pluginDir) }, defaultCL);
-			Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
-			plugin = clazz.getConstructor(JSONObject.class).newInstance(
-					jsonArgs);
+            ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
+            URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(
+                    pluginDir) }, defaultCL);
+            Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
+            plugin = clazz.getConstructor(JSONObject.class).newInstance(
+                    jsonArgs);
 
-			plugin.run();
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			if (null != plugin) {
-				plugin.shutdown();
-			}
-		}
-	}
+            plugin.start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    System.in));
+            while (null != reader.readLine()) {
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (null != plugin) {
+                plugin.log.error(e);
+            }
+        } finally {
+            if (null != plugin) {
+                plugin.shutdown();
+            }
+        }
+    }
 }
