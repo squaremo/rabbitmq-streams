@@ -30,7 +30,7 @@ case class Init(couchUrl : String) extends FeedsCmd
 case class AddFeed(definition: FeedDefinition) extends FeedsCmd
 case class StartFeed(feedid: String) extends FeedsCmd
 case class StopFeed(feedid: String) extends FeedsCmd
-case class ConfigChange(feedid: String, bondy: Array[Byte]) extends FeedsCmd
+case class ConfigChange(feedid: String, body: Array[Byte]) extends FeedsCmd
 
 class FeedDefinition
 
