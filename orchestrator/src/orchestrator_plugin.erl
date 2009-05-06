@@ -39,11 +39,11 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {port, output_acc, control_exchange_name, channel, plugin_pid}).
+-record(state, {port, output_acc, plugin_pid}).
 
 %%---------------------------------------------------------------------------
 
-init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
+init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
     {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = case rfc4627:get_field(PluginConfig, "configuration") of
@@ -89,7 +89,6 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
     {ok, #state{port = Port,
                 output_acc = [],
-		channel = Channel,
 		plugin_pid = undefined
 	       }}.
 

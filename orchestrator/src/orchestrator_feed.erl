@@ -142,8 +142,7 @@ start_component(PluginSupPid,
                                            NodeId,
                                            Queues,
                                            Exchanges,
-                                           DbName,
-					   Channel]]),
+                                           DbName]]),
     ok.
 
 do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->

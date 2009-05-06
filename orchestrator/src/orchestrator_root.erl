@@ -35,7 +35,7 @@ setup_core_messaging(Ch, LogCh) ->
                                                   type = <<"topic">>,
                                                   durable = true}),
     PrivateQ = lib_amqp:declare_private_queue(Ch),
-    #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"#">>),
+    #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"*">>),
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
     ok.
 
@@ -201,18 +201,39 @@ check_active_feeds() ->
     lists:foreach(fun activate_feed/1, FeedIds),
     ok.
 
-activate_terminal(TermId) ->
-    todo.
+activate_terminal(TermId, Channel) when is_binary(TermId) ->
+    case find_server_for_terminal(TermId) of
+	{ok, ServerId} ->
+	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
+	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME,
+			     list_to_binary(ServerId ++ "." ++ TermId),
+			     <<"status change">>, Props);
+	Err ->
+	    error_logger:error_report({?MODULE, thing_terminal, Err, TermId})
+    end;
+activate_terminal(TermId, Channel) ->
+    activate_terminal(list_to_binary(TermId), Channel).
 
-deactivate_terminal(TermId) ->
-    todo.
+find_server_for_terminal(TermId) when is_binary(TermId) ->
+    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
+	{ok, Doc} ->
+	    case rfc4627:get_field(Doc, "server") of
+		{ok, Server} -> {ok, Server};
+		Err ->
+		    error_logger:error_report({?MODULE, find_server_for_terminal, Err, TermId}),
+		    not_found
+	    end;
+	Err2 ->
+	    error_logger:error_report({?MODULE, find_server_for_terminal, Err2, TermId}),
+	    not_found
+    end.
 
-check_active_terminals() ->
+check_active_terminals(Channel) ->
     TermIds =
 	[lists:takewhile(fun (C) -> C /= $_ end,
 			  binary_to_list(rfc4627:get_field(R, "id", undefined)))
 	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
-    lists:foreach(fun activate_terminal/1, TermIds),
+    lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
     
 status_change(ThingId) when is_binary(ThingId) ->
@@ -220,10 +241,12 @@ status_change(ThingId) when is_binary(ThingId) ->
 	{ok, Doc} ->
 	    {On, Off} =
 		case rfc4627:get_field(Doc, "type") of
+		    %% Terminals should never show up here as they
+		    %% should not match the routing key of our queue
+		    %% bound to the config exchange, and should be
+		    %% picked up directly by the server.
 		    {ok, <<"feed-status">>} ->
 			{fun activate_feed/1, fun deactivate_feed/1};
-		    {ok, <<"terminal-status">>} ->
-			{fun activate_terminal/1, fun deactivate_terminal/1};
 		    {ok, <<"server-status">>} ->
 			{fun activate_server/1, fun deactivate_server/1};
 		    Err ->
@@ -237,8 +260,8 @@ status_change(ThingId) when is_binary(ThingId) ->
 	     	Err2 ->
 	     	    error_logger:error_report({?MODULE, status_change, Err2, ThingId})
 	    end;
-	{error, DecodeError} ->
-	    error_logger:error_report({?MODULE, status_change, DecodeError, ThingId})
+	Err3 ->
+	    error_logger:error_report({?MODULE, status_change, Err3, ThingId})
     end.
 
 %%---------------------------------------------------------------------------
@@ -270,9 +293,9 @@ handle_call(_Message, _From, State) ->
 handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     ok = setup_logger(LogCh),
     {noreply, State};
-handle_cast(check_active_things, State) ->
+handle_cast(check_active_things, State = #state { ch = Ch }) ->
     ok = check_active_servers(),
-    ok = check_active_terminals(),
+    ok = check_active_terminals(Ch),
     ok = check_active_feeds(),
     {noreply, State};
 handle_cast(_Message, State) ->
