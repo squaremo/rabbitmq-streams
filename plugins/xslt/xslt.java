@@ -69,18 +69,14 @@ public class xslt extends Plugin {
 
         input = new InputReader() {
 
-            public void handleDelivery(Delivery message) throws IOException,
+            public void handleDelivery(Delivery message) throws Exception,
                     InterruptedException {
                 StreamSource xmlSource = new StreamSource(
                         new ByteArrayInputStream(message.getBody()));
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 StreamResult result = new StreamResult(output);
 
-                try {
-                    trans.transform(xmlSource, result);
-                } catch (TransformerException e) {
-                    log.error(e);
-                }
+                trans.transform(xmlSource, result);
                 String outputString = output.toString();
                 xslt.this.output.publish(outputString.getBytes());
             }
