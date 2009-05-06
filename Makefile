@@ -151,6 +151,10 @@ stop_core_nox:
 
 stop_all_nox: stop_orchestrator_nox stop_core_nox
 
+full_reset_core_nox:
+	$(MAKE) stop_core_nox cleandb start_core_nox sleeper
+	./setup-core.sh
+
 ###########################################################################
 # CouchDB
 
