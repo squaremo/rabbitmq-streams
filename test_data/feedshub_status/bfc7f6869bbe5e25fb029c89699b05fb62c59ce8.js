@@ -1,6 +1,5 @@
 {
     "type": "feed",
-    "user": "testuser",
     "wiring": {
 	"nodes": {
 	    "the_input1": {
@@ -19,8 +18,10 @@
 	    }
 	},
 	"edges": [
-	  ["the_input1", "output", "the_output", "input"],
-          ["the_input2", "output", "the_output", "input"]
+          {"from": {"node": "the_input1", "channel": "output"},
+	   "to":   {"node": "the_output", "channel": "input"}},
+          {"from": {"node": "the_input1", "channel": "output"},
+	   "to":   {"node": "the_output", "channel": "input"}}
 	]
     }
 }
