@@ -135,6 +135,11 @@ public abstract class Plugin implements Runnable {
                     messageServerChannel);
             messageServerChannel.basicConsume(inputsAry.getString(idx), false,
                     consumer);
+	    // HERE %%%
+	    //  * Factor this Runnable into a tempalte method: this is the PipelineComponent
+	    // version of it.
+	    //  * Publish needs to include the routing key of the destination
+	    //  * Make the channel not necessarily transactional
             new Thread(new Runnable() {
 
                 public void run() {
