@@ -3,6 +3,8 @@ package net.lshift.feedshub.harness;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.File;
+import java.io.FilenameFilter;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -22,11 +24,20 @@ public class Run {
             if (!pluginDir.endsWith("/")) {
                 pluginDir += "/";
             }
+	    URL pluginUrl = new URL(pluginDir);
+	    String[] jars = new File(pluginUrl + "lib/").list(new FilenameFilter() {
+		    public boolean accept(File dir, String filename) {
+			return filename.endsWith(".jar");
+		    }
+		});
+	    URL[] classpathEntries = new URL[jars.length + 1];
+	    for (int i=0; i < jars.length; i++) {
+		classpathEntries[i] = new URL("file://" + jars[i]);
+	    }
             String pluginName = jsonArgs.getString("plugin_name");
 
             ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
-            URLClassLoader ucl = new URLClassLoader(new URL[] { new URL(
-                    pluginDir) }, defaultCL);
+            URLClassLoader ucl = new URLClassLoader(classpathEntries, defaultCL);
             Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
             plugin = clazz.getConstructor(JSONObject.class).newInstance(
                     jsonArgs);
