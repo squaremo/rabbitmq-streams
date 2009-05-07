@@ -6,18 +6,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.lshift.feedshub.harness.InputReader;
-import net.lshift.feedshub.harness.Plugin;
-import net.lshift.feedshub.harness.Publisher;
+import net.lshift.feedshub.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-public class regexp_split extends Plugin {
+public class regexp_split extends PipelineComponent {
 
     public InputReader input;
 
-    public Publisher positive;
-    public Publisher negative;
+    public PipelinePublisher positive;
+    public PipelinePublisher negative;
 
     public regexp_split(JSONObject config) throws IOException,
             IllegalArgumentException, SecurityException,
