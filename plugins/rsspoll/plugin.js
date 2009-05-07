@@ -13,5 +13,5 @@
     "inputs_specification": [],
     "outputs_specification": [{"name": "output", "label": "Output"}],
 
-    "database_specification": null
+    "database_specification": {}
 }

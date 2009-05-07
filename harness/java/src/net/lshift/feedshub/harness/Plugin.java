@@ -3,6 +3,7 @@ package net.lshift.feedshub.harness;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Iterator;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONNull;
@@ -42,7 +43,7 @@ public abstract class Plugin implements Runnable {
         this.config = config;
         pluginType = config.getJSONObject("plugin_type");
         JSONArray globalConfig = pluginType
-                .getJSONArray("global_configuration");
+                .getJSONArray("global_configuration_specification");
         JSONObject mergedConfig = new JSONObject();
         for (Object configItem : globalConfig) {
             JSONObject item = (JSONObject) configItem;
@@ -97,19 +98,20 @@ public abstract class Plugin implements Runnable {
         stateDb.saveDocument(state, stateDocName);
     }
 
+    @SuppressWarnings("unchecked")
     protected void postConstructorInit() throws IOException,
             IllegalArgumentException, IllegalAccessException,
             SecurityException, NoSuchFieldException {
         messageServerChannel.txSelect();
 
         // set up outputs FIRST
-        JSONArray outputsAry = config.getJSONArray("outputs");
-        JSONArray outputTypesAry = pluginType
-                .getJSONArray("outputs_specification");
+        JSONObject outputs = config.getJSONObject("outputs");
 
-        for (int idx = 0; idx < outputsAry.size()
-                && idx < outputTypesAry.size(); ++idx) {
-            final String exchange = outputsAry.getString(idx);
+        for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys();
+                outKeysIt.hasNext(); ) {
+            final String name = (String) outKeysIt.next();
+            final String exchange = outputs.getString(name);
+            
             final Publisher publisher = new Publisher() {
 
                 public void publish(byte[] body) throws IOException {
@@ -118,22 +120,18 @@ public abstract class Plugin implements Runnable {
                 }
 
             };
-            Field outputField = Plugin.this.getClass().getField(
-                    outputTypesAry.getJSONObject(idx).getString("name"));
+            Field outputField = Plugin.this.getClass().getField(name);
             outputField.set(Plugin.this, publisher);
         }
 
-        JSONArray inputsAry = config.getJSONArray("inputs");
-        JSONArray inputTypesAry = pluginType
-                .getJSONArray("inputs_specification");
+        JSONObject inputs = config.getJSONObject("inputs");
 
-        for (int idx = 0; idx < inputsAry.size() && idx < inputTypesAry.size(); ++idx) {
-            final String fieldName = inputTypesAry.getJSONObject(idx)
-                    .getString("name");
+        for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt.hasNext(); ) {
+            final String fieldName = inKeysIt.next();
             final Field pluginQueueField = getClass().getField(fieldName);
             final QueueingConsumer consumer = new QueueingConsumer(
                     messageServerChannel);
-            messageServerChannel.basicConsume(inputsAry.getString(idx), false,
+            messageServerChannel.basicConsume(inputs.getString(fieldName), false,
                     consumer);
             new Thread(new Runnable() {
 
