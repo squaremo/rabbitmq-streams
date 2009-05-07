@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.net.URL;
+import java.net.URI;
 import java.net.URLClassLoader;
 
 import net.sf.json.JSONObject;
@@ -25,14 +26,17 @@ public class Run {
                 pluginDir += "/";
             }
 	    URL pluginUrl = new URL(pluginDir);
-	    String[] jars = new File(pluginUrl + "lib/").list(new FilenameFilter() {
+	    String libPath = pluginDir + "lib/";
+	    URI libUri = new URI(libPath); // NB It's a URI because that's what File() wants
+	    String[] jars = new File(libUri).list(new FilenameFilter() {
 		    public boolean accept(File dir, String filename) {
 			return filename.endsWith(".jar");
 		    }
 		});
+	    System.out.println(jars[0].toString());
 	    URL[] classpathEntries = new URL[jars.length + 1];
 	    for (int i=0; i < jars.length; i++) {
-		classpathEntries[i] = new URL("file://" + jars[i]);
+		classpathEntries[i] = new URL(libUri + jars[i]);
 	    }
             String pluginName = jsonArgs.getString("plugin_name");
 
