@@ -1,4 +1,4 @@
 {
     "type": "feed-status",
-    "active": false
+    "active": true
 }

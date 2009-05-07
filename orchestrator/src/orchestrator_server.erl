@@ -52,6 +52,7 @@ init([ServerSupPid, ServerIdBin,
       IngressChannel, IngressBroker,
       EgressChannel, EgressBroker])
   when is_binary(ServerIdBin) ->
+    error_logger:info_report({?MODULE, init, ServerIdBin}),
     ServerId = binary_to_list(ServerIdBin),
     ServerDefinition = get_server_static_config(ServerId),
     ServerConfig = get_server_instance_config(ServerId),

@@ -139,7 +139,7 @@ activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
                                  transient,
                                  5000,
                                  supervisor,
-                                 [orchestrator_feed_sup]}) of
+                                 [Module]}) of
         {ok, _ChildPid} ->
             ok;
         {error, {already_started, _Child}} ->
@@ -208,7 +208,7 @@ activate_terminal(TermId, Channel) when is_binary(TermId) ->
 	{ok, ServerId} ->
 	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
 	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME,
-			     list_to_binary(ServerId ++ "." ++ TermId),
+			     list_to_binary(binary_to_list(ServerId) ++ "." ++ binary_to_list(TermId)),
 			     <<"status change">>, Props);
 	Err ->
 	    error_logger:error_report({?MODULE, thing_terminal, Err, TermId})

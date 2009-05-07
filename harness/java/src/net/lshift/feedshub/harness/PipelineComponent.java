@@ -9,8 +9,8 @@ import com.rabbitmq.client.Channel;
 import net.sf.json.JSONObject;
 
 /**
- * A superclass for pipeline components.  THis does a bit more work
- * than its superclass, Plugin; in particular, in wrapping a transaction around
+ * A superclass for pipeline components. THis does a bit more work than its
+ * superclass, Plugin; in particular, in wrapping a transaction around
  * handleDelivery.
  */
 public abstract class PipelineComponent extends Plugin {
@@ -18,79 +18,85 @@ public abstract class PipelineComponent extends Plugin {
     final private Object privateLock = new Object();
 
     public PipelineComponent(JSONObject config) throws IOException {
-	super(config);
+        super(config);
     }
 
     public static final class PipelinePublisher implements Publisher {
-	private String exchange;
-	private Channel channel;
-	public PipelinePublisher(String exchangeName, Channel out) {
-	    exchange = exchangeName;
-	    channel = out;
-	}
+        private String exchange;
+        private Channel channel;
 
-	public void publish(byte[] body) throws IOException {
-	    channel.basicPublish(exchange, "",
-				 basicPropsPersistent, body);
-	}
+        public PipelinePublisher(String exchangeName, Channel out) {
+            exchange = exchangeName;
+            channel = out;
+        }
+
+        public void publish(byte[] body) throws IOException {
+            channel.basicPublish(exchange, "", basicPropsPersistent, body);
+        }
     }
 
     protected final Publisher publisher(final String name, final String exchange) {
-	return new PipelinePublisher(exchange, messageServerChannel);
+        return new PipelinePublisher(exchange, messageServerChannel);
     }
 
     protected final void constructOutputs(JSONObject outputs) {
-	try {
-	    messageServerChannel.txSelect();
-	}
-	catch (IOException ioe) {
-	    log.fatal("Cannot switch channel to transactional mode");
-	    dieHorribly();
-	}
-	super.constructOutputs(outputs);
+        try {
+            messageServerChannel.txSelect();
+        } catch (IOException ioe) {
+            log.fatal("Cannot switch channel to transactional mode");
+            dieHorribly();
+        }
+        super.constructOutputs(outputs);
     }
 
-    protected final Runnable inputReaderRunnable(final Field pluginQueueField, final QueueingConsumer consumer) {
-	return new Runnable() {
-	    public void run() {
-		while (messageServerChannel.isOpen()) {
-		    try {
-			// We may have many input queues, so to avoid interleaving transactions,
-			// we have to choose either to have a channel for each, or serialise the
-			// message handing.
-			// Since there are a maximum of 15 channels, we choose to serialise
-			// message handling by way of this mutex.
-			// Note: Transactions are only on outgoing messages, so it doesn't
-			// matter that two or more threads could receive messages before one
-			// acquires the lock; the transaction will be complete or abandoned
-			// before another consumer can start sending anything.
-			Delivery delivery = consumer.nextDelivery();
-			synchronized (privateLock) {
-			    try {
-				Object pluginConsumer = pluginQueueField
-				    .get(PipelineComponent.this);
-				if (null != pluginConsumer) {
-				    ((InputReader) pluginConsumer)
-					.handleDelivery(delivery);
-				    messageServerChannel.basicAck(delivery.getEnvelope().getDeliveryTag(),
-								  false);
-				    messageServerChannel.txCommit();
-				}
-			    } catch (Exception e) {
-				try {
-				    log.error(e);
-				    messageServerChannel.txRollback();
-				} catch (IOException e1) {
-				    log.error(e1);
-				}
-			    }
-			}
-		    }
-		    catch (InterruptedException _) {
-		    }
-		}
-	    }
+    protected final Runnable inputReaderRunnable(final Field pluginQueueField,
+            final QueueingConsumer consumer) {
+        return new Runnable() {
+            public void run() {
+                while (messageServerChannel.isOpen()) {
+                    try {
+                        // We may have many input queues, so to avoid
+                        // interleaving transactions,
+                        // we have to choose either to have a channel for each,
+                        // or serialise the
+                        // message handing.
+                        // Since there are a maximum of 15 channels, we choose
+                        // to serialise
+                        // message handling by way of this mutex.
+                        // Note: Transactions are only on outgoing messages, so
+                        // it doesn't
+                        // matter that two or more threads could receive
+                        // messages before one
+                        // acquires the lock; the transaction will be complete
+                        // or abandoned
+                        // before another consumer can start sending anything.
+                        Delivery delivery = consumer.nextDelivery();
+                        synchronized (privateLock) {
+                            try {
+                                Object pluginConsumer = pluginQueueField
+                                        .get(PipelineComponent.this);
+                                if (null != pluginConsumer) {
+                                    ((InputReader) pluginConsumer)
+                                            .handleDelivery(delivery);
+                                    messageServerChannel.basicAck(delivery
+                                            .getEnvelope().getDeliveryTag(),
+                                            false);
+                                    messageServerChannel.txCommit();
+                                }
+                            } catch (Exception e) {
+                                try {
+                                    log.error(e);
+                                    messageServerChannel.txRollback();
+                                } catch (IOException e1) {
+                                    log.error(e1);
+                                }
+                            }
+                        }
+                    } catch (InterruptedException _) {
+                    }
+                }
+            }
 
-	};
+        };
     }
 }

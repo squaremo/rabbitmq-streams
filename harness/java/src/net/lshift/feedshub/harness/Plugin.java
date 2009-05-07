@@ -22,7 +22,9 @@ public abstract class Plugin implements Runnable {
 
     public static final String newline = System.getProperty("line.separator");
     static final BasicProperties basicPropsPersistent = new BasicProperties();
-    {basicPropsPersistent.deliveryMode = 2;}
+    {
+        basicPropsPersistent.deliveryMode = 2;
+    }
 
     final protected Connection messageServerConnection;
     final protected ChannelN messageServerChannel;
@@ -58,11 +60,19 @@ public abstract class Plugin implements Runnable {
                 .createChannel();
         logChannel = (ChannelN) messageServerConnection.createChannel();
 
-        String feedId = config.getString("feed_id");
-        String nodeId = config.getString("node_id");
-        String pluginName = config.getString("plugin_name");
+        String lrk = null;
+        if (config.containsKey("server_id")) {
+            String serverId = config.getString("server_id");
+            String pluginName = config.getString("plugin_name");
+            lrk = "." + serverId + "." + pluginName;
+        } else {
+            String feedId = config.getString("feed_id");
+            String nodeId = config.getString("node_id");
+            String pluginName = config.getString("plugin_name");
+            lrk = "." + feedId + "." + pluginName + "." + nodeId;
+        }
+        logRoutingKey = lrk;
 
-        logRoutingKey = "." + feedId + "." + pluginName + "." + nodeId;
         log = new Logger(logChannel, logRoutingKey, basicPropsPersistent);
         new Thread(log).start();
         log.info("Starting up...");
@@ -97,71 +107,74 @@ public abstract class Plugin implements Runnable {
 
     protected abstract Publisher publisher(String name, String exchange);
 
-    protected abstract Runnable inputReaderRunnable(Field queueField, QueueingConsumer consumer);
+    protected abstract Runnable inputReaderRunnable(Field queueField,
+            QueueingConsumer consumer);
 
     protected void dieHorribly() {
-	System.exit(1);
+        System.exit(1);
     }
 
     private void noSuchField(String name) {
-	log.fatal("No such field: " + name);
-	dieHorribly();
+        log.fatal("No such field: " + name);
+        dieHorribly();
     }
+
     private void illegalAccess(String name) {
-	log.fatal("Illegal access: " + name);
-	dieHorribly();
+        log.fatal("Illegal access: " + name);
+        dieHorribly();
     }
 
     @SuppressWarnings("unchecked")
     protected void constructOutputs(JSONObject outputs) {
-        for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys();
-                outKeysIt.hasNext(); ) {
+        for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt
+                .hasNext();) {
             String name = (String) outKeysIt.next();
             String exchange = outputs.getString(name);
-	    try {
-		Field outputField = Plugin.this.getClass().getField(name);
-		outputField.set(Plugin.this, publisher(name, exchange));
-	    }
-	    catch (IllegalAccessException iac) {
-		illegalAccess(name);
-	    }
-	    catch (NoSuchFieldException nsfe) {
-		noSuchField(name);
-	    }
+            try {
+                Field outputField = Plugin.this.getClass().getField(name);
+                outputField.set(Plugin.this, publisher(name, exchange));
+            } catch (IllegalAccessException iac) {
+                illegalAccess(name);
+            } catch (NoSuchFieldException nsfe) {
+                noSuchField(name);
+            }
         }
     }
 
     @SuppressWarnings("unchecked")
     protected void constructInputs(JSONObject inputs) {
-        for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt.hasNext(); ) {
+        for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt
+                .hasNext();) {
             final String fieldName = inKeysIt.next();
-	    try {
-		final Field pluginQueueField = getClass().getField(fieldName);
-		final QueueingConsumer consumer = new QueueingConsumer(messageServerChannel);
-		messageServerChannel.basicConsume(inputs.getString(fieldName), false, consumer);
-		new Thread(inputReaderRunnable(pluginQueueField, consumer)).start();
-	    }
-	    catch (NoSuchFieldException nsfe) {
-		noSuchField(fieldName);
-		// we could try-catch, but all we can do is let this bubble up anyway
-	    }
-	    catch (IOException ioe) {
-		log.fatal("IOException connecting to input " + fieldName);
-		dieHorribly();
-	    }
-	}
+            try {
+                final Field pluginQueueField = getClass().getField(fieldName);
+                final QueueingConsumer consumer = new QueueingConsumer(
+                        messageServerChannel);
+                messageServerChannel.basicConsume(inputs.getString(fieldName),
+                        false, consumer);
+                new Thread(inputReaderRunnable(pluginQueueField, consumer))
+                        .start();
+            } catch (NoSuchFieldException nsfe) {
+                noSuchField(fieldName);
+                // we could try-catch, but all we can do is let this bubble up
+                // anyway
+            } catch (IOException ioe) {
+                log.fatal("IOException connecting to input " + fieldName);
+                dieHorribly();
+            }
+        }
     }
 
     protected void postConstructorInit() throws IOException,
             IllegalArgumentException, SecurityException {
 
         // set up outputs FIRST, so we don't start processing messages
-	// before we can put them anywhere
+        // before we can put them anywhere
         JSONObject outputs = config.getJSONObject("outputs");
-	constructOutputs(outputs);
+        constructOutputs(outputs);
 
         JSONObject inputs = config.getJSONObject("inputs");
-	constructInputs(inputs);
+        constructInputs(inputs);
     }
 
     public void run() {

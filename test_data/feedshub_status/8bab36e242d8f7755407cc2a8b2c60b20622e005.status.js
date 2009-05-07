@@ -1,4 +1,4 @@
 {
-    "type": "feed-status",
-    "active": false
+    "type": "server-status",
+    "active": true
 }
