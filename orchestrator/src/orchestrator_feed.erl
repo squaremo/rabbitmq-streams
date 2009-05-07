@@ -68,40 +68,58 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
     NodeConfigurations = [node_configuration(Channel, FeedId, N) || N <- NodeDefs],
 
     %% Go through all edges creating bindings.
-    lists:foreach(fun ([ONode, OAtt, INode, IAtt]) ->
-                          lib_amqp:bind_queue(Channel,
-                                              list_to_binary(resource_name(FeedId, ONode, OAtt)),
-                                              list_to_binary(resource_name(FeedId, INode, IAtt)),
-                                              <<>>)
-                  end, Edges),
+    lists:foreach(fun(Edge) -> bind_edges(FeedId, Channel, Edge) end, Edges),
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
-                          start_component(PluginSupPid, FeedId, Channel, NodeConfiguration)
+                          start_component(PluginSupPid, FeedId, NodeConfiguration)
                   end, NodeConfigurations),
 
     State.
 
+bind_edges(FeedId, Channel, EdgeJson) ->
+    {ok, FromJson} = rfc4627:get_field(EdgeJson, "from"),
+    {ok, ToJson} = rfc4627:get_field(EdgeJson, "to"),
+    {ok, FromNode} = rfc4627:get_field(FromJson, "node"),
+    {ok, FromChannel} = rfc4627:get_field(FromJson, "channel"),
+    {ok, ToNode} = rfc4627:get_field(ToJson, "node"),
+    {ok, ToChannel} = rfc4627:get_field(ToJson, "channel"),
+    lib_amqp:bind_queue(Channel,
+			list_to_binary(resource_name(FeedId, FromNode, FromChannel)),
+			list_to_binary(resource_name(FeedId, ToNode, ToChannel)),
+			<<>>).
+
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
-    {ok, PluginTypeBin} = rfc4627:get_field(NodeSpecJson, "type"),
+    case rfc4627:get_field(NodeSpecJson, "type") of
+	{ok, PluginTypeBin} -> plugin_component_node(PluginTypeBin, Channel, FeedId, {NodeId, NodeSpecJson});
+	_Err -> case rfc4627:get_field(NodeSpecJson, "terminal") of
+		    {ok, TerminalNameBin} -> terminal_node(TerminalNameBin, Channel, FeedId, {NodeId, NodeSpecJson})
+		end
+    end.
+
+terminal_node(TerminalNameBin, Channel, FeedId, {NodeId, NodeSpecJson}) ->
+    %% TODO
+    ok.
+
+plugin_component_node(PluginTypeBin, Channel, FeedId, {NodeId, NodeSpecJson}) ->
     PluginType = binary_to_list(PluginTypeBin),
     {ok, PluginTypeDescription} = orchestrator_plugin:describe(PluginType),
     error_logger:info_report({?MODULE, node_configuration, FeedId, NodeId, PluginTypeDescription}),
     {ok, Inputs} = rfc4627:get_field(PluginTypeDescription, "inputs_specification"),
     {ok, Outputs} = rfc4627:get_field(PluginTypeDescription, "outputs_specification"),
-    Queues = [resource_name(FeedId, NodeId, AttachmentName) ||
+    Queues = [{binary_to_list(InputName), resource_name(FeedId, NodeId, InputName)} ||
                  Input <- Inputs,
-                 {ok, AttachmentName} <- [rfc4627:get_field(Input, "name")]],
-    lists:foreach(fun (Q) ->
+                 {ok, InputName} <- [rfc4627:get_field(Input, "name")]],
+    lists:foreach(fun ({_InputName, Q}) ->
                           amqp_channel:call(Channel,
                                             #'queue.declare'{queue = list_to_binary(Q),
                                                              durable = true})
                   end,
                   Queues),
-    Exchanges = [resource_name(FeedId, NodeId, AttachmentName) ||
+    Exchanges = [{binary_to_list(OutputName), resource_name(FeedId, NodeId, OutputName)} ||
                     Output <- Outputs,
-                    {ok, AttachmentName} <- [rfc4627:get_field(Output, "name")]],
-    lists:foreach(fun (X) ->
+                    {ok, OutputName} <- [rfc4627:get_field(Output, "name")]],
+    lists:foreach(fun ({_OutputName, X}) ->
                           amqp_channel:call(Channel,
                                             #'exchange.declare'{exchange = list_to_binary(X),
                                                                 type = <<"fanout">>,
@@ -115,7 +133,7 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                      undefined;
                  {ok, {obj, InitialDocs}} ->
                      D = resource_name(FeedId, NodeId, "db/"),
-                     couchapi:createdb(D),
+                     couchapi:createdb(D), %% TODO
                      error_logger:warning_report({?MODULE, ignoring_initial_docs, InitialDocs}),
                      couchapi:expand(D)
              end,
@@ -126,8 +144,7 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
                         exchanges = Exchanges,
                         database = DbName}.
 
-start_component(PluginSupPid,
-                FeedId, Channel,
+start_component(PluginSupPid, FeedId,
                 #node_configuration{node_id = NodeId,
                                     plugin_config = PluginConfig,
                                     plugin_desc = PluginTypeDescription,

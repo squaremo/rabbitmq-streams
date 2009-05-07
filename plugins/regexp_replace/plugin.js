@@ -2,11 +2,11 @@
     "name": "Regular Expression Replacer",
     "author": {"name": "Matthew Sackman", "email": "matthew@lshift.net"},
 
-    "type": "plugin",
+    "type": "plugin-specification",
     "harness": "python",
     "subtype": "pipeline_component",
     
-    "global_configuration": [],
+    "global_configuration_specification": [],
     "configuration_specification": [
       {"label": "Regexp",
        "type": "string",
