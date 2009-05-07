@@ -60,7 +60,7 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                       stderr_to_stdout,
                       {cd, HarnessDir}]),
     StateDocUrl = couchapi:expand("feed_" ++ FeedId ++ "/state_" ++ NodeId),
-    PairsToBin = fun ({Key,Value}) -> {list_to_binary(Key), list_to_binary(Value)} end,
+    PairsToBin = fun ({Key,Value}) -> {Key, list_to_binary(Value)} end,
     QueuesBin = lists:map(PairsToBin, Queues),
     ExchangesBin = lists:map(PairsToBin, Exchanges),
     ConfigDoc = {obj,

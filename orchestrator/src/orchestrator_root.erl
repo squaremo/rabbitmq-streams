@@ -33,7 +33,7 @@ setup_core_messaging(Ch, LogCh) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(Ch, #'exchange.declare'{exchange = ?FEEDSHUB_CONFIG_XNAME,
                                                   type = <<"topic">>,
-                                                  durable = true}),
+                                                  durable = false}),
     PrivateQ = lib_amqp:declare_private_queue(Ch),
     #'queue.bind_ok'{} = lib_amqp:bind_queue(Ch, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, <<"*">>),
     _ConsumerTag = lib_amqp:subscribe(Ch, PrivateQ, self()),
@@ -132,10 +132,10 @@ startup_couch_scan() ->
     end,
     {ok, #root_config{}} = read_root_config().
 
-activate_thing(ThingId, Module) when is_binary(ThingId) ->
+activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
     case supervisor:start_child(orchestrator_root_sup,
                                 {ThingId,
-                                 {Module, start_link, [ThingId]},
+                                 {Module, start_link, [Args]},
                                  transient,
                                  5000,
                                  supervisor,
@@ -145,11 +145,11 @@ activate_thing(ThingId, Module) when is_binary(ThingId) ->
         {error, {already_started, _Child}} ->
             ok;
         {error, {shutdown, _}} ->
-            error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module}}),
+            error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module, Args}}),
             {error, start_error}
     end;
-activate_thing(ThingId, Module) ->
-    activate_thing(list_to_binary(ThingId), Module).
+activate_thing(ThingId, Module, Args) ->
+    activate_thing(list_to_binary(ThingId), Module, Args).
 
 deactivate_thing(ThingId) when is_binary(ThingId) ->
     Res =
@@ -175,21 +175,24 @@ deactivate_thing(ThingId) when is_binary(ThingId) ->
 deactivate_thing(ThingId) ->
     deactivate_thing(list_to_binary(ThingId)).
 
-activate_server(ServerId) ->
-    activate_thing(ServerId, orchestrator_server_sup).
+activate_server(ServerId, Args) ->
+    activate_thing(ServerId, orchestrator_server_sup, Args).
 
-deactivate_server(ServerId) ->
-    deactivate_server(ServerId).
+deactivate_server(ServerId, _Args) ->
+    deactivate_thing(ServerId).
 
-check_active_servers() ->
+check_active_servers(Channel, Connection) ->
     ServerIds = [lists:takewhile(fun (C) -> C /= $_ end,
 				 binary_to_list(rfc4627:get_field(R, "id", undefined)))
 		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
-    lists:foreach(fun activate_server/1, ServerIds),
+    lists:foreach(fun(ServerId) -> activate_server(ServerId, [ServerId,
+							      Channel, Connection,
+							      Channel, Connection,
+							      Channel, Connection]) end, ServerIds),
     ok.
 
 activate_feed(FeedId) ->
-    activate_thing(FeedId, orchestrator_feed_sup).
+    activate_thing(FeedId, orchestrator_feed_sup, [FeedId]).
 
 deactivate_feed(FeedId) ->
     deactivate_thing(FeedId).
@@ -202,7 +205,7 @@ check_active_feeds() ->
     ok.
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
-    case find_server_for_terminal(TermId) of
+    case orchestrator_server:find_server_for_terminal(TermId) of
 	{ok, ServerId} ->
 	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
 	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME,
@@ -214,20 +217,6 @@ activate_terminal(TermId, Channel) when is_binary(TermId) ->
 activate_terminal(TermId, Channel) ->
     activate_terminal(list_to_binary(TermId), Channel).
 
-find_server_for_terminal(TermId) when is_binary(TermId) ->
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
-	{ok, Doc} ->
-	    case rfc4627:get_field(Doc, "server") of
-		{ok, Server} -> {ok, Server};
-		Err ->
-		    error_logger:error_report({?MODULE, find_server_for_terminal, Err, TermId}),
-		    not_found
-	    end;
-	Err2 ->
-	    error_logger:error_report({?MODULE, find_server_for_terminal, Err2, TermId}),
-	    not_found
-    end.
-
 check_active_terminals(Channel) ->
     TermIds =
 	[lists:takewhile(fun (C) -> C /= $_ end,
@@ -236,27 +225,30 @@ check_active_terminals(Channel) ->
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
     
-status_change(ThingId) when is_binary(ThingId) ->
+status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status") of
 	{ok, Doc} ->
-	    {On, Off} =
+	    {On, Off, Args} =
 		case rfc4627:get_field(Doc, "type") of
 		    %% Terminals should never show up here as they
 		    %% should not match the routing key of our queue
 		    %% bound to the config exchange, and should be
 		    %% picked up directly by the server.
 		    {ok, <<"feed-status">>} ->
-			{fun activate_feed/1, fun deactivate_feed/1};
+			{fun activate_feed/1, fun deactivate_feed/1, [ThingId]};
 		    {ok, <<"server-status">>} ->
-			{fun activate_server/1, fun deactivate_server/1};
+			{fun activate_server/2, fun deactivate_server/2, [ThingId, [ThingId,
+										    Channel, Connection,
+										    Channel, Connection,
+										    Channel, Connection]]};
 		    Err ->
 			error_logger:error_report({?MODULE, status_change, Err, ThingId})
 		end,
 	    case rfc4627:get_field(Doc, "active") of
 		{ok, true} ->
-	    	    On(ThingId);
+	    	    apply(On, Args);
 	     	{ok, false} ->
-	     	    Off(ThingId);
+	     	    apply(Off, Args);
 	     	Err2 ->
 	     	    error_logger:error_report({?MODULE, status_change, Err2, ThingId})
 	    end;
@@ -293,8 +285,8 @@ handle_call(_Message, _From, State) ->
 handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     ok = setup_logger(LogCh),
     {noreply, State};
-handle_cast(check_active_things, State = #state { ch = Ch }) ->
-    ok = check_active_servers(),
+handle_cast(check_active_things, State = #state { ch = Ch, amqp_connection = Connection }) ->
+    ok = check_active_servers(Ch, Connection),
     ok = check_active_terminals(Ch),
     ok = check_active_feeds(),
     {noreply, State};
@@ -310,8 +302,8 @@ handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
 				'routing_key' = RoutingKey
 			       },
 	     #content { payload_fragments_rev = [<<"status change">>]}},
-	    State = #state{ch = Ch}) ->
-    status_change(RoutingKey),
+	    State = #state{ch = Ch, amqp_connection = Connection}) ->
+    status_change(RoutingKey, Ch, Connection),
     lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
 handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
