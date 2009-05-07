@@ -1,5 +1,7 @@
 all: libs
-	mvn scala:compile
+	mvn package
+	mkdir -p lib
+	cp target/*.jar lib/
 
 clean:
 	rm -r target
