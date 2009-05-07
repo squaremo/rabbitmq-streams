@@ -22,8 +22,8 @@ import com.rabbitmq.client.impl.ChannelN;
 public abstract class Plugin implements Runnable {
 
     public static final String newline = System.getProperty("line.separator");
-
-    final private Object privateLock = new Object();
+    static final BasicProperties basicPropsPersistent = new BasicProperties();
+    {basicPropsPersistent.deliveryMode = 2;}
 
     final protected Connection messageServerConnection;
     final protected ChannelN messageServerChannel;
@@ -36,10 +36,8 @@ public abstract class Plugin implements Runnable {
     final private String stateDocName;
     final protected Database privateDb;
     final protected Logger log;
-    final BasicProperties basicPropsPersistent = new BasicProperties();
 
     public Plugin(final JSONObject config) throws IOException {
-        basicPropsPersistent.deliveryMode = 2; // persistent
         this.config = config;
         pluginType = config.getJSONObject("plugin_type");
         JSONArray globalConfig = pluginType
@@ -98,85 +96,72 @@ public abstract class Plugin implements Runnable {
         stateDb.saveDocument(state, stateDocName);
     }
 
-    @SuppressWarnings("unchecked")
-    protected void postConstructorInit() throws IOException,
-            IllegalArgumentException, IllegalAccessException,
-            SecurityException, NoSuchFieldException {
-        messageServerChannel.txSelect();
+    protected abstract Publisher publisher(String name, String exchange);
 
-        // set up outputs FIRST
-        JSONObject outputs = config.getJSONObject("outputs");
+    protected abstract Runnable inputReaderRunnable(Field queueField, QueueingConsumer consumer);
 
+    protected void dieHorribly() {
+	System.exit(1);
+    }
+
+    private void noSuchField(String name) {
+	log.fatal("No such field: " + name);
+	dieHorribly();
+    }
+    private void illegalAccess(String name) {
+	log.fatal("Illegal access: " + name);
+	dieHorribly();
+    }
+
+    protected void constructOutputs(JSONObject outputs) {
         for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys();
                 outKeysIt.hasNext(); ) {
-            final String name = (String) outKeysIt.next();
-            final String exchange = outputs.getString(name);
-            
-            final Publisher publisher = new Publisher() {
-
-                public void publish(byte[] body) throws IOException {
-                    messageServerChannel.basicPublish(exchange, "",
-                            basicPropsPersistent, body);
-                }
-
-            };
-            Field outputField = Plugin.this.getClass().getField(name);
-            outputField.set(Plugin.this, publisher);
+            String name = (String) outKeysIt.next();
+            String exchange = outputs.getString(name);
+	    try {
+		Field outputField = Plugin.this.getClass().getField(name);
+		outputField.set(Plugin.this, publisher(name, exchange));
+	    }
+	    catch (IllegalAccessException iac) {
+		illegalAccess(name);
+	    }
+	    catch (NoSuchFieldException nsfe) {
+		noSuchField(name);
+	    }
         }
+    }
 
-        JSONObject inputs = config.getJSONObject("inputs");
-
+    protected void constructInputs(JSONObject inputs) {
         for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt.hasNext(); ) {
             final String fieldName = inKeysIt.next();
-            final Field pluginQueueField = getClass().getField(fieldName);
-            final QueueingConsumer consumer = new QueueingConsumer(
-                    messageServerChannel);
-            messageServerChannel.basicConsume(inputs.getString(fieldName), false,
-                    consumer);
-            new Thread(new Runnable() {
+	    try {
+		final Field pluginQueueField = getClass().getField(fieldName);
+		final QueueingConsumer consumer = new QueueingConsumer(messageServerChannel);
+		messageServerChannel.basicConsume(inputs.getString(fieldName), false, consumer);
+		new Thread(inputReaderRunnable(pluginQueueField, consumer)).start();
+	    }
+	    catch (NoSuchFieldException nsfe) {
+		noSuchField(fieldName);
+		// we could try-catch, but all we can do is let this bubble up anyway
+	    }
+	    catch (IOException ioe) {
+		log.fatal("IOException connecting to input " + fieldName);
+		dieHorribly();
+	    }
+	}
+    }
 
-                public void run() {
-                    while (messageServerChannel.isOpen()) {
-                        try {
-                            // We may have many input queues, so to avoid interleaving transactions,
-                            // we have to choose either to have a channel for each, or serialise the
-                            // message handing.
-                            // Since there are a maximum of 15 channels, we choose to serialise
-                            // message handling by way of this mutex.
-                            // Note: Transactions are only on outgoing messages, so it doesn't
-                            // matter that two or more threads could receive messages before one
-                            // acquires the lock; the transaction will be complete or abandoned
-                            // before another consumer can start sending anything.
-                            Delivery delivery = consumer.nextDelivery();
-                            synchronized (privateLock) {
-                                try {
-                                    Object pluginConsumer = pluginQueueField
-                                            .get(Plugin.this);
-                                    if (null != pluginConsumer) {
-                                        ((InputReader) pluginConsumer)
-                                                .handleDelivery(delivery);
-                                        messageServerChannel.basicAck(
-                                                delivery.getEnvelope()
-                                                        .getDeliveryTag(),
-                                                false);
-                                        messageServerChannel.txCommit();
-                                    }
-                                } catch (Exception e) {
-                                    try {
-                                        log.error(e);
-                                        messageServerChannel.txRollback();
-                                    } catch (IOException e1) {
-                                        log.error(e1);
-                                    }
-                                }
-                            }
-                        } catch (InterruptedException _) {
-                        }
-                    }
+    @SuppressWarnings("unchecked")
+    protected void postConstructorInit() throws IOException,
+            IllegalArgumentException, SecurityException {
 
-                }
-            }).start();
-        }
+        // set up outputs FIRST, so we don't start processing messages
+	// before we can put them anywhere
+        JSONObject outputs = config.getJSONObject("outputs");
+	constructOutputs(outputs);
+
+        JSONObject inputs = config.getJSONObject("inputs");
+	constructInputs(inputs);
     }
 
     public void run() {
