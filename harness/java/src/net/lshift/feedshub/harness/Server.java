@@ -28,7 +28,7 @@ public abstract class Server extends Plugin {
         Session couchSession = new Session(terminalsDbName.getHost(),
                 terminalsDbName.getPort(), "", "");
         terminalsDatabase = couchSession
-                .getDatabase(terminalsDbName.toString());
+	    .getDatabase(terminalsDbName.getPath());
     }
 
     public static final class ServerPublisher implements Publisher {
