@@ -9,7 +9,9 @@
 
 start_link(FeedId) when is_binary(FeedId) ->
     supervisor:start_link({local, list_to_atom("Feed_" ++ binary_to_list(FeedId))},
-			  ?MODULE, [FeedId]).
+			  ?MODULE, [FeedId]);
+start_link(FeedId) when is_list(FeedId) ->
+    start_link(list_to_binary(FeedId)).
 
 init([FeedId]) ->
     {ok, {{one_for_all, 10, 10},
