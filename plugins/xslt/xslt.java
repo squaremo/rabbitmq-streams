@@ -15,7 +15,6 @@ import javax.xml.transform.stream.StreamSource;
 
 import net.lshift.feedshub.harness.InputReader;
 import net.lshift.feedshub.harness.PipelineComponent;
-import net.lshift.feedshub.harness.Publisher;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;

@@ -16,7 +16,6 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
 
 public abstract class Plugin implements Runnable {
@@ -113,6 +112,7 @@ public abstract class Plugin implements Runnable {
 	dieHorribly();
     }
 
+    @SuppressWarnings("unchecked")
     protected void constructOutputs(JSONObject outputs) {
         for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys();
                 outKeysIt.hasNext(); ) {
@@ -131,6 +131,7 @@ public abstract class Plugin implements Runnable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected void constructInputs(JSONObject inputs) {
         for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt.hasNext(); ) {
             final String fieldName = inKeysIt.next();
@@ -151,7 +152,6 @@ public abstract class Plugin implements Runnable {
 	}
     }
 
-    @SuppressWarnings("unchecked")
     protected void postConstructorInit() throws IOException,
             IllegalArgumentException, SecurityException {
 
