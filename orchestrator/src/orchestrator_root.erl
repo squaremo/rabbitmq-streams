@@ -135,7 +135,7 @@ startup_couch_scan() ->
 activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
     case supervisor:start_child(orchestrator_root_sup,
                                 {ThingId,
-                                 {Module, start_link, [Args]},
+                                 {Module, start_link, [ThingId|Args]},
                                  transient,
                                  5000,
                                  supervisor,
@@ -185,14 +185,13 @@ check_active_servers(Channel, Connection) ->
     ServerIds = [lists:takewhile(fun (C) -> C /= $_ end,
 				 binary_to_list(rfc4627:get_field(R, "id", undefined)))
 		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
-    lists:foreach(fun(ServerId) -> activate_server(ServerId, [ServerId,
-							      Channel, Connection,
+    lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
 							      Channel, Connection]) end, ServerIds),
     ok.
 
 activate_feed(FeedId) ->
-    activate_thing(FeedId, orchestrator_feed_sup, [FeedId]).
+    activate_thing(FeedId, orchestrator_feed_sup, []).
 
 deactivate_feed(FeedId) ->
     deactivate_thing(FeedId).
@@ -237,8 +236,7 @@ status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
 		    {ok, <<"feed-status">>} ->
 			{fun activate_feed/1, fun deactivate_feed/1, [ThingId]};
 		    {ok, <<"server-status">>} ->
-			{fun activate_server/2, fun deactivate_server/2, [ThingId, [ThingId,
-										    Channel, Connection,
+			{fun activate_server/2, fun deactivate_server/2, [ThingId, [Channel, Connection,
 										    Channel, Connection,
 										    Channel, Connection]]};
 		    Err ->
