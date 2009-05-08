@@ -85,7 +85,7 @@ bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
 	case rfc4627:get_field(FromJson, "channel") of
 	    {ok, FromChannel} -> {list_to_binary(resource_name(FeedId, FromNode, FromChannel)), <<>>};
 	    _ -> %% reading from a terminal. But we need to find the server
-		{ok, TerminalNode} = rfc4627:get_field(NodeDefs, FromNode),
+		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)),
 		{ok, TerminalName} = rfc4627:get_field(TerminalNode, "terminal"),
 		ServerName = orchestrator_server:find_server_for_terminal(TerminalName),
 		{ServerName, TerminalName}
@@ -94,7 +94,7 @@ bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
     Queue = case rfc4627:get_field(ToJson, "channel") of
 		{ok, ToChannel} -> list_to_binary(resource_name(FeedId, ToNode, ToChannel));
 		_ -> %% destination is a terminal, we have an exchange per terminal
-		    {ok, TerminalNode2} = rfc4627:get_field(NodeDefs, ToNode),
+		    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
 		    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
 		    TerminalName2
 	    end,

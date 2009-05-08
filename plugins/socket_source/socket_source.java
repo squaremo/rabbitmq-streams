@@ -1,4 +1,8 @@
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,14 +19,48 @@ public class socket_source extends Server {
 
     private final Map<String, SocketSource> terminalMap = new HashMap<String, SocketSource>();
 
-    private final static class SocketSource implements Runnable {
+    private final class SocketSource implements Runnable {
+        final private int port;
+        final private String termId;
+        final private Object lockObj = new Object();
+        private boolean running = true;
+
         public SocketSource(Document terminalConfig) {
+            port = terminalConfig.getJSONObject("source").getInt("port");
+            termId = terminalConfig.getId();
+        }
+
+        private boolean isRunning() {
+            synchronized (lockObj) {
+                return running;
+            }
         }
 
         public void run() {
+            try {
+                ServerSocket server = new ServerSocket(port);
+                while (isRunning()) {
+                    Socket sock = server.accept();
+                    BufferedReader r = new BufferedReader(
+                            new InputStreamReader(sock.getInputStream()));
+                    String line = r.readLine();
+                    while (null != line && isRunning()) {
+                        socket_source.this.log.info(line);
+                        socket_source.this.output.publishWithKey(line.getBytes(), termId);
+                        line = r.readLine();
+                    }
+                    sock.close();
+                }
+                server.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         public void stop() {
+            synchronized (lockObj) {
+                running = false;
+            }
         }
     }
 
@@ -41,7 +79,7 @@ public class socket_source extends Server {
 
                 Document terminalConfig = socket_source.this.terminalsDatabase
                         .getDocument(terminalId);
-
+                
                 Document terminalStatus = socket_source.this.terminalsDatabase
                         .getDocument(terminalId + "_status");
 

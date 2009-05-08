@@ -108,7 +108,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		amqp_channel:call(EgressChannel,
 				  #'queue.declare'{queue = OutNameBin,
 						   durable = true}),
-		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<>>),
+		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<"#">>),
 
 		Pid =
 		    case supervisor:start_child(ServerSupPid,
@@ -143,12 +143,11 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		InNameBin = list_to_binary(ServerId ++ "_input"),
 		amqp_channel:call(IngressChannel,
 				  #'exchange.declare'{exchange = InNameBin,
-						      type = <<"direct">>,
+						      type = <<"topic">>,
 						      durable = true}),
 		amqp_channel:call(IngressChannel,
 				  #'queue.declare'{queue = InNameBin,
 						   durable = true}),
-		lib_amqp:bind_queue(IngressChannel, InNameBin, InNameBin, <<>>),
 
 		%% this is the exchange in the pipeline
 		amqp_channel:call(PipelineChannel,
@@ -172,7 +171,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 			       error
 		    end,
 
-		shovel:bind_source_to_exchange(Pid2, {InNameBin, <<>>}, <<>>),
+		shovel:bind_source_to_exchange(Pid2, {InNameBin, <<"#">>}, keep),
 			
 		{Pid2, {obj, [{"output", InNameBin}]}};
 	_ -> {undefined, {obj, []}}

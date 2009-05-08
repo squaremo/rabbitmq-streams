@@ -48,7 +48,7 @@ public abstract class Server extends Plugin {
             exchange = exchangeName;
         }
 
-        void publishWithKey(byte[] body, String key) throws IOException {
+        public void publishWithKey(byte[] body, String key) throws IOException {
             channel.basicPublish(exchange, key, basicPropsPersistent, body);
         }
     }

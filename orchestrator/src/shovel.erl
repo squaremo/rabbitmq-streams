@@ -20,11 +20,11 @@ start_link(SourceConnection, SourceQueue, RemoteConnection, RemoteExchange) ->
 			   #destination_config { connection = RemoteConnection, exchange = RemoteExchange }],
 			  []).
 
-bind_source_to_exchange(Shovel, {X, RKIn}, RKOut) ->
-    gen_server:cast(Shovel, {bind_source, {X, RKIn}, RKOut}).
+bind_source_to_exchange(Shovel, {X, BKIn}, RKOut) ->
+    gen_server:cast(Shovel, {bind_source, {X, BKIn}, RKOut}).
 
-unbind_source_from_exchange(Shovel, {X, RKIn}) ->
-    gen_server:cast(Shovel, {unbind_source, {X, RKIn}}).
+unbind_source_from_exchange(Shovel, {X, BKIn}) ->
+    gen_server:cast(Shovel, {unbind_source, {X, BKIn}}).
 
 init([SourceConfig = #source_config { connection = SourceConnection,
 				      queue = SourceQueue },
@@ -53,22 +53,22 @@ init([SourceConfig = #source_config { connection = SourceConnection,
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
-handle_cast({bind_source, {X, RKIn}, RKOut},
+handle_cast({bind_source, {X, BKIn}, RKOut},
 	    State = #state { source_channel = SourceCh,
 			     source_config = #source_config { queue = SourceQ },
 			     rk_map = RKMap
 			   }) ->
-    true = ets:insert(RKMap, {{X, RKIn}, RKOut}),
-    #'queue.bind_ok'{} = lib_amqp:bind_queue(SourceCh, X, SourceQ, RKIn),
+    true = ets:insert(RKMap, {X, RKOut}),
+    #'queue.bind_ok'{} = lib_amqp:bind_queue(SourceCh, X, SourceQ, BKIn),
     {noreply, State};
     
-handle_cast({unbind_source, {X, RKIn}},
+handle_cast({unbind_source, {X, BKIn}},
 	    State = #state { source_channel = SourceCh,
 			     source_config = #source_config { queue = SourceQ },
 			     rk_map = RKMap
 			   }) ->
-    #'queue.unbind_ok'{} = lib_amqp:unbind_queue(SourceCh, X, SourceQ, RKIn),
-    true = ets:insert(RKMap, {X, RKIn}),
+    #'queue.unbind_ok'{} = lib_amqp:unbind_queue(SourceCh, X, SourceQ, BKIn),
+    true = ets:delete(RKMap, X),
     {noreply, State};
     
 handle_cast(_Message, State) ->
@@ -86,9 +86,12 @@ handle_info({#'basic.deliver' { 'delivery_tag' = DeliveryTag,
 			     destination_config = #destination_config { exchange = DestinationExchange },
 			     rk_map = RKMap
 			    }) ->
-    [{{XIn, RKIn}, RKOut}] = ets:lookup(RKMap, {XIn, RKIn}),
+    [{XIn, RKOut}] = ets:lookup(RKMap, XIn),
+    RKOut2 = if RKOut =:= keep -> RKIn;
+		true -> RKOut
+	     end,
     BasicPublish = #'basic.publish'{exchange = DestinationExchange,
-                                    routing_key = RKOut
+                                    routing_key = RKOut2
 				   },
     amqp_channel:cast(DestinationCh, BasicPublish, Content),
     lib_amqp:ack(SourceCh, DeliveryTag),
