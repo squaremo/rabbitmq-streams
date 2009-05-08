@@ -70,7 +70,7 @@ public abstract class Server extends Plugin {
         return new Runnable() {
             public void run() {
                 // Subclasses must do their own acking and transactions
-                while (messageServerChannel.isOpen()) {
+                while (Server.this.messageServerChannel.isOpen()) {
                     try {
                         Delivery delivery = consumer.nextDelivery();
                         try {

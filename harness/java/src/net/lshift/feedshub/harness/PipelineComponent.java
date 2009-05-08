@@ -71,7 +71,7 @@ public abstract class PipelineComponent extends Plugin {
             final QueueingConsumer consumer) {
         return new Runnable() {
             public void run() {
-                while (messageServerChannel.isOpen()) {
+                while (PipelineComponent.this.messageServerChannel.isOpen()) {
                     try {
                         // We may have many input queues, so to avoid
                         // interleaving transactions,
@@ -96,17 +96,24 @@ public abstract class PipelineComponent extends Plugin {
                                 if (null != pluginConsumer) {
                                     ((InputReader) pluginConsumer)
                                             .handleDelivery(delivery);
-                                    messageServerChannel.basicAck(delivery
-                                            .getEnvelope().getDeliveryTag(),
-                                            false);
-                                    messageServerChannel.txCommit();
+                                    PipelineComponent.this.messageServerChannel
+                                            .basicAck(delivery.getEnvelope()
+                                                    .getDeliveryTag(), false);
+                                    PipelineComponent.this.messageServerChannel
+                                            .txCommit();
+                                } else {
+                                    PipelineComponent.this.log
+                                            .warn("No non-null input reader field "
+                                                    + pluginQueueField
+                                                            .getName());
                                 }
                             } catch (Exception e) {
                                 try {
-                                    log.error(e);
-                                    messageServerChannel.txRollback();
+                                    PipelineComponent.this.log.error(e);
+                                    PipelineComponent.this.messageServerChannel
+                                            .txRollback();
                                 } catch (IOException e1) {
-                                    log.error(e1);
+                                    PipelineComponent.this.log.error(e1);
                                 }
                             }
                         }
