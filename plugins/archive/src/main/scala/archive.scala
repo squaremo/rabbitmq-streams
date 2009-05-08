@@ -16,13 +16,13 @@ class archive(config : JSONObject) extends Server(config) {
 
     val dispatcher = new Dispatcher()
 
-    object input extends InputReader {
+    class InputHandler extends InputReader {
         override def handleDelivery(pkg : Delivery) {
             dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey, () => ack(pkg))
         }
     }
 
-    object command extends InputReader {
+    class CommandHandler extends InputReader {
         def handleDelivery(pkg : Delivery) {
             new String(pkg.getBody, "US-ASCII") match {
                 case "status change" =>
@@ -32,6 +32,9 @@ class archive(config : JSONObject) extends Server(config) {
             }
         }
     }
+
+    val input = new InputHandler()
+    val command = new CommandHandler()
 
     postConstructorInit()
 }
