@@ -39,6 +39,7 @@ public class socket_source extends Server {
         public void run() {
             try {
                 ServerSocket server = new ServerSocket(port);
+                server.setReuseAddress(true);
                 while (isRunning()) {
                     Socket sock = server.accept();
                     BufferedReader r = new BufferedReader(
