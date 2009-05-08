@@ -25,7 +25,7 @@ find_server_for_terminal(TermId) when is_binary(TermId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
 	{ok, Doc} ->
 	    case rfc4627:get_field(Doc, "server") of
-		{ok, Server} -> {ok, Server};
+		{ok, Server} -> Server;
 		Err ->
 		    error_logger:error_report({?MODULE, find_server_for_terminal, Err, TermId}),
 		    not_found
