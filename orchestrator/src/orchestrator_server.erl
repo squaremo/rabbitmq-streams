@@ -133,7 +133,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		PrivateQ = lib_amqp:declare_private_queue(PipelineChannel),
 		#'queue.bind_ok'{} = lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, CQRK),
 
-		{Pid, {obj, [{"input", OutNameBin}|CommandElem]}};
+		{Pid, {obj, [{"input", OutNameBin}, CommandElem]}};
 	    _ -> {undefined, {obj, [CommandElem]}}
 	end,
 
