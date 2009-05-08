@@ -84,6 +84,9 @@ public abstract class Server extends Plugin {
                                         .warn("No non-null input reader field "
                                                 + pluginQueueField.getName());
                             }
+			    else {
+				Server.this.log.error("Unable to find field " + pluginQueueField.toString());
+			    }
                         } catch (Exception e) {
                             Server.this.log.error(e);
                         }
