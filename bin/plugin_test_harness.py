@@ -123,7 +123,7 @@ print json.dumps(init)
 pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
 
 print
-print "Listening on %s; type '<name>:<message>'" % inputs.keys()
+print "Inputs are %s; type '<name>:<message>' to inject a message" % inputs.keys()
 while True:
     line = sys.stdin.readline()
     bits = line.split(":")
