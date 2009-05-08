@@ -23,14 +23,15 @@ class archive(config : JSONObject) extends Server(config) {
     }
 
     object command extends InputReader {
-        override def handleDelivery(pkg : Delivery) {
-            new String(pkg.getBody) match {
+        def handleDelivery(pkg : Delivery) {
+            new String(pkg.getBody, "US-ASCII") match {
                 case "status change" =>
                     val serverAndDestination = pkg.getEnvelope.getRoutingKey
                     log.debug("Status change: " + serverAndDestination)
+                    ack(pkg)
             }
         }
     }
 
-
+    postConstructorInit()
 }
