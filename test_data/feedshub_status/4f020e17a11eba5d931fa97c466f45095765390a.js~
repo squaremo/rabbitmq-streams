@@ -1,8 +1,0 @@
-feedshub_status/abc123 (as a server)
-
-{ type: "server" String
-  server_type: "archive" String # the name of the server
-  configuration: { name : value }
-      # where "name" comes from the configuration_specification
-      # in the corresponding plugin.js
-}
