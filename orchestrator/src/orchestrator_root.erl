@@ -144,9 +144,8 @@ activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
             ok;
         {error, {already_started, _Child}} ->
             ok;
-        {error, {shutdown, _}} ->
-            error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module, Args}}),
-            {error, start_error}
+	Err -> error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module, Args, Err}}),
+            {error, start_error}     
     end;
 activate_thing(ThingId, Module, Args) ->
     activate_thing(list_to_binary(ThingId), Module, Args).
@@ -285,8 +284,8 @@ handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     {noreply, State};
 handle_cast(check_active_things, State = #state { ch = Ch, amqp_connection = Connection }) ->
     ok = check_active_servers(Ch, Connection),
-    ok = check_active_terminals(Ch),
-    ok = check_active_feeds(),
+    %%ok = check_active_terminals(Ch),
+    %%ok = check_active_feeds(),
     {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.

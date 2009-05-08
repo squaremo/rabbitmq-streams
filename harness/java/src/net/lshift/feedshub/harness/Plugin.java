@@ -10,7 +10,6 @@ import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Document;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
@@ -33,8 +32,6 @@ public abstract class Plugin implements Runnable {
     final protected JSONObject pluginType;
     final protected JSONObject config;
     final protected JSONObject configuration;
-    final private Database stateDb;
-    final private String stateDocName;
     final protected Database privateDb;
     final protected Logger log;
 
@@ -77,32 +74,19 @@ public abstract class Plugin implements Runnable {
         new Thread(log).start();
         log.info("Starting up...");
 
-        URL dbURL = new URL(config.getString("state"));
-        String path = dbURL.getPath();
-        int loc = path.lastIndexOf('/');
-        String db = path.substring(0, loc);
-
-        Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(),
-                "", "");
-        stateDocName = path.substring(1 + loc);
-        stateDb = couchSession.getDatabase(db);
-
         Database privDb = null;
         if (config.has("database")
-                && !JSONNull.getInstance().equals(
-                        JSONObject.fromObject(config.get("database")))) {
+                && !JSONNull.getInstance().equals(config.get("database"))) {
             String privDbStr = config.getString("database");
-            privDb = couchSession.createDatabase(privDbStr);
+            URL privDbURL = new URL(privDbStr);
+            Session privDbCouchSession = new Session(privDbURL.getHost(),
+                    privDbURL.getPort(), "", "");
+            String privDbPath = privDbURL.getPath();
+            int loc = privDbPath.lastIndexOf('/');            
+            String privDbName = privDbPath.substring(1 + loc);
+            privDb = privDbCouchSession.createDatabase(privDbName);
         }
         privateDb = privDb;
-    }
-
-    protected Document getState() throws IOException {
-        return stateDb.getDocument(stateDocName);
-    }
-
-    protected void setState(Document state) throws IOException {
-        stateDb.saveDocument(state, stateDocName);
     }
 
     protected abstract Publisher publisher(String name, String exchange);

@@ -2,11 +2,16 @@ package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URL;
 
+import net.sf.json.JSONObject;
+
+import com.fourspaces.couchdb.Database;
+import com.fourspaces.couchdb.Document;
+import com.fourspaces.couchdb.Session;
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
-import com.rabbitmq.client.Channel;
-import net.sf.json.JSONObject;
 
 /**
  * A superclass for pipeline components. THis does a bit more work than its
@@ -16,9 +21,22 @@ import net.sf.json.JSONObject;
 public abstract class PipelineComponent extends Plugin {
 
     final private Object privateLock = new Object();
+    final private Database stateDb;
+    final private String stateDocName;
 
     public PipelineComponent(JSONObject config) throws IOException {
         super(config);
+        URL dbURL = new URL(config.getString("state"));
+        String path = dbURL.getPath();
+        int loc = path.lastIndexOf('/'); // minus document
+        String db = path.substring(0, loc);
+        int loc2 = db.lastIndexOf('/');
+        String dbName = db.substring(loc2);
+
+        Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(),
+                "", "");
+        stateDocName = path.substring(1 + loc);
+        stateDb = couchSession.getDatabase(dbName);
     }
 
     public static final class PipelinePublisher implements Publisher {
@@ -99,4 +117,13 @@ public abstract class PipelineComponent extends Plugin {
 
         };
     }
+
+    protected Document getState() throws IOException {
+        return stateDb.getDocument(stateDocName);
+    }
+
+    protected void setState(Document state) throws IOException {
+        stateDb.saveDocument(state, stateDocName);
+    }
+
 }

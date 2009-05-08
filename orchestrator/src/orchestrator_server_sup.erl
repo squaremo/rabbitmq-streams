@@ -2,15 +2,13 @@
 
 -behaviour(supervisor).
 
--export([start_link/1]).
+-export([start_link/7]).
 -export([init/1]).
 
--define(SERVER, ?MODULE).
-
-start_link([ServerId,
-	    PipelineChannel, PipelineBroker,
-	    IngressChannel, IngressBroker,
-	    EgressChannel, EgressBroker]) when is_binary(ServerId) ->
+start_link(ServerId,
+	   PipelineChannel, PipelineBroker,
+	   IngressChannel, IngressBroker,
+	   EgressChannel, EgressBroker) when is_binary(ServerId) ->
     supervisor:start_link({local, list_to_atom("Server_" ++ binary_to_list(ServerId))},
 			  ?MODULE, [ServerId,
 				    PipelineChannel, PipelineBroker,

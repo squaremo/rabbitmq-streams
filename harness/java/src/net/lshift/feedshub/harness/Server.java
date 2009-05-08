@@ -18,17 +18,25 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
  */
 public abstract class Server extends Plugin {
 
-    final private URL terminalsDbName;
+    final private URL terminalsDbUrl;
     final protected Database terminalsDatabase;
 
     public Server(JSONObject config) throws IOException {
         super(config);
-        terminalsDbName = new URL(config.getString("terminals_database"));
+        String terminalsDbStr = config.getString("terminals_database");
+        terminalsDbUrl = new URL(terminalsDbStr);
 
-        Session couchSession = new Session(terminalsDbName.getHost(),
-                terminalsDbName.getPort(), "", "");
-        terminalsDatabase = couchSession
-                .getDatabase(terminalsDbName.toString());
+        Session couchSession = new Session(terminalsDbUrl.getHost(),
+                terminalsDbUrl.getPort(), "", "");
+        String path = terminalsDbUrl.getPath();
+        int loc;
+        if (path.endsWith("/")) {
+            loc = path.substring(0, path.length() - 1).lastIndexOf('/');
+        } else {
+            loc = path.lastIndexOf('/');
+        }
+        String terminalsDbName = path.substring(loc);
+        terminalsDatabase = couchSession.getDatabase(terminalsDbName);
     }
 
     public static final class ServerPublisher implements Publisher {
@@ -50,7 +58,7 @@ public abstract class Server extends Plugin {
                 .getDeliveryTag(), false);
     }
 
-    protected ServerPublisher output; // this is magically set on initialisation
+    public ServerPublisher output; // this is magically set on initialisation
 
     protected final void publishToDestination(byte[] body, String destination)
             throws IOException {

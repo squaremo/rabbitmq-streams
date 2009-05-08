@@ -76,8 +76,7 @@ get_view(DbName, ViewCollectionName, ViewName) ->
 
 get_view_rows(DbName, ViewCollectionName, ViewName) ->
     {ok, Result} = get_view(DbName, ViewCollectionName, ViewName),
-    {ok, Rows} = rfc4627:get_field(Result, "rows"),
-    Rows.
+    rfc4627:get_field(Result, "rows", []).
 
 %%---------------------------------------------------------------------------
 

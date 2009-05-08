@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/1]).
+-export([start_link/4]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([bind_source_to_exchange/3, unbind_source_from_exchange/2]).
@@ -10,13 +10,11 @@
 -include("rabbit.hrl").
 -include("rabbit_framing.hrl").
 
--define(SERVER, ?MODULE).
-
 -record(source_config, { connection, queue }).
 -record(destination_config, { connection, exchange }).
 -record(state, { source_config, source_channel, destination_config, destination_channel, rk_map }).
 
-start_link([SourceConnection, SourceQueue, RemoteConnection, RemoteExchange]) ->
+start_link(SourceConnection, SourceQueue, RemoteConnection, RemoteExchange) ->
     gen_server:start_link(?MODULE,
 			  [#source_config { connection = SourceConnection, queue = SourceQueue },
 			   #destination_config { connection = RemoteConnection, exchange = RemoteExchange }],
@@ -32,6 +30,7 @@ init([SourceConfig = #source_config { connection = SourceConnection,
 				      queue = SourceQueue },
       DestinationConfig = #destination_config { connection = DestinationConnection }]) ->
 
+    error_logger:info_report({?MODULE, init}),
     SourceCh = amqp_connection:open_channel(SourceConnection),
     DestinationCh = amqp_connection:open_channel(DestinationConnection),
 

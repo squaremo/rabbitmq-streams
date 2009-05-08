@@ -2,17 +2,17 @@
 
 -behaviour(gen_server).
 
--export([start_link/1]).
+-export([start_link/8]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([find_server_for_terminal/1]).
 
 -include("orchestrator.hrl").
 -include("rabbit_framing.hrl").
 
-start_link([ServerSupPid, ServerId,
-	    PipelineChannel, PipelineBroker,
-	    IngressChannel, IngressBroker,
-	    EgressChannel, EgressBroker]) ->
+start_link(ServerSupPid, ServerId,
+	   PipelineChannel, PipelineBroker,
+	   IngressChannel, IngressBroker,
+	   EgressChannel, EgressBroker) ->
     gen_server:start_link(?MODULE, [ServerSupPid, ServerId,
 				    PipelineChannel, PipelineBroker,
 				    IngressChannel, IngressBroker,
@@ -38,13 +38,13 @@ get_server_instance_config(ServerId) when is_list(ServerId) ->
     {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
     ServerInstanceConfig.
 
-get_server_static_config(ServerId) when is_list(ServerId) ->
-    case file:read_file(orchestrator_plugin:plugin_path(ServerId, "plugin.js")) of
+get_server_static_config(ServerType) when is_list(ServerType) ->
+    case file:read_file(orchestrator_plugin:plugin_path(ServerType, "plugin.js")) of
         {error, _} ->
-            orchestrator_plugin:plugin_not_found(ServerId);
+            orchestrator_plugin:plugin_not_found(ServerType);
         {ok, JsonBin} ->
             {ok, Description, ""} = rfc4627:decode(JsonBin),
-            {ok, Description}
+            Description
     end.
 
 init([ServerSupPid, ServerIdBin,
@@ -52,10 +52,32 @@ init([ServerSupPid, ServerIdBin,
       IngressChannel, IngressBroker,
       EgressChannel, EgressBroker])
   when is_binary(ServerIdBin) ->
-    error_logger:info_report({?MODULE, init, ServerIdBin}),
+    gen_server:cast(self(), {start_server, ServerIdBin,
+			     PipelineChannel, PipelineBroker,
+			     IngressChannel, IngressBroker,
+			     EgressChannel, EgressBroker}),
+
     ServerId = binary_to_list(ServerIdBin),
-    ServerDefinition = get_server_static_config(ServerId),
+    {ok, #state{port = undefined,
+                output_acc = [],
+		server_pid = undefined,
+		server_id = ServerId,
+		server_sup_pid = ServerSupPid,
+		shovel_in_pid = undefined,
+		shovel_out_pid = undefined
+	       }}.
+
+handle_call(_Message, _From, State) ->
+    {stop, unhandled_call, State}.
+
+handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
+	     IngressChannel, IngressBroker, EgressChannel, EgressBroker},
+	    #state { server_id = ServerId, server_sup_pid = ServerSupPid }) ->
+
     ServerConfig = get_server_instance_config(ServerId),
+    {ok, ServerTypeBin} = rfc4627:get_field(ServerConfig, "server_type"),
+    ServerType = binary_to_list(ServerTypeBin),
+    ServerDefinition = get_server_static_config(ServerType),
 
     CommandQueueName = ServerId ++ "_command",
     CommandQueueNameBin = list_to_binary(CommandQueueName),
@@ -80,20 +102,26 @@ init([ServerSupPid, ServerIdBin,
 						   durable = true}),
 		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<>>),
 
-		{ok, Pid} =
-		    supervisor:start_child(ServerSupPid,
-					   {egress_shovel,
-					    {shovel, start_link, [PipelineBroker, undefined,
-								  EgressBroker, OutNameBin]},
-					    permanent,
-					    brutal_kill,
-					    worker,
-					    [shovel]
-					   }),
+		Pid =
+		    case supervisor:start_child(ServerSupPid,
+						{egress_shovel,
+						 {shovel, start_link, [PipelineBroker, undefined,
+								       EgressBroker, OutNameBin]},
+						 permanent,
+						 brutal_kill,
+						 worker,
+						 [shovel]
+						}) of
+			{ok, Pid3} -> Pid3;
+			{error, {already_started, Pid3}} -> Pid3;
+			Err -> error_logger:error_report({?MODULE, start_shovel, ServerId, Err}),
+			       error
+		    end,
+
 		{Pid, {obj, [{"input", OutNameBin}|CommandElem]}};
 	    _ -> {undefined, {obj, [CommandElem]}}
 	end,
-    
+
     {ShovelInPid, Outputs} =
 	case rfc4627:get_field(ServerDefinition, "source_specification") of
 	    {ok, _} -> %% we are a source
@@ -113,16 +141,24 @@ init([ServerSupPid, ServerIdBin,
 						      type = <<"direct">>,
 						      durable = true}),
 
-		{ok, Pid2} =
-		    supervisor:start_child(ServerSupPid,
-					   {egress_shovel,
-					    {shovel, start_link, [IngressBroker, InNameBin,
-								  PipelineBroker, ServerIdBin]},
-					    permanent,
-					    brutal_kill,
-					    worker,
-					    [shovel]
-					   }),
+		Pid2 =
+		    case supervisor:start_child(ServerSupPid,
+						{ingress_shovel,
+						 {shovel, start_link, [IngressBroker, InNameBin,
+								       PipelineBroker, ServerIdBin]},
+						 permanent,
+						 brutal_kill,
+						 worker,
+						 [shovel]
+						}) of
+			{ok, Pid4} -> Pid4;
+			{error, {already_started, Pid4}} -> Pid4;
+			Err2 -> error_logger:error_report({?MODULE, start_shovel, ServerId, Err2}),
+			       error
+		    end,
+
+		shovel:bind_source_to_exchange(Pid2, {InNameBin, <<>>}, <<>>),
+			
 		{Pid2, {obj, [{"output", InNameBin}]}};
 	_ -> {undefined, {obj, []}}
     end,	    
@@ -137,17 +173,15 @@ init([ServerSupPid, ServerIdBin,
                       stderr_to_stdout,
                       {cd, HarnessDir}]),
 
-    {ok, PluginNameBin} = rfc4627:get_field(ServerConfig, "server_type"),
     {ok, ServerUserConfig}  = case rfc4627:get_field(ServerConfig, "configuration") of
 				  {ok, PUC} -> {ok, PUC};
 				  not_found -> {ok, {obj, []}}
 			      end,
-    PluginName = binary_to_list(PluginNameBin),
 
     ConfigDoc = {obj,
                  [{"harness_type", HarnessTypeBin},
-                  {"plugin_name", PluginNameBin},
-                  {"plugin_dir", list_to_binary(orchestrator_plugin:plugin_path(PluginName, ""))},
+                  {"plugin_name", ServerTypeBin},
+                  {"plugin_dir", list_to_binary(orchestrator_plugin:plugin_path(ServerType, ""))},
                   {"server_id", ServerIdBin},
                   {"plugin_type", ServerDefinition},
 		  {"global_configuration", {obj, []}}, %% TODO
@@ -161,21 +195,19 @@ init([ServerSupPid, ServerIdBin,
                           ]}},
                   {"inputs", Inputs},
                   {"outputs", Outputs},
-                  {"database", list_to_binary(couchapi:expand("server_" ++ ServerId ++ "_state"))}
+                  {"database", list_to_binary(couchapi:expand("server_" ++ ServerId ++ "_state"))},
+                  {"terminals_database", list_to_binary(couchapi:expand(?FEEDSHUB_STATUS_DBNAME))}
 		 ]},
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
-    {ok, #state{port = Port,
-                output_acc = [],
-		server_pid = undefined,
-		server_id = ServerId,
-		server_sup_pid = ServerSupPid,
-		shovel_in_pid = ShovelInPid,
-		shovel_out_pid = ShovelOutPid
-	       }}.    
-
-handle_call(_Message, _From, State) ->
-    {stop, unhandled_call, State}.
+    {noreply, #state{port = Port,
+		     output_acc = [],
+		     server_pid = undefined,
+		     server_id = ServerId,
+		     server_sup_pid = ServerSupPid,
+		     shovel_in_pid = ShovelInPid,
+		     shovel_out_pid = ShovelOutPid
+		    }};
 
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
@@ -200,7 +232,10 @@ handle_info(_Info, State) ->
 
 terminate(_Reason, #state{port = Port, output_acc = Acc, server_pid = ServerPid}) ->
     error_logger:info_report({?MODULE, server_terminating, lists:flatten(lists:reverse(Acc))}),
-    true = port_close(Port),
+    true =
+	if Port == undefined -> true;
+	   true -> port_close(Port)
+	end,
     if undefined =:= ServerPid -> true;
        true -> os:cmd("kill "++(integer_to_list(ServerPid)))
     end,
