@@ -8,6 +8,7 @@ import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Session;
+import com.fourspaces.couchdb.Document;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
@@ -94,6 +95,14 @@ public abstract class Server extends Plugin {
 
     protected final Publisher publisher(final String name, final String exchange) {
         return new ServerPublisher(exchange, messageServerChannel);
+    }
+
+    protected final Document terminalConfig(String terminalId) throws IOException {
+	return this.terminalsDatabase.getDocument(terminalId);                
+    }
+
+    protected final Document terminalStatus(String terminalId) throws IOException {
+	return  this.terminalsDatabase.getDocument(terminalId + "_status");
     }
 
 }

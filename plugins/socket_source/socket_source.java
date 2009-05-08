@@ -78,11 +78,8 @@ public class socket_source extends Server {
                 String serverId = serverIdterminalId.substring(0, loc);
                 String terminalId = serverIdterminalId.substring(loc + 1);
 
-                Document terminalConfig = socket_source.this.terminalsDatabase
-                        .getDocument(terminalId);
-                
-                Document terminalStatus = socket_source.this.terminalsDatabase
-                        .getDocument(terminalId + "_status");
+                Document terminalConfig = socket_source.this.terminalConfig(terminalId);                
+                Document terminalStatus = socket_source.this.terminalStatus(terminalId);
 
                 String serverIdFromTerminalConfig = terminalConfig
                         .getString("server");
@@ -108,7 +105,7 @@ public class socket_source extends Server {
                 }
 
                 socket_source.this.log
-                        .info("Recevied terminal status change for "
+                        .info("Received terminal status change for "
                                 + terminalId);
 
                 SocketSource source = terminalMap.get(terminalId);
