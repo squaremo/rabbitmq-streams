@@ -1,11 +1,12 @@
 sources=$(shell find src -type f -name "*.scala") pom.xml
-jarfile=lib/archive-1.0.jar
+jarfile=archive-1.0.jar
 
-all: libs $(jarfile)
+all: libs lib/$(jarfile)
 
 clean:
-	rm -r target
+	rm -rf target
 	rm .libs-done
+	rm -rf libs
 
 libs: .libs-done
 
@@ -13,7 +14,9 @@ libs: .libs-done
 	mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=../../harness/java/feedshub_harness.jar
 	touch .libs-done
 
-$(jarfile): $(sources)
+target/$(jarfile): $(sources)
 	mvn package
+
+lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib
 	cp target/*.jar lib/
