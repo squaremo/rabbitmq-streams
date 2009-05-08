@@ -84,7 +84,7 @@ create-build-logs-dir:
 # Run alternatives which don't create xterms unless you want them to
 
 listen_orchestrator:
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done" &
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done | tee -a orch_log" &
 
 start_orchestrator_nox: stop_orchestrator_nox
 	mkfifo $(ORCH_FIFO)
