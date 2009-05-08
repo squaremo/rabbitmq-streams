@@ -33,13 +33,13 @@ init([SourceConfig = #source_config { connection = SourceConnection,
     SourceCh = amqp_connection:open_channel(SourceConnection),
     DestinationCh = amqp_connection:open_channel(DestinationConnection),
 
-    _ConsumerTag = lib_amqp:subscribe(SourceCh, SourceQueue, self()),
-
     SourceQueue2 = case SourceQueue of
 		       undefined -> lib_amqp:declare_private_queue(SourceCh);
 		       _ -> SourceQueue
 		   end,
     
+    _ConsumerTag = lib_amqp:subscribe(SourceCh, SourceQueue2, self()),
+
     RKMap = ets:new(list_to_atom(pid_to_list(self())), [set, private]),
 
     {ok, #state { source_config = SourceConfig #source_config { queue = SourceQueue2 },
