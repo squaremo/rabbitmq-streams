@@ -85,6 +85,11 @@ listen = ListenerThread()
 listen.daemon = True
 listen.start()
 
+import httplib
+couch = httplib.HTTPConnection("localhost", 5984)
+couch.request("PUT", "/plugin_test_harness")
+statedocname = newname()
+
 # Assemble the plugin init
 init = {
     "harness_type": plugin['harness'], # String from harness in plugin.js
@@ -103,7 +108,7 @@ init = {
                        },
     "inputs":  inputs, # Q name provided by orchestrator
     "outputs": outputs, # Exchange name provided by orchestrator
-    "state": "http://localhost:5984/plugin_test_harness/state", # %%% MAKE THIS
+    "state": "http://localhost:5984/plugin_test_harness/%s" % statedocname, # %%% MAKE THIS
     # the document within the feed state database that can be used to store state
     "database": None # %%% MAKE THIS
 }
@@ -118,7 +123,7 @@ print json.dumps(init)
 pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
 
 print
-print "Listening on %s:" % inputs.keys()
+print "Listening on %s; type '<name>:<message>'" % inputs.keys()
 while True:
     line = sys.stdin.readline()
     bits = line.split(":")
