@@ -33,10 +33,13 @@ public class Run {
 			return filename.endsWith(".jar");
 		    }
 		});
-	    System.out.println(jars[0].toString());
-	    URL[] classpathEntries = new URL[jars.length + 1];
-	    for (int i=0; i < jars.length; i++) {
-		classpathEntries[i] = new URL(libUri + jars[i]);
+	    //System.out.println(jars[0].toString());
+	    URL[] classpathEntries = new URL[null==jars ? 1 : jars.length + 1];
+	    classpathEntries[0] = pluginUrl;
+	    if (null != jars) {
+		for (int i=0; i < jars.length; i++) {
+		    classpathEntries[i+1] = new URL(libUri + jars[i]);
+		}
 	    }
             String pluginName = jsonArgs.getString("plugin_name");
 
