@@ -18,6 +18,7 @@ class archive(config : JSONObject) extends Server(config) {
 
     class InputHandler extends InputReader {
         override def handleDelivery(pkg : Delivery) {
+            log.debug("Input received: " + new String(pkg.getBody))
             dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey, () => ack(pkg))
         }
     }
