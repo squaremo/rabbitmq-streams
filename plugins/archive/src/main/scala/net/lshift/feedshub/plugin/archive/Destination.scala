@@ -10,7 +10,7 @@ package net.lshift.feedshub.plugin.archive
 import scala.actors.Actor
 import scala.actors.Actor._
 
-case class NewEntry(bytes : Array[Byte], ack : Unit => Unit)
+case class NewEntry(bytes : Array[Byte], ack : () => Unit)
 
 class Destination(postto: String) extends Actor {
 

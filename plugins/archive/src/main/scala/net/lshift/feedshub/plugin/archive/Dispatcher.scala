@@ -13,16 +13,10 @@ import scala.actors.Actor._
 import net.lshift.feedshub.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-case class Entry(bytes : Array[Byte], key : String, ack : Unit => Unit)
+case class Entry(bytes : Array[Byte], key : String, ack : (() => Unit))
 
-class Dispatcher(config_url : String) extends Actor {
+class Dispatcher extends Actor {
     private val destinations : Map[String, Destination] = Map()
-
-    object in extends InputReader {
-        def handleDelivery(pkg : Delivery) {
-            
-        }
-    }
 
     def act {
         loop {
