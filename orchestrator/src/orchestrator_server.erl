@@ -35,7 +35,7 @@ find_server_for_terminal(TermId) when is_binary(TermId) ->
 	    not_found
     end.
 
--record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, shovel_out_pid, pipeline_channel}).
+-record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, shovel_out_pid, pipeline_channel, egress_broker}).
 
 get_server_instance_config(ServerId) when is_list(ServerId) ->
     {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
@@ -70,7 +70,8 @@ init([ServerSupPid, ServerIdBin,
 		server_sup_pid = ServerSupPid,
 		shovel_in_pid = undefined,
 		shovel_out_pid = undefined,
-		pipeline_channel = undefined
+		pipeline_channel = undefined,
+		egress_broker = undefined
 	       }}.
 
 handle_call(_Message, _From, State) ->
@@ -110,22 +111,6 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 						   durable = true}),
 		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<"#">>),
 
-		Pid =
-		    case supervisor:start_child(ServerSupPid,
-						{egress_shovel,
-						 {shovel, start_link, [PipelineBroker, undefined,
-								       EgressBroker, OutNameBin]},
-						 permanent,
-						 brutal_kill,
-						 worker,
-						 [shovel]
-						}) of
-			{ok, Pid3} -> Pid3;
-			{error, {already_started, Pid3}} -> Pid3;
-			Err -> error_logger:error_report({?MODULE, start_shovel, ServerId, Err}),
-			       error
-		    end,
-
 		%% we are a destination. This means we need to update
 		%% the shovel whenever we see new terminals get turned
 		%% on or off
@@ -133,7 +118,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		PrivateQ = lib_amqp:declare_private_queue(PipelineChannel),
 		#'queue.bind_ok'{} = lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, CQRK),
 
-		{Pid, {obj, [{"input", OutNameBin}, CommandElem]}};
+		{undefined, {obj, [{"input", OutNameBin}, CommandElem]}};
 	    _ -> {undefined, {obj, [CommandElem]}}
 	end,
 
@@ -224,7 +209,8 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		     server_sup_pid = ServerSupPid,
 		     shovel_in_pid = ShovelInPid,
 		     shovel_out_pid = ShovelOutPid,
-		     pipeline_channel = PipelineChannel
+		     pipeline_channel = PipelineChannel,
+		     egress_broker = EgressBroker
 		    }};
 
 handle_cast(_Message, State) ->
@@ -253,17 +239,28 @@ handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
 				'routing_key' = RoutingKeyBin
 			      },
 	     #content { payload_fragments_rev = [<<"status change">>]}},
-	    State = #state{ shovel_out_pid = ShovelOutPid, pipeline_channel = Ch, server_id = ServerId })
+	    State = #state{ shovel_out_pid = ShovelOutPid, pipeline_channel = Ch, server_id = ServerId, server_sup_pid = ServerSupPid, egress_broker = EgressBroker })
   when is_pid(ShovelOutPid) ->
     RoutingKey = binary_to_list(RoutingKeyBin),
     ServerId = lists:takewhile(fun (C) -> C /= $. end, RoutingKey),
     [$.|TerminalId] = lists:dropwhile(fun (C) -> C /= $. end, RoutingKey),
     TerminalIdBin = list_to_binary(TerminalId),
+
     amqp_channel:call(Ch,
-		      #'exchange.declare'{exchange = TerminalIdBin,
-					  type = <<"direct">>,
-					  durable = true}),
-    shovel:bind_source_to_exchange(ShovelOutPid, {TerminalIdBin, <<>>}, <<TerminalIdBin>>),
+		      #'queue.declare'{queue = TerminalIdBin,
+				       durable = true}),
+
+    OutNameBin = list_to_binary(ServerId ++ "_output"),
+    supervisor:start_child(ServerSupPid,
+			   {list_to_atom("egress_shovel_" ++ TerminalId),
+			    {shovel, start_link, [Ch, TerminalIdBin,
+						  EgressBroker, OutNameBin]},
+			    permanent,
+			    brutal_kill,
+			    worker,
+			    [shovel]
+			   }),
+
     lib_amqp:ack(Ch, DeliveryTag),
     {noreply, State};
 

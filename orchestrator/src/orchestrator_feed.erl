@@ -98,6 +98,7 @@ bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
 		    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
 		    TerminalName2
 	    end,
+    error_logger:info_report({?MODULE, bind_edges, "binding exchange " ++ (binary_to_list(Exchange)) ++ " to queue " ++ (binary_to_list(Queue)) ++ " with binding key " ++ (binary_to_list(RK))}),
     lib_amqp:bind_queue(Channel, Exchange, Queue, RK).
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
