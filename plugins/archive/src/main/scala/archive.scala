@@ -27,7 +27,7 @@ class archive(config : JSONObject) extends Server(config) {
             new String(pkg.getBody) match {
                 case "status change" =>
                     val serverAndDestination = pkg.getEnvelope.getRoutingKey
-                    println("Status change of " + serverAndDestination)
+                    log.debug("Status change: " + serverAndDestination)
             }
         }
     }

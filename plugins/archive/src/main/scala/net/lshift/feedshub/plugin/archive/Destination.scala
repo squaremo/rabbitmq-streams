@@ -10,16 +10,17 @@ package net.lshift.feedshub.plugin.archive
 import scala.actors.Actor
 import scala.actors.Actor._
 
+import net.lshift.feedshub.harness.Logger
+
 case class NewEntry(bytes : Array[Byte], ack : () => Unit)
 
-class Destination(postto: String) extends Actor {
+class Destination(postto: String, log : Logger) extends Actor {
 
     def act {
         loop {
             react {
                 case NewEntry(bytes, ack) =>
                     val body = new String(bytes)
-                    println(postto + " " + body)
                     ack()
             }
         }
