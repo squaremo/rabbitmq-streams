@@ -79,9 +79,13 @@ public abstract class Server extends Plugin {
                             if (null != pluginConsumer) {
                                 ((InputReader) pluginConsumer)
                                         .handleDelivery(delivery);
+                            } else {
+                                Server.this.log
+                                        .warn("No non-null input reader field "
+                                                + pluginQueueField.getName());
                             }
                         } catch (Exception e) {
-                            log.error(e);
+                            Server.this.log.error(e);
                         }
                     } catch (InterruptedException _) {
                         // just continue around and try fetching again
