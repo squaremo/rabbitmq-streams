@@ -73,7 +73,7 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
                           start_component(PluginSupPid, FeedId, NodeConfiguration)
-                  end, NodeConfigurations),
+                  end, lists:filter(fun (NC) -> NC /= ok end, NodeConfigurations)),
 
     State.
 
