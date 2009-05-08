@@ -1,4 +1,5 @@
-{ "type": "server",
-	"server_type": "archive",
-	"configuration": {}
-	}
+{
+    "type": "server",
+    "server_type": "archive",
+    "configuration": {}
+}
