@@ -30,7 +30,6 @@ init([SourceConfig = #source_config { connection = SourceConnection,
 				      queue = SourceQueue },
       DestinationConfig = #destination_config { connection = DestinationConnection }]) ->
 
-    error_logger:info_report({?MODULE, init}),
     SourceCh = amqp_connection:open_channel(SourceConnection),
     DestinationCh = amqp_connection:open_channel(DestinationConnection),
 

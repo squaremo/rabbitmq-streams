@@ -7,6 +7,8 @@
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
+-export([server_started_callback/1]).
+
 -define(SERVER, ?MODULE).
 
 -define(ROOT_STATUS_DOCID, ?FEEDSHUB_STATUS_DBNAME "root_config").
@@ -186,8 +188,9 @@ check_active_servers(Channel, Connection) ->
 		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
     lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
-							      Channel, Connection]) end, ServerIds),
-    ok.
+							      Channel, Connection,
+							      self()]) end, ServerIds),
+    {ok, length(ServerIds)}.
 
 activate_feed(FeedId) ->
     activate_thing(FeedId, orchestrator_feed_sup, []).
@@ -255,7 +258,10 @@ status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {config, amqp_connection, ch, logger_ch}).
+server_started_callback(RootPid) ->
+    gen_server:cast(RootPid, server_started_callback).
+
+-record(state, {config, amqp_connection, ch, logger_ch, server_startup_waiting}).
 
 init([]) ->
     {ok, Configuration = #root_config{rabbitmq_host = RHost,
@@ -267,7 +273,7 @@ init([]) ->
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch, LogCh),
     gen_server:cast(self(), setup_logger), %% do this after we're fully running.
-    gen_server:cast(self(), check_active_things), %% do this after we're fully running.
+    gen_server:cast(self(), check_active_servers), %% do this after we're fully running.
     {ok, #state{config = Configuration,
                 amqp_connection = AmqpConnectionPid,
                 ch = Ch,
@@ -279,13 +285,23 @@ handle_call(open_channel, _From, State = #state{amqp_connection = Conn}) ->
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
+handle_cast(server_started_callback, State = #state { server_startup_waiting = SSW }) when SSW > 1 ->
+    {noreply, State #state { server_startup_waiting = SSW - 1 }};
+handle_cast(server_started_callback, State = #state { server_startup_waiting = SSW }) when SSW =:= 1 ->
+    gen_server:cast(self(), check_active_terminals),
+    {noreply, State #state { server_startup_waiting = 0 }};
 handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     ok = setup_logger(LogCh),
     {noreply, State};
-handle_cast(check_active_things, State = #state { ch = Ch, amqp_connection = Connection }) ->
-    ok = check_active_servers(Ch, Connection),
-    %%ok = check_active_terminals(Ch),
-    %%ok = check_active_feeds(),
+handle_cast(check_active_servers, State = #state { ch = Ch, amqp_connection = Connection }) ->
+    {ok, ServerCount} = check_active_servers(Ch, Connection),
+    if 0 =:= ServerCount -> gen_server:cast(self(), check_active_terminals);
+       true -> ok
+    end,
+    {noreply, State #state { server_startup_waiting = ServerCount }};
+handle_cast(check_active_terminals, State = #state { ch = Ch }) ->
+    ok = check_active_terminals(Ch),
+    ok = check_active_feeds(),
     {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.

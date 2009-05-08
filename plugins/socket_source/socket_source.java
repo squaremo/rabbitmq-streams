@@ -33,7 +33,11 @@ public class socket_source extends Server {
 
             public void handleDelivery(Delivery message) throws Exception {
 
-                String terminalId = message.getEnvelope().getRoutingKey();
+                String serverIdterminalId = message.getEnvelope()
+                        .getRoutingKey();
+                int loc = serverIdterminalId.indexOf('.');
+                String serverId = serverIdterminalId.substring(0, loc);
+                String terminalId = serverIdterminalId.substring(loc + 1);
 
                 Document terminalConfig = socket_source.this.terminalsDatabase
                         .getDocument(terminalId);
@@ -43,6 +47,16 @@ public class socket_source extends Server {
 
                 String serverIdFromTerminalConfig = terminalConfig
                         .getString("server");
+
+                if (!serverId.equals(socket_source.this.config
+                        .getString("server_id"))) {
+                    socket_source.this.log
+                            .fatal("Received a terminal status change "
+                                    + "message which was not routed for us: "
+                                    + serverIdFromTerminalConfig);
+                    return;
+                }
+
                 if (!serverIdFromTerminalConfig
                         .equals(socket_source.this.config
                                 .getString("server_id"))) {
@@ -51,7 +65,12 @@ public class socket_source extends Server {
                                     + "message for a terminal which isn't "
                                     + "configured for us: "
                                     + serverIdFromTerminalConfig);
+                    return;
                 }
+
+                socket_source.this.log
+                        .info("Recevied terminal status change for "
+                                + terminalId);
 
                 SocketSource source = terminalMap.get(terminalId);
                 if (terminalStatus.getBoolean("active")) {

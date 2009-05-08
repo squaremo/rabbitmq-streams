@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/8]).
+-export([start_link/9]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([find_server_for_terminal/1]).
 
@@ -12,11 +12,13 @@
 start_link(ServerSupPid, ServerId,
 	   PipelineChannel, PipelineBroker,
 	   IngressChannel, IngressBroker,
-	   EgressChannel, EgressBroker) ->
+	   EgressChannel, EgressBroker,
+	   RootPid) ->
     gen_server:start_link(?MODULE, [ServerSupPid, ServerId,
 				    PipelineChannel, PipelineBroker,
 				    IngressChannel, IngressBroker,
-				    EgressChannel, EgressBroker], []).
+				    EgressChannel, EgressBroker,
+				    RootPid], []).
 
 find_server_for_terminal(TermId) when is_binary(TermId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
@@ -50,12 +52,14 @@ get_server_static_config(ServerType) when is_list(ServerType) ->
 init([ServerSupPid, ServerIdBin,
       PipelineChannel, PipelineBroker,
       IngressChannel, IngressBroker,
-      EgressChannel, EgressBroker])
+      EgressChannel, EgressBroker,
+      RootPid])
   when is_binary(ServerIdBin) ->
     gen_server:cast(self(), {start_server, ServerIdBin,
 			     PipelineChannel, PipelineBroker,
 			     IngressChannel, IngressBroker,
-			     EgressChannel, EgressBroker}),
+			     EgressChannel, EgressBroker,
+			     RootPid}),
 
     ServerId = binary_to_list(ServerIdBin),
     {ok, #state{port = undefined,
@@ -71,7 +75,8 @@ handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
 handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
-	     IngressChannel, IngressBroker, EgressChannel, EgressBroker},
+	     IngressChannel, IngressBroker, EgressChannel, EgressBroker,
+	     RootPid},
 	    #state { server_id = ServerId, server_sup_pid = ServerSupPid }) ->
 
     ServerConfig = get_server_instance_config(ServerId),
@@ -200,6 +205,9 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		 ]},
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
+
+    orchestrator_root:server_started_callback(RootPid),
+
     {noreply, #state{port = Port,
 		     output_acc = [],
 		     server_pid = undefined,
