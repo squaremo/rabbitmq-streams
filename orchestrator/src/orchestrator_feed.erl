@@ -109,7 +109,9 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     end.
 
 terminal_node(_TerminalNameBin, _Channel, _FeedId, {_NodeId, _NodeSpecJson}) ->
-    %% Actually, there's nothing to do here as we assume the terminal is on
+    %% Actually, there's nothing to do here as we assume the terminal
+    %% is on and the terminal or server exchanges are created when
+    %% they start up
     ok.
 
 plugin_component_node(PluginTypeBin, Channel, FeedId, {NodeId, NodeSpecJson}) ->

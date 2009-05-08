@@ -7,6 +7,7 @@
 -export([find_server_for_terminal/1]).
 
 -include("orchestrator.hrl").
+-include("rabbit.hrl").
 -include("rabbit_framing.hrl").
 
 start_link(ServerSupPid, ServerId,
@@ -34,7 +35,7 @@ find_server_for_terminal(TermId) when is_binary(TermId) ->
 	    not_found
     end.
 
--record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, shovel_out_pid}).
+-record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, shovel_out_pid, pipeline_channel}).
 
 get_server_instance_config(ServerId) when is_list(ServerId) ->
     {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
@@ -68,7 +69,8 @@ init([ServerSupPid, ServerIdBin,
 		server_id = ServerId,
 		server_sup_pid = ServerSupPid,
 		shovel_in_pid = undefined,
-		shovel_out_pid = undefined
+		shovel_out_pid = undefined,
+		pipeline_channel = undefined
 	       }}.
 
 handle_call(_Message, _From, State) ->
@@ -88,8 +90,9 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
     CommandQueueNameBin = list_to_binary(CommandQueueName),
     amqp_channel:call(PipelineChannel, #'queue.declare'{queue = CommandQueueNameBin,
 							durable = false}),
+    CQRK = list_to_binary(ServerId ++ ".*"),
     lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME,
-			CommandQueueNameBin, list_to_binary(ServerId ++ ".*")),
+			CommandQueueNameBin, CQRK),
 
     CommandElem = {"command", CommandQueueNameBin},
 
@@ -122,6 +125,13 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 			Err -> error_logger:error_report({?MODULE, start_shovel, ServerId, Err}),
 			       error
 		    end,
+
+		%% we are a destination. This means we need to update
+		%% the shovel whenever we see new terminals get turned
+		%% on or off
+		
+		PrivateQ = lib_amqp:declare_private_queue(PipelineChannel),
+		#'queue.bind_ok'{} = lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, CQRK),
 
 		{Pid, {obj, [{"input", OutNameBin}|CommandElem]}};
 	    _ -> {undefined, {obj, [CommandElem]}}
@@ -214,7 +224,8 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		     server_id = ServerId,
 		     server_sup_pid = ServerSupPid,
 		     shovel_in_pid = ShovelInPid,
-		     shovel_out_pid = ShovelOutPid
+		     shovel_out_pid = ShovelOutPid,
+		     pipeline_channel = PipelineChannel
 		    }};
 
 handle_cast(_Message, State) ->
@@ -235,6 +246,28 @@ handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State};
+
+handle_info(#'basic.consume_ok'{}, State) ->
+    {noreply, State};
+handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
+				'delivery_tag' = DeliveryTag,
+				'routing_key' = RoutingKeyBin
+			      },
+	     #content { payload_fragments_rev = [<<"status change">>]}},
+	    State = #state{ shovel_out_pid = ShovelOutPid, pipeline_channel = Ch, server_id = ServerId })
+  when is_pid(ShovelOutPid) ->
+    RoutingKey = binary_to_list(RoutingKeyBin),
+    ServerId = lists:takewhile(fun (C) -> C /= $. end, RoutingKey),
+    [$.|TerminalId] = lists:dropwhile(fun (C) -> C /= $. end, RoutingKey),
+    TerminalIdBin = list_to_binary(TerminalId),
+    amqp_channel:call(Ch,
+		      #'exchange.declare'{exchange = TerminalIdBin,
+					  type = <<"direct">>,
+					  durable = true}),
+    shovel:bind_source_to_exchange(ShovelOutPid, {TerminalIdBin, <<>>}, <<TerminalIdBin>>),
+    lib_amqp:ack(Ch, DeliveryTag),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
