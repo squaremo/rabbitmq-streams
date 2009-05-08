@@ -67,7 +67,7 @@ public abstract class PipelineComponent extends Plugin {
         super.constructOutputs(outputs);
     }
 
-    protected final Runnable inputReaderRunnable(final Field pluginQueueField,
+    protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
             final QueueingConsumer consumer) {
         return new Runnable() {
             public void run() {
@@ -91,11 +91,9 @@ public abstract class PipelineComponent extends Plugin {
                         Delivery delivery = consumer.nextDelivery();
                         synchronized (privateLock) {
                             try {
-                                Object pluginConsumer = pluginQueueField
-                                        .get(PipelineComponent.this);
+                                InputReader pluginConsumer = getter.get();
                                 if (null != pluginConsumer) {
-                                    ((InputReader) pluginConsumer)
-                                            .handleDelivery(delivery);
+				    pluginConsumer.handleDelivery(delivery);
                                     PipelineComponent.this.messageServerChannel
                                             .basicAck(delivery.getEnvelope()
                                                     .getDeliveryTag(), false);
@@ -103,9 +101,7 @@ public abstract class PipelineComponent extends Plugin {
                                             .txCommit();
                                 } else {
                                     PipelineComponent.this.log
-                                            .warn("No non-null input reader field "
-                                                    + pluginQueueField
-                                                            .getName());
+                                            .warn("No non-null input reader field ");
                                 }
                             } catch (Exception e) {
                                 try {

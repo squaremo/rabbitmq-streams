@@ -65,7 +65,7 @@ public abstract class Server extends Plugin {
         output.publishWithKey(body, destination);
     }
 
-    protected final Runnable inputReaderRunnable(final Field pluginQueueField,
+    protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
             final QueueingConsumer consumer) {
         return new Runnable() {
             public void run() {
@@ -74,15 +74,12 @@ public abstract class Server extends Plugin {
                     try {
                         Delivery delivery = consumer.nextDelivery();
                         try {
-                            Object pluginConsumer = pluginQueueField
-                                    .get(Server.this);
+                            InputReader pluginConsumer = getter.get();
                             if (null != pluginConsumer) {
-                                ((InputReader) pluginConsumer)
-                                        .handleDelivery(delivery);
+                                pluginConsumer.handleDelivery(delivery);
                             } else {
                                 Server.this.log
-                                        .warn("No non-null input reader field "
-                                                + pluginQueueField.getName());
+                                        .warn("No non-null input reader field ");
                             }
                         } catch (Exception e) {
                             Server.this.log.error(e);

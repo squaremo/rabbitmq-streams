@@ -2,6 +2,7 @@ package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Iterator;
 
@@ -91,7 +92,7 @@ public abstract class Plugin implements Runnable {
 
     protected abstract Publisher publisher(String name, String exchange);
 
-    protected abstract Runnable inputReaderRunnable(Field queueField,
+    protected abstract Runnable inputReaderRunnable(Getter get,
             QueueingConsumer consumer);
 
     protected void dieHorribly() {
@@ -131,22 +132,65 @@ public abstract class Plugin implements Runnable {
                 .hasNext();) {
             final String fieldName = inKeysIt.next();
             try {
-                final Field pluginQueueField = getClass().getField(fieldName);
                 final QueueingConsumer consumer = new QueueingConsumer(
                         messageServerChannel);
+                new Thread(inputReaderRunnable(inputGetter(fieldName), consumer))
+                        .start();
                 messageServerChannel.basicConsume(inputs.getString(fieldName),
                         false, consumer);
-                new Thread(inputReaderRunnable(pluginQueueField, consumer))
-                        .start();
-            } catch (NoSuchFieldException nsfe) {
-                noSuchField(fieldName);
-                // we could try-catch, but all we can do is let this bubble up
-                // anyway
             } catch (IOException ioe) {
                 log.fatal("IOException connecting to input " + fieldName);
                 dieHorribly();
             }
         }
+    }
+
+    static interface Getter {
+	InputReader get() throws IllegalAccessException;
+    }
+
+    protected final Getter inputGetter(String name) {
+	try {
+	    final Field pluginQueueField = getClass().getField(name);
+	    return new Getter() {
+		public InputReader get() {
+		    try {
+			return (InputReader)pluginQueueField.get(Plugin.this);
+		    }
+		    catch (Exception e) {
+			Plugin.this.log.fatal(e);
+			dieHorribly();
+			return null;
+		    }
+		}
+	    };
+	}
+	catch (NoSuchFieldException nsfe) {
+	    try {
+		final Method pluginQueueMethod = getClass().getMethod(name);
+		return new Getter() {
+		    public InputReader get() {
+			try {
+			    return (InputReader)pluginQueueMethod.invoke(Plugin.this);
+			}
+			catch (Exception e) {
+			    Plugin.this.log.fatal(e);
+			    dieHorribly();
+			    return null;
+			}
+		    }
+		};
+	    }
+	    catch (NoSuchMethodException nsme) {
+		noSuchField(name);
+		return null;
+	    }
+	}
+	catch (SecurityException se) {
+	    log.fatal(se);
+	    dieHorribly();
+	    return null; // .. but die will have exited
+	}
     }
 
     protected void postConstructorInit() throws IOException,
