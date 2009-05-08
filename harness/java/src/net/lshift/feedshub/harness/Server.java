@@ -80,8 +80,11 @@ public abstract class Server extends Plugin {
                                 ((InputReader) pluginConsumer)
                                         .handleDelivery(delivery);
                             }
+			    else {
+				Server.this.log.error("Unable to find field " + pluginQueueField.toString());
+			    }
                         } catch (Exception e) {
-                            log.error(e);
+                            Server.this.log.error(e);
                         }
                     } catch (InterruptedException _) {
                         // just continue around and try fetching again
