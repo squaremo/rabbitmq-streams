@@ -1,8 +1,12 @@
 import sys
-sys.path.append("../harness/python/lib")
+import os.path
+orig_path = os.path.dirname(sys.argv[0])
+if len(orig_path) > 0:
+    orig_path = orig_path + "/"
+path = orig_path + "../harness/python/lib"
+sys.path.append(path)
 
 import couchdb
-import os.path
 import glob
 import string
 try:
@@ -12,7 +16,7 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob("../test_data/*"):
+for dbdir in glob.glob(orig_path + "../test_data/*"):
     dbname = os.path.split(dbdir)[1]
     try:
         db = server.create(dbname)

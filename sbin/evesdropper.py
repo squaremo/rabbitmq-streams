@@ -1,5 +1,9 @@
 import sys, os.path
-sys.path.append("../harness/python/lib")
+path = os.path.dirname(sys.argv[0])
+if len(path) > 0:
+    path = path + "/"
+path = path + "../harness/python/lib"
+sys.path.append(path)
 
 import amqplib.client_0_8 as amqp
 import glob

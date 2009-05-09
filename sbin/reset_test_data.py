@@ -1,8 +1,12 @@
 import sys
-sys.path.append("../harness/python/lib")
+import os.path
+orig_path = os.path.dirname(sys.argv[0])
+if len(orig_path) > 0:
+    orig_path = orig_path + "/"
+path = orig_path + "../harness/python/lib"
+sys.path.append(path)
 
 import couchdb
-import os.path
 import glob
 try:
     import json
@@ -11,7 +15,7 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob("../test_data/feedshub_status/*"):
+for dbdir in glob.glob(orig_path + "../test_data/feedshub_status/*"):
     dbname = os.path.splitext(os.path.basename(dbdir))[0]
     try:
         print "Deleting feed_%s" % dbname
