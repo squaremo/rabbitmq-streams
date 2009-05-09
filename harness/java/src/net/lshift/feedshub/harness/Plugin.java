@@ -2,6 +2,7 @@ package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Iterator;
@@ -83,7 +84,7 @@ public abstract class Plugin implements Runnable {
             Session privDbCouchSession = new Session(privDbURL.getHost(),
                     privDbURL.getPort(), "", "");
             String privDbPath = privDbURL.getPath();
-            int loc = privDbPath.lastIndexOf('/');            
+            int loc = privDbPath.lastIndexOf('/');
             String privDbName = privDbPath.substring(1 + loc);
             privDb = privDbCouchSession.createDatabase(privDbName);
         }
@@ -95,7 +96,7 @@ public abstract class Plugin implements Runnable {
     protected abstract Runnable inputReaderRunnable(Getter get,
             QueueingConsumer consumer);
 
-    protected void dieHorribly() {
+    protected final void dieHorribly() {
         System.exit(1);
     }
 
@@ -134,7 +135,8 @@ public abstract class Plugin implements Runnable {
             try {
                 final QueueingConsumer consumer = new QueueingConsumer(
                         messageServerChannel);
-                new Thread(inputReaderRunnable(inputGetter(fieldName), consumer))
+                new Thread(
+                        inputReaderRunnable(inputGetter(fieldName), consumer))
                         .start();
                 messageServerChannel.basicConsume(inputs.getString(fieldName),
                         false, consumer);
@@ -146,51 +148,59 @@ public abstract class Plugin implements Runnable {
     }
 
     static interface Getter {
-	InputReader get() throws IllegalAccessException;
+        InputReader get() throws IllegalAccessException;
     }
 
     protected final Getter inputGetter(String name) {
-	try {
-	    final Field pluginQueueField = getClass().getField(name);
-	    return new Getter() {
-		public InputReader get() {
-		    try {
-			return (InputReader)pluginQueueField.get(Plugin.this);
-		    }
-		    catch (Exception e) {
-			Plugin.this.log.fatal(e);
-			dieHorribly();
-			return null;
-		    }
-		}
-	    };
-	}
-	catch (NoSuchFieldException nsfe) {
-	    try {
-		final Method pluginQueueMethod = getClass().getMethod(name);
-		return new Getter() {
-		    public InputReader get() {
-			try {
-			    return (InputReader)pluginQueueMethod.invoke(Plugin.this);
-			}
-			catch (Exception e) {
-			    Plugin.this.log.fatal(e);
-			    dieHorribly();
-			    return null;
-			}
-		    }
-		};
-	    }
-	    catch (NoSuchMethodException nsme) {
-		noSuchField(name);
-		return null;
-	    }
-	}
-	catch (SecurityException se) {
-	    log.fatal(se);
-	    dieHorribly();
-	    return null; // .. but die will have exited
-	}
+        try {
+            final Field pluginQueueField = getClass().getField(name);
+            return new Getter() {
+                public InputReader get() {
+                    try {
+                        return (InputReader) pluginQueueField.get(Plugin.this);
+                    } catch (IllegalArgumentException e) {
+                        Plugin.this.log.fatal(e);
+                        dieHorribly();
+                        return null;
+                    } catch (IllegalAccessException e) {
+                        Plugin.this.log.fatal(e);
+                        dieHorribly();
+                        return null;
+                    }
+                }
+            };
+        } catch (NoSuchFieldException nsfe) {
+            try {
+                final Method pluginQueueMethod = getClass().getMethod(name);
+                return new Getter() {
+                    public InputReader get() {
+                        try {
+                            return (InputReader) pluginQueueMethod
+                                    .invoke(Plugin.this);
+                        } catch (IllegalArgumentException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return null;
+                        } catch (IllegalAccessException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return null;
+                        } catch (InvocationTargetException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return null;
+                        }
+                    }
+                };
+            } catch (NoSuchMethodException nsme) {
+                noSuchField(name);
+                return null;
+            }
+        } catch (SecurityException se) {
+            log.fatal(se);
+            dieHorribly();
+            return null; // .. but die will have exited
+        }
     }
 
     protected void postConstructorInit() throws IOException,

@@ -1,7 +1,6 @@
 package net.lshift.feedshub.harness;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URL;
 
 import net.sf.json.JSONObject;
@@ -37,20 +36,6 @@ public abstract class PipelineComponent extends Plugin {
                 "", "");
         stateDocName = path.substring(1 + loc);
         stateDb = couchSession.getDatabase(dbName);
-    }
-
-    public static final class PipelinePublisher implements Publisher {
-        private String exchange;
-        private Channel channel;
-
-        public PipelinePublisher(String exchangeName, Channel out) {
-            exchange = exchangeName;
-            channel = out;
-        }
-
-        public void publish(byte[] body) throws IOException {
-            channel.basicPublish(exchange, "", basicPropsPersistent, body);
-        }
     }
 
     protected final Publisher publisher(final String name, final String exchange) {
@@ -93,7 +78,7 @@ public abstract class PipelineComponent extends Plugin {
                             try {
                                 InputReader pluginConsumer = getter.get();
                                 if (null != pluginConsumer) {
-				    pluginConsumer.handleDelivery(delivery);
+                                    pluginConsumer.handleDelivery(delivery);
                                     PipelineComponent.this.messageServerChannel
                                             .basicAck(delivery.getEnvelope()
                                                     .getDeliveryTag(), false);
@@ -127,6 +112,20 @@ public abstract class PipelineComponent extends Plugin {
 
     protected void setState(Document state) throws IOException {
         stateDb.saveDocument(state, stateDocName);
+    }
+
+    public static final class PipelinePublisher implements Publisher {
+        private String exchange;
+        private Channel channel;
+
+        public PipelinePublisher(String exchangeName, Channel out) {
+            exchange = exchangeName;
+            channel = out;
+        }
+
+        public void publish(byte[] body) throws IOException {
+            channel.basicPublish(exchange, "", basicPropsPersistent, body);
+        }
     }
 
 }

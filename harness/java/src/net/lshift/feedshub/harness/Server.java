@@ -1,14 +1,13 @@
 package net.lshift.feedshub.harness;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URL;
 
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Session;
 import com.fourspaces.couchdb.Document;
+import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
@@ -21,6 +20,8 @@ public abstract class Server extends Plugin {
 
     final private URL terminalsDbUrl;
     final protected Database terminalsDatabase;
+
+    public ServerPublisher output; // this is magically set on initialisation
 
     public Server(JSONObject config) throws IOException {
         super(config);
@@ -38,32 +39,6 @@ public abstract class Server extends Plugin {
         }
         String terminalsDbName = path.substring(loc);
         terminalsDatabase = couchSession.getDatabase(terminalsDbName);
-    }
-
-    public static final class ServerPublisher implements Publisher {
-        private String exchange;
-        private Channel channel;
-
-        ServerPublisher(String exchangeName, Channel out) {
-            channel = out;
-            exchange = exchangeName;
-        }
-
-        public void publishWithKey(byte[] body, String key) throws IOException {
-            channel.basicPublish(exchange, key, basicPropsPersistent, body);
-        }
-    }
-
-    protected final void ack(Delivery delivery) throws IOException {
-        this.messageServerChannel.basicAck(delivery.getEnvelope()
-                .getDeliveryTag(), false);
-    }
-
-    public ServerPublisher output; // this is magically set on initialisation
-
-    protected final void publishToDestination(byte[] body, String destination)
-            throws IOException {
-        output.publishWithKey(body, destination);
     }
 
     protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
@@ -93,16 +68,42 @@ public abstract class Server extends Plugin {
         };
     }
 
+    protected final void ack(Delivery delivery) throws IOException {
+        this.messageServerChannel.basicAck(delivery.getEnvelope()
+                .getDeliveryTag(), false);
+    }
+
     protected final Publisher publisher(final String name, final String exchange) {
         return new ServerPublisher(exchange, messageServerChannel);
     }
 
-    protected final Document terminalConfig(String terminalId) throws IOException {
-	return this.terminalsDatabase.getDocument(terminalId);                
+    protected final void publishToDestination(byte[] body, String destination)
+            throws IOException {
+        output.publishWithKey(body, destination);
     }
 
-    protected final Document terminalStatus(String terminalId) throws IOException {
-	return  this.terminalsDatabase.getDocument(terminalId + "_status");
+    protected final Document terminalConfig(String terminalId)
+            throws IOException {
+        return this.terminalsDatabase.getDocument(terminalId);
+    }
+
+    protected final Document terminalStatus(String terminalId)
+            throws IOException {
+        return this.terminalsDatabase.getDocument(terminalId + "_status");
+    }
+
+    public static final class ServerPublisher implements Publisher {
+        private String exchange;
+        private Channel channel;
+
+        ServerPublisher(String exchangeName, Channel out) {
+            channel = out;
+            exchange = exchangeName;
+        }
+
+        public void publishWithKey(byte[] body, String key) throws IOException {
+            channel.basicPublish(exchange, key, basicPropsPersistent, body);
+        }
     }
 
 }
