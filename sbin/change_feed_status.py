@@ -1,9 +1,10 @@
 import sys, os.path, string
+sys.path.insert(0, "../harness/python/lib")
 path = os.path.dirname(sys.argv[0])
 if len(path) > 0:
     path = path + "/"
 path = path + "../harness/python/lib"
-sys.path.append(path)
+sys.path.insert(0, path)
 
 try:
     import json
