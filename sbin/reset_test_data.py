@@ -4,7 +4,7 @@ orig_path = os.path.dirname(sys.argv[0])
 if len(orig_path) > 0:
     orig_path = orig_path + "/"
 path = orig_path + "../harness/python/lib"
-sys.path.append(path)
+sys.path.insert(0, path)
 
 import couchdb
 import glob
