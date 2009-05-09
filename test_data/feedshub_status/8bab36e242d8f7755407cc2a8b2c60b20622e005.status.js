@@ -1,4 +1,4 @@
 {
     "type": "server-status",
-    "active": true
+    "active": false
 }
