@@ -28,6 +28,7 @@ class Destination(log : Logger, postto: Database) extends Actor {
                     val doc = new Document
                     doc.put("updated", new Date().getTime)
                     doc.put("body", body)
+                    log.debug("Saving doc" + doc.toString)
                     postto.saveDocument(doc)
                     ack()
             }

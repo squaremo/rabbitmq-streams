@@ -17,11 +17,12 @@ class archive(config : JSONObject) extends Server(config) {
 
     val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
     val dispatcher = new Dispatcher(log, this.terminalConfig, this.terminalStatus, couch)
+    dispatcher.start
 
     object input extends InputReader {
         override def handleDelivery(pkg : Delivery) {
             log.debug("Input received: " + new String(pkg.getBody))
-            dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey, () => ack(pkg))
+            dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey.toString, () => ack(pkg))
         }
     }
 
@@ -33,7 +34,7 @@ class archive(config : JSONObject) extends Server(config) {
                     log.debug("Status change: " + serverAndDestination)
                     serverAndDestination.split("\\.") match {
                         case Array(server, destination) =>
-                            dispatcher ! DestinationStatusChange(destination)
+                            dispatcher ! DestinationStatusChange(destination, () => ack(pkg))
                         case _ =>
                             log.warn("Malformed status message to topic " + serverAndDestination)
                     }
