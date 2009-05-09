@@ -1,5 +1,4 @@
 import sys, os.path, string
-sys.path.insert(0, "../harness/python/lib")
 path = os.path.dirname(sys.argv[0])
 if len(path) > 0:
     path = path + "/"
@@ -30,8 +29,13 @@ if statusDoc == None:
     print "Unable to find the status for feed id " + feedId
     sys.exit(1)
 
+routingkey=feedId
+if statusDoc['type']=='terminal-status':
+    configDoc = db.get(feedId)
+    routingkey = '%s.%s' % (configDoc['server'], feedId)
+
 oldActive = statusDoc['active']
 statusDoc['active'] = feedStatus
 db.update([statusDoc])
 
-channel.basic_publish(amqp.Message(body="status change", children=None), exchange=exchange, routing_key=feedId)
+channel.basic_publish(amqp.Message(body="status change", children=None), exchange=exchange, routing_key=routingkey)
