@@ -10,16 +10,25 @@ package net.lshift.feedshub.plugin.archive
 import scala.actors.Actor
 import scala.actors.Actor._
 
-case class NewEntry(bytes : Array[Byte], ack : Unit => Unit)
+import java.util.Date
 
-class Destination(postto: String) extends Actor {
+import net.lshift.feedshub.harness.Logger
+import com.fourspaces.couchdb._
+
+case class NewEntry(bytes : Array[Byte], ack : () => Unit)
+
+class Destination(log : Logger, postto: Database) extends Actor {
 
     def act {
         loop {
             react {
                 case NewEntry(bytes, ack) =>
                     val body = new String(bytes)
-                    println(postto + " " + body)
+                    log.debug("Message received at " + postto + " of " + body)
+                    val doc = new Document
+                    doc.put("updated", new Date().getTime)
+                    doc.put("body", body)
+                    postto.saveDocument(doc)
                     ack()
             }
         }

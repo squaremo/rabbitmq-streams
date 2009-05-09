@@ -68,26 +68,38 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
     NodeConfigurations = [node_configuration(Channel, FeedId, N) || N <- NodeDefs],
 
     %% Go through all edges creating bindings.
-    lists:foreach(fun(Edge) -> bind_edges(FeedId, Channel, Edge) end, Edges),
+    lists:foreach(fun(Edge) -> bind_edges(FeedId, Channel, Edge, NodeDefs) end, Edges),
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
                           start_component(PluginSupPid, FeedId, NodeConfiguration)
-                  end, NodeConfigurations),
+                  end, lists:filter(fun (NC) -> NC /= ok end, NodeConfigurations)),
 
     State.
 
-bind_edges(FeedId, Channel, EdgeJson) ->
+bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
     {ok, FromJson} = rfc4627:get_field(EdgeJson, "from"),
     {ok, ToJson} = rfc4627:get_field(EdgeJson, "to"),
     {ok, FromNode} = rfc4627:get_field(FromJson, "node"),
-    {ok, FromChannel} = rfc4627:get_field(FromJson, "channel"),
+    {Exchange, RK} =
+	case rfc4627:get_field(FromJson, "channel") of
+	    {ok, FromChannel} -> {list_to_binary(resource_name(FeedId, FromNode, FromChannel)), <<>>};
+	    _ -> %% reading from a terminal. But we need to find the server
+		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)),
+		{ok, TerminalName} = rfc4627:get_field(TerminalNode, "terminal"),
+		ServerName = orchestrator_server:find_server_for_terminal(TerminalName),
+		{ServerName, TerminalName}
+	end,
     {ok, ToNode} = rfc4627:get_field(ToJson, "node"),
-    {ok, ToChannel} = rfc4627:get_field(ToJson, "channel"),
-    lib_amqp:bind_queue(Channel,
-			list_to_binary(resource_name(FeedId, FromNode, FromChannel)),
-			list_to_binary(resource_name(FeedId, ToNode, ToChannel)),
-			<<>>).
+    Queue = case rfc4627:get_field(ToJson, "channel") of
+		{ok, ToChannel} -> list_to_binary(resource_name(FeedId, ToNode, ToChannel));
+		_ -> %% destination is a terminal, we have an exchange per terminal
+		    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
+		    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
+		    TerminalName2
+	    end,
+    error_logger:info_report({?MODULE, bind_edges, "binding exchange " ++ (binary_to_list(Exchange)) ++ " to queue " ++ (binary_to_list(Queue)) ++ " with binding key " ++ (binary_to_list(RK))}),
+    lib_amqp:bind_queue(Channel, Exchange, Queue, RK).
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     case rfc4627:get_field(NodeSpecJson, "type") of
@@ -97,8 +109,10 @@ node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
 		end
     end.
 
-terminal_node(TerminalNameBin, Channel, FeedId, {NodeId, NodeSpecJson}) ->
-    %% TODO
+terminal_node(_TerminalNameBin, _Channel, _FeedId, {_NodeId, _NodeSpecJson}) ->
+    %% Actually, there's nothing to do here as we assume the terminal
+    %% is on and the terminal or server exchanges are created when
+    %% they start up
     ok.
 
 plugin_component_node(PluginTypeBin, Channel, FeedId, {NodeId, NodeSpecJson}) ->

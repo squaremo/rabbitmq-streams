@@ -5,17 +5,42 @@
  * and open the template in the editor.
  */
 
-import net.lshift.feedshub.harness.Plugin
+import net.lshift.feedshub.harness._
+import com.fourspaces.couchdb.Document
+import com.rabbitmq.client.QueueingConsumer.Delivery
 import net.sf.json._
 import net.lshift.feedshub.plugin.archive._
 
-class archive(config : JSONObject) extends Plugin(config) {
+import com.fourspaces.couchdb._
 
-    private val terminalsUrl = config.getString("terminals_url")
+class archive(config : JSONObject) extends Server(config) {
 
-    private val dispatcher = new Dispatcher(terminals_url)
+    val couch = new Session("localhost", 5984) // TODO. Get from config.
+    val dispatcher = new Dispatcher(log, this.terminalConfig, this.terminalStatus, couch)
 
-    def configure = {
-
+    object input extends InputReader {
+        override def handleDelivery(pkg : Delivery) {
+            log.debug("Input received: " + new String(pkg.getBody))
+            dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey, () => ack(pkg))
+        }
     }
+
+    object command extends InputReader {
+        def handleDelivery(pkg : Delivery) {
+            new String(pkg.getBody, "US-ASCII") match {
+                case "status change" =>
+                    val serverAndDestination = pkg.getEnvelope.getRoutingKey
+                    log.debug("Status change: " + serverAndDestination)
+                    serverAndDestination.split("\\.") match {
+                        case Array(server, destination) =>
+                            dispatcher ! DestinationStatusChange(destination)
+                        case _ =>
+                            log.warn("Malformed status message to topic " + serverAndDestination)
+                    }
+                    ack(pkg)
+            }
+        }
+    }
+
+    postConstructorInit()
 }
