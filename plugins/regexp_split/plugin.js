@@ -2,11 +2,11 @@
     "name": "Regular Expression Splitter",
     "author": {"name": "Matthew Sackman", "email": "matthew@lshift.net"},
 
-    "type": "plugin",
+    "type": "plugin-specification",
     "harness": "java",
     "subtype": "pipeline_component",
     
-    "global_configuration": [],
+    "global_configuration_specification": [],
     "configuration_specification": [
       {"label": "Regexp",
        "type": "string",
@@ -28,7 +28,7 @@
 
     "inputs_specification": [{"name": "input", "label": "Input"}],
     "outputs_specification": [{"name": "positive", "label": "Positive"},
-			      {"name": "negative", "label": "Negative"},
+			      {"name": "negative", "label": "Negative"}
 			     ],
 
     "database_specification": null

@@ -7,12 +7,12 @@ cd $PATH_TO_ME
 SCRATCH="../../build/scratch/"$$
 mkdir $SCRATCH
 
-cp -a bin/* $SCRATCH
+cp -R bin/* $SCRATCH
 
 for j in $(find lib -type f -name "*.jar")
 do
     echo $j
-    cp -a $j $SCRATCH
+    cp -R $j $SCRATCH
     cd $SCRATCH
     jar xf $(basename $j)
     rm $(basename $j)

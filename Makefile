@@ -22,7 +22,7 @@ setup: \
 	install-erlang-rfc4627 \
 	install-rabbitmq
 
-update: update-erlang-rfc4627 update-rabbitmq-erlang-client update-rabbitmq
+update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client
 
 all:
 	$(MAKE) -C orchestrator all
@@ -84,7 +84,7 @@ create-build-logs-dir:
 # Run alternatives which don't create xterms unless you want them to
 
 listen_orchestrator:
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done" &
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done | tee -a orch_log" &
 
 start_orchestrator_nox: stop_orchestrator_nox
 	mkfifo $(ORCH_FIFO)
@@ -151,6 +151,10 @@ stop_core_nox:
 
 stop_all_nox: stop_orchestrator_nox stop_core_nox
 
+full_reset_core_nox:
+	$(MAKE) stop_core_nox cleandb start_core_nox sleeper
+	./setup-core.sh
+
 ###########################################################################
 # CouchDB
 
@@ -210,7 +214,8 @@ update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 update-rabbitmq-erlang-client: build/src/rabbitmq-erlang-client
 	rm -rf build/opt/rabbitmq-erlang-client
 	(cd build/src/rabbitmq-erlang-client && hg pull && hg update)
-	$(MAKE) build/opt/rabbitmq-erlang-client
+	ln -sf `pwd`/build/src/rabbitmq-server build/src/rabbitmq_server
+	(ERL_LIBS=`pwd`/build/src; export ERL_LIBS; $(MAKE) build/opt/rabbitmq-erlang-client)
 
 build/src/rabbitmq-codegen:
 	@echo Cloning rabbitmq-codegen ...

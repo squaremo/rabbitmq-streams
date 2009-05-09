@@ -8,5 +8,9 @@
 ^couchlogtail.pid$
 \.class$
 ^harness/java/feedshub_harness\.jar$
-^site/.*\.timestamp$
+# target directories are a Maven thing
 ^site/target/
+^site/.*\.timestamp$
+^plugins/archive/target/
+^plugins/archive/lib/
+(^|/)nb-configuration\.xml$

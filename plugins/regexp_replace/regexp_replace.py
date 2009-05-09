@@ -34,6 +34,3 @@ class RegexpReplacer(Component):
 def run(config):
     rr = RegexpReplacer(config)
     rr.start()
-
-    def run(self):
-        super(FeedArchiver, self).run()

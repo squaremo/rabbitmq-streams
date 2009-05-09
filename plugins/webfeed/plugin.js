@@ -2,11 +2,11 @@
     "name": "Web feed provider",
     "author": {"name": "Michael Bridgen", "email": "mikeb@lshift.net"},
 
-    "type": "plugin",
+    "type": "plugin-specification",
     "harness": "python",
     "subtype": "pipeline_component",
     
-    "global_configuration": [],
+    "global_configuration_specification": [],
     "configuration_specification": [
       {"label": "Title",
        "type": "string",

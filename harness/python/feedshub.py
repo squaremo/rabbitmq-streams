@@ -117,23 +117,18 @@ class Component(object):
             self.__db = couch.Database(config['database'])
         else:
             self.__db = None
-        settings = dict((item['name'], item['value']) for item in config['plugin_type']['global_configuration'])
+        settings = dict((item['name'], item['value'])
+                        for item in config['plugin_type']['global_configuration_specification'])
         settings.update(config['configuration'])
         self.__config = settings
 
-        # Inputs and outputs are matched by position
-        outputs = [(desc['name'], ex) for (ex, desc) in
-                   zip(config['outputs'], config['plugin_type']['outputs_specification'])]
-        for name, exchange in outputs:
+        for name, exchange in config['outputs'].iteritems():
             if name not in self.OUTPUTS:
                 self.OUTPUTS[name] = name
             setattr(self, self.OUTPUTS[name],
                     publish_to_exchange(self, self.__channel, exchange))
 
-        inputs = [(desc['name'], q) for (q, desc) in
-                     zip(config['inputs'], config['plugin_type']['inputs_specification'])]
-
-        for name, queue in inputs:
+        for name, queue in config['inputs'].iteritems():
             if name not in self.INPUTS:
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
