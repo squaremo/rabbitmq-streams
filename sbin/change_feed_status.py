@@ -22,11 +22,16 @@ feedStatus = False
 if string.lower(sys.argv[2]) in ["true", "on", "activate", "yes", "indubitably", "positive", "1"]:
     feedStatus = True
 
+docId = feedId
+if '.' in docId:
+    lst = docId.split('.')
+    docId = lst[len(lst) - 1]
+
 db = couch.Database('http://localhost:5984/feedshub_status/')
-statusDoc = db.get(feedId + "_status")
+statusDoc = db.get(docId + "_status")
 
 if statusDoc == None:
-    print "Unable to find the status for feed id " + feedId
+    print "Unable to find the status for feed id " + docId
     sys.exit(1)
 
 oldActive = statusDoc['active']
