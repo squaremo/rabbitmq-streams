@@ -8,24 +8,54 @@ except ImportError:
 
 import couchdb.client as couch
 
+args = sys.argv[1:]
+
+if len(args) == 0:
+    print 'Usage list_feeds.py [feeds|terminals|servers] ?active ?dump id*\n'
+    sys.exit(0)
+
+entry_type = 'feed'
+
 view = '_design/feeds/_view/join'
-if len(sys.argv) > 1 and string.lower(sys.argv[1]) == "active":
-    view = '_design/feeds/_view/join_active'
+if len(args) > 0:
+    view_arg = string.lower(args[0])
+    if view_arg == 'feeds':
+        view = '_design/feeds/_view/join'
+        args = args[1:]
+        entry_type = 'feed'
+    elif view_arg == 'servers':
+        view = '_design/servers/_view/join'
+        args = args[1:]
+        entry_type = 'server'
+    elif view_arg == 'terminals':
+        view = '_design/terminals/_view/join'
+        args = args[1:]
+        entry_type = 'terminal'
+
+entry_status = entry_type + '-status'
+
+if len(args) > 0 and string.lower(args[0]) == "active":
+    view = view + "_active"
+    args = args[1:]
 
 dump = False
-if 'dump' in sys.argv:
+if 'dump' == args[0]:
     dump = True
+    args = args[1:]
 
 db = couch.Database('http://localhost:5984/feedshub_status/')
 for row in db.view(view, group=True):
     if row.value != None:
+        doc_id = row.value[entry_type]['_id']
+        if len(args) > 0 and not doc_id in args:
+            continue
         if dump:
             s = json.dumps(row.value, sort_keys=True, indent=4)
             print '\n'.join([l.rstrip() for l in  s.splitlines()])
         else:
             active = 'inactive'
-            if row.value['feed-status']['active']:
+            if row.value[entry_status]['active']:
                 active = 'active'
-            print row.value['feed']['_id'] + '\t' + active
+            print row.value[entry_type]['_id'] + '\t' + active
 
 
