@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import net.lshift.feedshub.harness.InputReader;
-import net.lshift.feedshub.harness.Plugin;
+import net.lshift.feedshub.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-public class logger extends Plugin {
+public class logger extends PipelineComponent {
 
     public InputReader input;
 

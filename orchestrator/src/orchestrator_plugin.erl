@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 -export([start_link/1]).
--export([describe/1]).
+-export([describe/1, plugin_path/2, harness_path/2, plugin_not_found/1, plugin_not_found/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
@@ -39,18 +39,18 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {port, output_acc, control_exchange_name, channel, plugin_pid}).
+-record(state, {port, output_acc, plugin_pid}).
 
 %%---------------------------------------------------------------------------
 
-init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, Channel]) ->
+init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
-    {ok, PluginTypeBin} = rfc4627:get_field(PluginConfig, "type"),
+    {ok, PluginNameBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = case rfc4627:get_field(PluginConfig, "configuration") of
 				  {ok, PUC} -> {ok, PUC};
 				  not_found -> {ok, {obj, []}}
 			      end,
-    PluginType = binary_to_list(PluginTypeBin),
+    PluginName = binary_to_list(PluginNameBin),
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = harness_path(HarnessType, ""),
     process_flag(trap_exit, true),
@@ -60,13 +60,17 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                       stderr_to_stdout,
                       {cd, HarnessDir}]),
     StateDocUrl = couchapi:expand("feed_" ++ FeedId ++ "/state_" ++ NodeId),
+    PairsToBin = fun ({Key,Value}) -> {Key, list_to_binary(Value)} end,
+    QueuesBin = lists:map(PairsToBin, Queues),
+    ExchangesBin = lists:map(PairsToBin, Exchanges),
     ConfigDoc = {obj,
                  [{"harness_type", HarnessTypeBin},
-                  {"plugin_name", PluginTypeBin},
-                  {"plugin_dir", list_to_binary(plugin_path(PluginType, ""))},
+                  {"plugin_name", PluginNameBin},
+                  {"plugin_dir", list_to_binary(plugin_path(PluginName, ""))},
                   {"feed_id", list_to_binary(FeedId)},
                   {"node_id", list_to_binary(NodeId)},
                   {"plugin_type", PluginTypeConfig},
+		  {"global_configuration", {obj, []}}, %% TODO
                   {"configuration", PluginUserConfig},
                   {"messageserver",
                    {obj, [{"host", <<"localhost">>}, %% TODO thread thru from root config
@@ -75,21 +79,18 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                           {"username", <<"feedshub_admin">>}, %% TODO use per-feed username
                           {"password", <<"feedshub_admin">>} %% TODO use per-feed username
                           ]}},
-                  {"inputs", [list_to_binary(Q) || Q <- Queues]}, %% TODO thread thru queue names?
-                  {"outputs", [list_to_binary(X) || X <- Exchanges]},
+                  {"inputs", {obj, QueuesBin}},
+                  {"outputs", {obj, ExchangesBin}},
                   {"state", list_to_binary(StateDocUrl)},
                   {"database", case DbName of
-                   undefined ->
-                   null;
-                   Url ->
-                   list_to_binary(Url)
-                   end}
-                  ]},
+				   undefined -> null;
+				   Url -> list_to_binary(Url)
+			       end}
+		 ]},
     error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
     port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
     {ok, #state{port = Port,
                 output_acc = [],
-		channel = Channel,
 		plugin_pid = undefined
 	       }}.
 

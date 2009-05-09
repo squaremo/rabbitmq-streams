@@ -1,4 +1,6 @@
 {
-    "type": "feed",
-    "user": "testuser"
+    "type": "server",
+    "server_type": "socket_source",
+
+    "configuration": {}
 }

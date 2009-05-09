@@ -14,17 +14,16 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
 import net.lshift.feedshub.harness.InputReader;
-import net.lshift.feedshub.harness.Plugin;
-import net.lshift.feedshub.harness.Publisher;
+import net.lshift.feedshub.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-public class xslt extends Plugin {
+public class xslt extends PipelineComponent {
 
     public InputReader input;
 
-    public Publisher output;
+    public PipelinePublisher output;
 
     private final ErrorListener xsltErrorLogger = new ErrorListener() {
 

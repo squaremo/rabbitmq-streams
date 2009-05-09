@@ -2,17 +2,17 @@
     "name": "XSLT Transformation",
     "author": {"name": "LShift Ltd."},
 
-    "type": "plugin",
+    "type": "plugin-specification",
     "harness": "java",
     "subtype": "pipeline_component",
 
-    "global_configuration": [],
+    "global_configuration_specification": [],
     "configuration_specification": [{"name": "stylesheet_url",
 		       "label": "Stylesheet URL",
 		       "type": "url"}],
 
-    "inputs_specification": [{"name": "input"}],
-    "outputs_specification": [{"name": "output"}],
+    "inputs_specification": [{"name": "input", "label": "Input"}],
+    "outputs_specification": [{"name": "output", "label": "Output"}],
 
     "database_specification": null
 }

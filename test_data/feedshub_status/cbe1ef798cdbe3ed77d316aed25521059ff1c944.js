@@ -1,6 +1,5 @@
 {
     "type": "feed",
-    "user": "testuser",
     "wiring": {
 	"nodes": {
 	    "the_input": {
@@ -42,13 +41,26 @@
             }
 	},
 	"edges": [
-	    ["the_input", "output", "the_transformer", "input"],
-	    ["the_transformer", "output", "the_regexp", "input"],
-	    ["the_regexp", "positive", "the_replacer", "input"],
-	    ["the_regexp", "negative", "the_output_neg", "input"],
-	    ["the_replacer", "positive", "the_output_pos", "input"],
-	    ["the_replacer", "negative", "the_output_neg", "input"],
-	    ["the_replacer", "positive", "a_logger", "input"]
+            {"from": {"node": "the_input", "channel": "output"},
+             "to":   {"node": "the_transformer", "channel": "input"}},
+
+            {"from": {"node": "the_transformer", "channel": "output"},
+             "to":   {"node": "the_regexp", "channel": "input"}},
+
+            {"from": {"node": "the_regexp", "channel": "positive"},
+             "to":   {"node": "the_replacer", "channel": "input"}},
+
+            {"from": {"node": "the_regexp", "channel": "negative"},
+             "to":   {"node": "the_output_neg", "channel": "input"}},
+
+            {"from": {"node": "the_replacer", "channel": "positive"},
+             "to":   {"node": "the_output_pos", "channel": "input"}},
+
+            {"from": {"node": "the_replacer", "channel": "negative"},
+             "to":   {"node": "the_output_neg", "channel": "input"}},
+
+            {"from": {"node": "the_replacer", "channel": "positive"},
+             "to":   {"node": "a_logger", "channel": "input"}}
 	]
     }
 }

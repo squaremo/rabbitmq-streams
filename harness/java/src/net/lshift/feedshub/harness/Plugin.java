@@ -2,27 +2,29 @@ package net.lshift.feedshub.harness;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Iterator;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Document;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
 
 public abstract class Plugin implements Runnable {
 
     public static final String newline = System.getProperty("line.separator");
-
-    final private Object privateLock = new Object();
+    static final BasicProperties basicPropsPersistent = new BasicProperties();
+    {
+        basicPropsPersistent.deliveryMode = 2;
+    }
 
     final protected Connection messageServerConnection;
     final protected ChannelN messageServerChannel;
@@ -31,18 +33,14 @@ public abstract class Plugin implements Runnable {
     final protected JSONObject pluginType;
     final protected JSONObject config;
     final protected JSONObject configuration;
-    final private Database stateDb;
-    final private String stateDocName;
     final protected Database privateDb;
     final protected Logger log;
-    final BasicProperties basicPropsPersistent = new BasicProperties();
 
     public Plugin(final JSONObject config) throws IOException {
-        basicPropsPersistent.deliveryMode = 2; // persistent
         this.config = config;
         pluginType = config.getJSONObject("plugin_type");
         JSONArray globalConfig = pluginType
-                .getJSONArray("global_configuration");
+                .getJSONArray("global_configuration_specification");
         JSONObject mergedConfig = new JSONObject();
         for (Object configItem : globalConfig) {
             JSONObject item = (JSONObject) configItem;
@@ -60,125 +58,151 @@ public abstract class Plugin implements Runnable {
                 .createChannel();
         logChannel = (ChannelN) messageServerConnection.createChannel();
 
-        String feedId = config.getString("feed_id");
-        String nodeId = config.getString("node_id");
-        String pluginName = config.getString("plugin_name");
+        String lrk = null;
+        if (config.containsKey("server_id")) {
+            String serverId = config.getString("server_id");
+            String pluginName = config.getString("plugin_name");
+            lrk = "." + serverId + "." + pluginName;
+        } else {
+            String feedId = config.getString("feed_id");
+            String nodeId = config.getString("node_id");
+            String pluginName = config.getString("plugin_name");
+            lrk = "." + feedId + "." + pluginName + "." + nodeId;
+        }
+        logRoutingKey = lrk;
 
-        logRoutingKey = "." + feedId + "." + pluginName + "." + nodeId;
         log = new Logger(logChannel, logRoutingKey, basicPropsPersistent);
         new Thread(log).start();
         log.info("Starting up...");
 
-        URL dbURL = new URL(config.getString("state"));
-        String path = dbURL.getPath();
-        int loc = path.lastIndexOf('/');
-        String db = path.substring(0, loc);
-
-        Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(),
-                "", "");
-        stateDocName = path.substring(1 + loc);
-        stateDb = couchSession.getDatabase(db);
-
         Database privDb = null;
         if (config.has("database")
-                && !JSONNull.getInstance().equals(
-                        JSONObject.fromObject(config.get("database")))) {
+                && !JSONNull.getInstance().equals(config.get("database"))) {
             String privDbStr = config.getString("database");
-            privDb = couchSession.createDatabase(privDbStr);
+            URL privDbURL = new URL(privDbStr);
+            Session privDbCouchSession = new Session(privDbURL.getHost(),
+                    privDbURL.getPort(), "", "");
+            String privDbPath = privDbURL.getPath();
+            int loc = privDbPath.lastIndexOf('/');            
+            String privDbName = privDbPath.substring(1 + loc);
+            privDb = privDbCouchSession.createDatabase(privDbName);
         }
         privateDb = privDb;
     }
 
-    protected Document getState() throws IOException {
-        return stateDb.getDocument(stateDocName);
+    protected abstract Publisher publisher(String name, String exchange);
+
+    protected abstract Runnable inputReaderRunnable(Getter get,
+            QueueingConsumer consumer);
+
+    protected void dieHorribly() {
+        System.exit(1);
     }
 
-    protected void setState(Document state) throws IOException {
-        stateDb.saveDocument(state, stateDocName);
+    private void noSuchField(String name) {
+        log.fatal("No such field: " + name);
+        dieHorribly();
+    }
+
+    private void illegalAccess(String name) {
+        log.fatal("Illegal access: " + name);
+        dieHorribly();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void constructOutputs(JSONObject outputs) {
+        for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt
+                .hasNext();) {
+            String name = (String) outKeysIt.next();
+            String exchange = outputs.getString(name);
+            try {
+                Field outputField = Plugin.this.getClass().getField(name);
+                outputField.set(Plugin.this, publisher(name, exchange));
+            } catch (IllegalAccessException iac) {
+                illegalAccess(name);
+            } catch (NoSuchFieldException nsfe) {
+                noSuchField(name);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void constructInputs(JSONObject inputs) {
+        for (Iterator<String> inKeysIt = (Iterator<String>) inputs.keys(); inKeysIt
+                .hasNext();) {
+            final String fieldName = inKeysIt.next();
+            try {
+                final QueueingConsumer consumer = new QueueingConsumer(
+                        messageServerChannel);
+                new Thread(inputReaderRunnable(inputGetter(fieldName), consumer))
+                        .start();
+                messageServerChannel.basicConsume(inputs.getString(fieldName),
+                        false, consumer);
+            } catch (IOException ioe) {
+                log.fatal("IOException connecting to input " + fieldName);
+                dieHorribly();
+            }
+        }
+    }
+
+    static interface Getter {
+	InputReader get() throws IllegalAccessException;
+    }
+
+    protected final Getter inputGetter(String name) {
+	try {
+	    final Field pluginQueueField = getClass().getField(name);
+	    return new Getter() {
+		public InputReader get() {
+		    try {
+			return (InputReader)pluginQueueField.get(Plugin.this);
+		    }
+		    catch (Exception e) {
+			Plugin.this.log.fatal(e);
+			dieHorribly();
+			return null;
+		    }
+		}
+	    };
+	}
+	catch (NoSuchFieldException nsfe) {
+	    try {
+		final Method pluginQueueMethod = getClass().getMethod(name);
+		return new Getter() {
+		    public InputReader get() {
+			try {
+			    return (InputReader)pluginQueueMethod.invoke(Plugin.this);
+			}
+			catch (Exception e) {
+			    Plugin.this.log.fatal(e);
+			    dieHorribly();
+			    return null;
+			}
+		    }
+		};
+	    }
+	    catch (NoSuchMethodException nsme) {
+		noSuchField(name);
+		return null;
+	    }
+	}
+	catch (SecurityException se) {
+	    log.fatal(se);
+	    dieHorribly();
+	    return null; // .. but die will have exited
+	}
     }
 
     protected void postConstructorInit() throws IOException,
-            IllegalArgumentException, IllegalAccessException,
-            SecurityException, NoSuchFieldException {
-        messageServerChannel.txSelect();
+            IllegalArgumentException, SecurityException {
 
-        // set up outputs FIRST
-        JSONArray outputsAry = config.getJSONArray("outputs");
-        JSONArray outputTypesAry = pluginType
-                .getJSONArray("outputs_specification");
+        // set up outputs FIRST, so we don't start processing messages
+        // before we can put them anywhere
+        JSONObject outputs = config.getJSONObject("outputs");
+        constructOutputs(outputs);
 
-        for (int idx = 0; idx < outputsAry.size()
-                && idx < outputTypesAry.size(); ++idx) {
-            final String exchange = outputsAry.getString(idx);
-            final Publisher publisher = new Publisher() {
-
-                public void publish(byte[] body) throws IOException {
-                    messageServerChannel.basicPublish(exchange, "",
-                            basicPropsPersistent, body);
-                }
-
-            };
-            Field outputField = Plugin.this.getClass().getField(
-                    outputTypesAry.getJSONObject(idx).getString("name"));
-            outputField.set(Plugin.this, publisher);
-        }
-
-        JSONArray inputsAry = config.getJSONArray("inputs");
-        JSONArray inputTypesAry = pluginType
-                .getJSONArray("inputs_specification");
-
-        for (int idx = 0; idx < inputsAry.size() && idx < inputTypesAry.size(); ++idx) {
-            final String fieldName = inputTypesAry.getJSONObject(idx)
-                    .getString("name");
-            final Field pluginQueueField = getClass().getField(fieldName);
-            final QueueingConsumer consumer = new QueueingConsumer(
-                    messageServerChannel);
-            messageServerChannel.basicConsume(inputsAry.getString(idx), false,
-                    consumer);
-            new Thread(new Runnable() {
-
-                public void run() {
-                    while (messageServerChannel.isOpen()) {
-                        try {
-                            // We may have many input queues, so to avoid interleaving transactions,
-                            // we have to choose either to have a channel for each, or serialise the
-                            // message handing.
-                            // Since there are a maximum of 15 channels, we choose to serialise
-                            // message handling by way of this mutex.
-                            // Note: Transactions are only on outgoing messages, so it doesn't
-                            // matter that two or more threads could receive messages before one
-                            // acquires the lock; the transaction will be complete or abandoned
-                            // before another consumer can start sending anything.
-                            Delivery delivery = consumer.nextDelivery();
-                            synchronized (privateLock) {
-                                try {
-                                    Object pluginConsumer = pluginQueueField
-                                            .get(Plugin.this);
-                                    if (null != pluginConsumer) {
-                                        ((InputReader) pluginConsumer)
-                                                .handleDelivery(delivery);
-                                        messageServerChannel.basicAck(
-                                                delivery.getEnvelope()
-                                                        .getDeliveryTag(),
-                                                false);
-                                        messageServerChannel.txCommit();
-                                    }
-                                } catch (Exception e) {
-                                    try {
-                                        log.error(e);
-                                        messageServerChannel.txRollback();
-                                    } catch (IOException e1) {
-                                        log.error(e1);
-                                    }
-                                }
-                            }
-                        } catch (InterruptedException _) {
-                        }
-                    }
-
-                }
-            }).start();
-        }
+        JSONObject inputs = config.getJSONObject("inputs");
+        constructInputs(inputs);
     }
 
     public void run() {
