@@ -43,7 +43,7 @@ if len(args) > 0 and string.lower(args[0]) == "active":
     args = args[1:]
 
 dump = False
-if 'dump' == args[0]:
+if len(args) > 0 and 'dump' == args[0]:
     dump = True
     args = args[1:]
 
