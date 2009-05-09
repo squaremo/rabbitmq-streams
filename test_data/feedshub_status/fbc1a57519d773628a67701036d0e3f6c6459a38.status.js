@@ -1,4 +1,4 @@
 {
     "type": "terminal-status",
-    "active": false
+    "active": true
 }

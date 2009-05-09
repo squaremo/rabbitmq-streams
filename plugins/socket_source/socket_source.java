@@ -46,7 +46,6 @@ public class socket_source extends Server {
                             new InputStreamReader(sock.getInputStream()));
                     String line = r.readLine();
                     while (null != line && isRunning()) {
-                        socket_source.this.log.info(line);
                         socket_source.this.output.publishWithKey(line.getBytes(), termId);
                         line = r.readLine();
                     }

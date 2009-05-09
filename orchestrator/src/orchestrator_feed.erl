@@ -91,22 +91,18 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
 	    _ -> %% reading from a terminal. But we need to find the server
 		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)),
 		{ok, TerminalName} = rfc4627:get_field(TerminalNode, "terminal"),
-		ServerName = orchestrator_server:find_server_for_terminal(TerminalName),
+		{ok, ServerName} = orchestrator_server:find_server_for_terminal(TerminalName),
 		{ServerName, TerminalName}
 	end,
     {ok, ToNode} = rfc4627:get_field(ToJson, "node"),
     case rfc4627:get_field(ToJson, "channel") of
 	{ok, ToChannel} -> %% destination is a pipeline component, which will have a normal input queue. Bind
 	    Queue = list_to_binary(resource_name(FeedId, ToNode, ToChannel)),
-	    error_logger:info_report({?MODULE, bind_edges,
-				      "binding exchange " ++ (binary_to_list(Exchange)) ++
-				      " to queue " ++ (binary_to_list(Queue)) ++
-				      " with binding key " ++ (binary_to_list(RK))}),
 	    lib_amqp:bind_queue(Channel, Exchange, Queue, RK);
 	_ -> %% destination is a terminal, we want to start up a shovel to connect the output exchange
 	    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
 	    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
-	    ServerName2 = orchestrator_server:find_server_for_terminal(TerminalName2),
+	    {ok, ServerName2} = orchestrator_server:find_server_for_terminal(TerminalName2),
 	    ExchangeName2 = list_to_binary(binary_to_list(ServerName2) ++ "_output"),
 	    {ok, Pid} =
 		case supervisor:start_child(PluginSupPid,
@@ -123,7 +119,7 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
 		    Err -> error_logger:error_report({?MODULE, bind_edges, FeedId, Err}),
 			   error
 		end,
-	    ok = shovel:bind_source_to_exchange(Pid, {Exchange, <<>>}, TerminalName2)
+	    ok = shovel:bind_source_to_exchange(Pid, {Exchange, RK}, TerminalName2)
     end.
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
