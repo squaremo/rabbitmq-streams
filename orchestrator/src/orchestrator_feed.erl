@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/2]).
+-export([start_link/4]).
 -export([selfcheck/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -10,15 +10,15 @@
 -include("orchestrator.hrl").
 -include("rabbit_framing.hrl").
 
-start_link(FeedId, FeedSupPid) ->
-    gen_server:start_link(?MODULE, [FeedId, FeedSupPid], []).
+start_link(FeedId, FeedSupPid, PipelineBroker, EgressBroker) ->
+    gen_server:start_link(?MODULE, [FeedId, FeedSupPid, PipelineBroker, EgressBroker], []).
 
 selfcheck(FeedPid) ->
     ok = gen_server:cast(FeedPid, selfcheck).
 
 %%---------------------------------------------------------------------------
 
--record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid}).
+-record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid, pipeline_broker_connection, egress_broker_connection}).
 
 -record(node_configuration, {node_id, plugin_config, plugin_desc, queues, exchanges, database}).
 
@@ -51,7 +51,10 @@ resource_name(FeedIdStr, NodeIdStr, AttachmentNameStr) ->
 
 do_start_pipeline(State = #state{feed_id = FeedIdBin,
                                  channel = Channel,
-                                 plugin_sup_pid = PluginSupPid}) ->
+                                 plugin_sup_pid = PluginSupPid,
+				 pipeline_broker_connection = PipelineBroker,
+				 egress_broker_connection = EgressBroker
+				}) ->
     FeedId = binary_to_list(FeedIdBin),
     FeedDefinition = get_config(State),
     {ok, Wiring} = rfc4627:get_field(FeedDefinition, "wiring"),
@@ -68,7 +71,7 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
     NodeConfigurations = [node_configuration(Channel, FeedId, N) || N <- NodeDefs],
 
     %% Go through all edges creating bindings.
-    lists:foreach(fun(Edge) -> bind_edges(FeedId, Channel, Edge, NodeDefs) end, Edges),
+    lists:foreach(fun(Edge) -> bind_edges(FeedId, PluginSupPid, Channel, Edge, NodeDefs, PipelineBroker, EgressBroker) end, Edges),
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
@@ -77,7 +80,8 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
 
     State.
 
-bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
+bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, EgressBroker)
+  when is_list(FeedId) ->
     {ok, FromJson} = rfc4627:get_field(EdgeJson, "from"),
     {ok, ToJson} = rfc4627:get_field(EdgeJson, "to"),
     {ok, FromNode} = rfc4627:get_field(FromJson, "node"),
@@ -91,15 +95,36 @@ bind_edges(FeedId, Channel, EdgeJson, NodeDefs) ->
 		{ServerName, TerminalName}
 	end,
     {ok, ToNode} = rfc4627:get_field(ToJson, "node"),
-    Queue = case rfc4627:get_field(ToJson, "channel") of
-		{ok, ToChannel} -> list_to_binary(resource_name(FeedId, ToNode, ToChannel));
-		_ -> %% destination is a terminal, we have an exchange per terminal
-		    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
-		    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
-		    TerminalName2
-	    end,
-    error_logger:info_report({?MODULE, bind_edges, "binding exchange " ++ (binary_to_list(Exchange)) ++ " to queue " ++ (binary_to_list(Queue)) ++ " with binding key " ++ (binary_to_list(RK))}),
-    lib_amqp:bind_queue(Channel, Exchange, Queue, RK).
+    case rfc4627:get_field(ToJson, "channel") of
+	{ok, ToChannel} -> %% destination is a pipeline component, which will have a normal input queue. Bind
+	    Queue = list_to_binary(resource_name(FeedId, ToNode, ToChannel)),
+	    error_logger:info_report({?MODULE, bind_edges,
+				      "binding exchange " ++ (binary_to_list(Exchange)) ++
+				      " to queue " ++ (binary_to_list(Queue)) ++
+				      " with binding key " ++ (binary_to_list(RK))}),
+	    lib_amqp:bind_queue(Channel, Exchange, Queue, RK);
+	_ -> %% destination is a terminal, we want to start up a shovel to connect the output exchange
+	    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
+	    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
+	    ServerName2 = orchestrator_server:find_server_for_terminal(TerminalName2),
+	    ExchangeName2 = list_to_binary(binary_to_list(ServerName2) ++ "_output"),
+	    {ok, Pid} =
+		case supervisor:start_child(PluginSupPid,
+					    {binary_to_list(Exchange) ++ "_" ++binary_to_list(TerminalName2),
+					     {shovel, start_link, [PipelineBroker, undefined,
+								   EgressBroker, ExchangeName2]},
+					     permanent,
+					     brutal_kill,
+					     worker,
+					     [shovel]
+					    }) of
+		    {ok, Pid2} -> {ok, Pid2};
+		    {error, {already_started, Pid2}} -> {ok, Pid2};
+		    Err -> error_logger:error_report({?MODULE, bind_edges, FeedId, Err}),
+			   error
+		end,
+	    ok = shovel:bind_source_to_exchange(Pid, {Exchange, <<>>}, TerminalName2)
+    end.
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->
     case rfc4627:get_field(NodeSpecJson, "type") of
@@ -166,14 +191,21 @@ start_component(PluginSupPid, FeedId,
                                     exchanges = Exchanges,
                                     database = DbName}) ->
     {ok, HarnessTypeBin} = rfc4627:get_field(PluginTypeDescription, "harness"),
-    supervisor:start_child(PluginSupPid, [[HarnessTypeBin,
-                                           PluginConfig,
-                                           PluginTypeDescription,
-                                           FeedId,
-                                           NodeId,
-                                           Queues,
-                                           Exchanges,
-                                           DbName]]),
+    supervisor:start_child(PluginSupPid, {NodeId,
+					  {orchestrator_plugin, start_link,
+					   [[HarnessTypeBin,
+					     PluginConfig,
+					     PluginTypeDescription,
+					     FeedId,
+					     NodeId,
+					     Queues,
+					     Exchanges,
+					     DbName]]
+					  },
+					  permanent,
+					  5000,
+					  worker,
+					  [orchestrator_plugin]}),
     ok.
 
 do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->
@@ -190,7 +222,7 @@ do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->
 
 %%---------------------------------------------------------------------------
 
-init([FeedId, FeedSupPid]) ->
+init([FeedId, FeedSupPid, PipelineBroker, EgressBroker]) ->
     %% We send ourselves a message, because we need to interact with
     %% FeedSupPid, our parent supervisor, and doing so during init is
     %% a violation of the behaviour spec required of us as a
@@ -200,7 +232,10 @@ init([FeedId, FeedSupPid]) ->
                 channel = undefined,
                 config_rev_id = null,
                 feed_sup_pid = FeedSupPid,
-                plugin_sup_pid = undefined}}.
+                plugin_sup_pid = undefined,
+		pipeline_broker_connection = PipelineBroker,
+		egress_broker_connection = EgressBroker
+	       }}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
