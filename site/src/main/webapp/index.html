@@ -1,0 +1,15 @@
+<lift:surround with="default" at="content">
+        <h3>Feeds</h3>
+        <p><lift:snippet type="Feed:add" form="post" /></p>
+		<p>
+            <lift:comet type="FeedsActor">
+                <f:list>Loading ...</f:list>
+            </lift:comet>
+        </p>
+        <p>
+            <lift:comet type="LogActor">
+                <log:controls/>
+                <log:list>Log loading ..</log:list>
+            </lift:comet>
+        </p>
+</lift:surround>
