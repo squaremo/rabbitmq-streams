@@ -15,7 +15,7 @@ import com.fourspaces.couchdb._
 
 class archive(config : JSONObject) extends Server(config) {
 
-    val couch = new Session("localhost", 5984) // TODO. Get from config.
+    val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
     val dispatcher = new Dispatcher(log, this.terminalConfig, this.terminalStatus, couch)
 
     object input extends InputReader {

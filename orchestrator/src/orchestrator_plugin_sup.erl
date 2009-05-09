@@ -11,6 +11,4 @@ start_link() ->
     supervisor:start_link(?MODULE, []).
 
 init([]) ->
-    {ok, {{simple_one_for_one, 10, 10},
-	  [{orchestrator_plugin, {orchestrator_plugin, start_link, []},
-            permanent, 5000, worker, [orchestrator_plugin]}]}}.
+    {ok, {{one_for_one, 10, 10}, []}}.

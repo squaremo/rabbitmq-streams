@@ -192,17 +192,17 @@ check_active_servers(Channel, Connection) ->
 							      self()]) end, ServerIds),
     {ok, length(ServerIds)}.
 
-activate_feed(FeedId) ->
-    activate_thing(FeedId, orchestrator_feed_sup, []).
+activate_feed(FeedId, Args) ->
+    activate_thing(FeedId, orchestrator_feed_sup, Args).
 
-deactivate_feed(FeedId) ->
+deactivate_feed(FeedId, _Args) ->
     deactivate_thing(FeedId).
 
-check_active_feeds() ->
+check_active_feeds(Connection) ->
     FeedIds = [lists:takewhile(fun (C) -> C /= $_ end,
 			       binary_to_list(rfc4627:get_field(R, "id", undefined)))
                || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
-    lists:foreach(fun activate_feed/1, FeedIds),
+    lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection]) end, FeedIds),
     ok.
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
@@ -236,7 +236,7 @@ status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
 		    %% bound to the config exchange, and should be
 		    %% picked up directly by the server.
 		    {ok, <<"feed-status">>} ->
-			{fun activate_feed/1, fun deactivate_feed/1, [ThingId]};
+			{fun activate_feed/2, fun deactivate_feed/2, [ThingId, [Connection, Connection]]};
 		    {ok, <<"server-status">>} ->
 			{fun activate_server/2, fun deactivate_server/2, [ThingId, [Channel, Connection,
 										    Channel, Connection,
@@ -299,9 +299,9 @@ handle_cast(check_active_servers, State = #state { ch = Ch, amqp_connection = Co
        true -> ok
     end,
     {noreply, State #state { server_startup_waiting = ServerCount }};
-handle_cast(check_active_terminals, State = #state { ch = Ch }) ->
+handle_cast(check_active_terminals, State = #state { ch = Ch, amqp_connection = Connection }) ->
     ok = check_active_terminals(Ch),
-    ok = check_active_feeds(),
+    ok = check_active_feeds(Connection),
     {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.

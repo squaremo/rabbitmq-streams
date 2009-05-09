@@ -35,7 +35,7 @@ find_server_for_terminal(TermId) when is_binary(TermId) ->
 	    not_found
     end.
 
--record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, shovel_out_pid, pipeline_channel, egress_broker}).
+-record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, pipeline_channel }).
 
 get_server_instance_config(ServerId) when is_list(ServerId) ->
     {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
@@ -69,9 +69,7 @@ init([ServerSupPid, ServerIdBin,
 		server_id = ServerId,
 		server_sup_pid = ServerSupPid,
 		shovel_in_pid = undefined,
-		shovel_out_pid = undefined,
-		pipeline_channel = undefined,
-		egress_broker = undefined
+		pipeline_channel = undefined
 	       }}.
 
 handle_call(_Message, _From, State) ->
@@ -98,28 +96,22 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
     CommandElem = {"command", CommandQueueNameBin},
 
     %% think very carefully about subjects and objects when understanding outputs and inputs!
-    {ShovelOutPid, Inputs} =
+    Inputs =
 	case rfc4627:get_field(ServerDefinition, "destination_specification") of
 	    {ok, _} -> %% we are a destination
 		OutNameBin = list_to_binary(ServerId ++ "_output"),
 		amqp_channel:call(EgressChannel,
 				  #'exchange.declare'{exchange = OutNameBin,
-						      type = <<"direct">>,
+						      type = <<"topic">>,
 						      durable = true}),
 		amqp_channel:call(EgressChannel,
 				  #'queue.declare'{queue = OutNameBin,
 						   durable = true}),
 		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<"#">>),
 
-		%% we are a destination. This means we need to update
-		%% the shovel whenever we see new terminals get turned
-		%% on or off
-		
-		PrivateQ = lib_amqp:declare_private_queue(PipelineChannel),
-		#'queue.bind_ok'{} = lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME, PrivateQ, CQRK),
 
-		{undefined, {obj, [{"input", OutNameBin}, CommandElem]}};
-	    _ -> {undefined, {obj, [CommandElem]}}
+		{obj, [{"input", OutNameBin}, CommandElem]};
+	    _ -> {obj, [CommandElem]}
 	end,
 
     {ShovelInPid, Outputs} =
@@ -208,9 +200,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		     server_id = ServerId,
 		     server_sup_pid = ServerSupPid,
 		     shovel_in_pid = ShovelInPid,
-		     shovel_out_pid = ShovelOutPid,
-		     pipeline_channel = PipelineChannel,
-		     egress_broker = EgressBroker
+		     pipeline_channel = PipelineChannel
 		    }};
 
 handle_cast(_Message, State) ->
@@ -231,38 +221,6 @@ handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
     error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State};
-
-handle_info(#'basic.consume_ok'{}, State) ->
-    {noreply, State};
-handle_info({#'basic.deliver' { exchange = ?FEEDSHUB_CONFIG_XNAME,
-				'delivery_tag' = DeliveryTag,
-				'routing_key' = RoutingKeyBin
-			      },
-	     #content { payload_fragments_rev = [<<"status change">>]}},
-	    State = #state{ shovel_out_pid = ShovelOutPid, pipeline_channel = Ch, server_id = ServerId, server_sup_pid = ServerSupPid, egress_broker = EgressBroker })
-  when is_pid(ShovelOutPid) ->
-    RoutingKey = binary_to_list(RoutingKeyBin),
-    ServerId = lists:takewhile(fun (C) -> C /= $. end, RoutingKey),
-    [$.|TerminalId] = lists:dropwhile(fun (C) -> C /= $. end, RoutingKey),
-    TerminalIdBin = list_to_binary(TerminalId),
-
-    amqp_channel:call(Ch,
-		      #'queue.declare'{queue = TerminalIdBin,
-				       durable = true}),
-
-    OutNameBin = list_to_binary(ServerId ++ "_output"),
-    supervisor:start_child(ServerSupPid,
-			   {list_to_atom("egress_shovel_" ++ TerminalId),
-			    {shovel, start_link, [Ch, TerminalIdBin,
-						  EgressBroker, OutNameBin]},
-			    permanent,
-			    brutal_kill,
-			    worker,
-			    [shovel]
-			   }),
-
-    lib_amqp:ack(Ch, DeliveryTag),
-    {noreply, State};
 
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.

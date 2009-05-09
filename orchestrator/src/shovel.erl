@@ -21,10 +21,10 @@ start_link(SourceConnection, SourceQueue, RemoteConnection, RemoteExchange) ->
 			  []).
 
 bind_source_to_exchange(Shovel, {X, BKIn}, RKOut) ->
-    gen_server:cast(Shovel, {bind_source, {X, BKIn}, RKOut}).
+    gen_server:call(Shovel, {bind_source, {X, BKIn}, RKOut}).
 
 unbind_source_from_exchange(Shovel, {X, BKIn}) ->
-    gen_server:cast(Shovel, {unbind_source, {X, BKIn}}).
+    gen_server:call(Shovel, {unbind_source, {X, BKIn}}).
 
 init([SourceConfig = #source_config { connection = SourceConnection,
 				      queue = SourceQueue },
@@ -50,27 +50,38 @@ init([SourceConfig = #source_config { connection = SourceConnection,
 		}
     }.
 
+handle_call({bind_source, {X, BKIn}, RKOut},
+	    _From,
+	    State = #state { source_channel = SourceCh,
+			     source_config = #source_config { queue = SourceQ },
+			     rk_map = RKMap
+			   }) ->
+    case ets:lookup(RKMap, X) of
+	[] -> ok;
+	[{X, BKIn2, _RKOut2}] -> 
+	    #'queue.unbind_ok'{} = lib_amqp:unbind_queue(SourceCh, X, SourceQ, BKIn2)
+    end,
+    true = ets:insert(RKMap, {X, BKIn, RKOut}),
+    #'queue.bind_ok'{} = lib_amqp:bind_queue(SourceCh, X, SourceQ, BKIn),
+    {reply, ok, State};
+    
+handle_call({unbind_source, {X, BKIn}},
+	    _From,
+	    State = #state { source_channel = SourceCh,
+			     source_config = #source_config { queue = SourceQ },
+			     rk_map = RKMap
+			   }) ->
+    case ets:lookup(RKMap, X) of
+	[{X, BKIn, _RKOut}] -> 
+	    #'queue.unbind_ok'{} = lib_amqp:unbind_queue(SourceCh, X, SourceQ, BKIn),
+	    true = ets:delete(RKMap, X);
+	_ -> true
+    end,
+    {reply, ok, State};
+    
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
-handle_cast({bind_source, {X, BKIn}, RKOut},
-	    State = #state { source_channel = SourceCh,
-			     source_config = #source_config { queue = SourceQ },
-			     rk_map = RKMap
-			   }) ->
-    true = ets:insert(RKMap, {X, RKOut}),
-    #'queue.bind_ok'{} = lib_amqp:bind_queue(SourceCh, X, SourceQ, BKIn),
-    {noreply, State};
-    
-handle_cast({unbind_source, {X, BKIn}},
-	    State = #state { source_channel = SourceCh,
-			     source_config = #source_config { queue = SourceQ },
-			     rk_map = RKMap
-			   }) ->
-    #'queue.unbind_ok'{} = lib_amqp:unbind_queue(SourceCh, X, SourceQ, BKIn),
-    true = ets:delete(RKMap, X),
-    {noreply, State};
-    
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
@@ -86,7 +97,7 @@ handle_info({#'basic.deliver' { 'delivery_tag' = DeliveryTag,
 			     destination_config = #destination_config { exchange = DestinationExchange },
 			     rk_map = RKMap
 			    }) ->
-    [{XIn, RKOut}] = ets:lookup(RKMap, XIn),
+    [{XIn, _BKIn, RKOut}] = ets:lookup(RKMap, XIn),
     RKOut2 = if RKOut =:= keep -> RKIn;
 		true -> RKOut
 	     end,
