@@ -18,9 +18,7 @@ public class regexp_split extends PipelineComponent {
     public PipelinePublisher positive;
     public PipelinePublisher negative;
 
-    public regexp_split(JSONObject config) throws IOException,
-            IllegalArgumentException, SecurityException,
-            IllegalAccessException, NoSuchFieldException {
+    public regexp_split(JSONObject config) throws IOException  {
         super(config);
 
         String regexp = configuration.getString("regexp");

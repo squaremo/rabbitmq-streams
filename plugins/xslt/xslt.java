@@ -43,9 +43,7 @@ public class xslt extends PipelineComponent {
         }
     };
 
-    public xslt(final JSONObject config) throws IOException,
-            IllegalArgumentException, SecurityException,
-            IllegalAccessException, NoSuchFieldException {
+    public xslt(final JSONObject config) throws IOException  {
         super(config);
         String xsltSrc = configuration.getString("stylesheet_url");
         URLConnection xsltConn = new URL(xsltSrc).openConnection();
