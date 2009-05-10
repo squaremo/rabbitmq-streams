@@ -34,8 +34,13 @@ if statusDoc == None:
     print "Unable to find the status for feed id " + docId
     sys.exit(1)
 
+routingkey=feedId
+if statusDoc['type']=='terminal-status':
+    configDoc = db.get(feedId)
+    routingkey = '%s.%s' % (configDoc['server'], feedId)
+
 oldActive = statusDoc['active']
 statusDoc['active'] = feedStatus
 db.update([statusDoc])
 
-channel.basic_publish(amqp.Message(body="status change", children=None), exchange=exchange, routing_key=feedId)
+channel.basic_publish(amqp.Message(body="status change", children=None), exchange=exchange, routing_key=routingkey)
