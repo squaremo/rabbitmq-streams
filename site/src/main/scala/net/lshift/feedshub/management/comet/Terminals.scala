@@ -48,7 +48,7 @@ class Terminals extends CometActor {
     }
 
     override def localShutdown {
-        Terminals ! Observe(this)
+        Terminals ! Unobserve(this)
     }
 
     override def lowPriority : PartialFunction[Any, Unit] = {

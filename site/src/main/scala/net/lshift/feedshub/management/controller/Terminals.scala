@@ -16,11 +16,11 @@ case class TerminalStatus(name : String, active: Boolean)
 case class UpdateTerminalsList(terminals : List[TerminalStatus])
 
 object Terminals extends Actor with FeedsHubConfig with ConfigAwareActor with ObservableActor[UpdateTerminalsList] {
-    val TerminalStatusView = "terminals/all"
+    val TerminalStatusView = "terminals/status"
     
     override def bindingKey : String = "*.*" // i.e., only things with two components
 
-    private var terminalstata : List[TerminalStatus] = List()
+    private var terminalstata : List[TerminalStatus] = Nil
 
     def readStatus {
         val vr = statusDb.queryView(TerminalStatusView, classOf[Boolean], null, null).getRows
