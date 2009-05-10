@@ -15,6 +15,7 @@ import com.rabbitmq.client._
 
 class LogLevel {
     def andUp = LogLevel.downTo(this)
+    def andDown = LogLevel.upFrom(this)
     def stringValue : String = {
         this match {
             case Debug => "DEBUG"
@@ -28,6 +29,9 @@ class LogLevel {
 object LogLevel extends LogLevel {
     val values = List(Fatal, Error, Warn, Info, Debug)
     def downTo(level : LogLevel) : Set[LogLevel] = {
+        Set(values.takeWhile(_ != level):_*) + level
+    }
+    def upFrom(level: LogLevel) : Set[LogLevel] = {
         Set(values.dropWhile(_ != level):_*)
     }
     def from(s : String) : LogLevel = {
@@ -71,9 +75,9 @@ class Log(size: Int) extends Actor {
                         Fatal -> HashSet[Actor]())
 
     def enbuffer(msg: LogMessage) {
-        if (buffer.length == size)
-            buffer.dequeue
         buffer.enqueue(msg)
+        while (buffer.length > size)
+            buffer.dequeue
     }
 
     def debuffer : LogMessage = {
@@ -89,7 +93,7 @@ class Log(size: Int) extends Actor {
     }
 
     def notifyListeners(message: LogMessage) {
-        for (level <- message.level andUp) {
+        for (level <- message.level andDown) {
             listeners(level).foreach(listener => listener ! message)
         }
     }
@@ -136,7 +140,7 @@ class Log(size: Int) extends Actor {
                     listener ! History(messages(level))
                     listeners(level).incl(listener)
                 case RemoveLogListener(listener) =>
-                    listeners.keys.foreach(level => listeners(level).excl(listener))
+                    listeners.values.foreach(level => level.excl(listener))
             }
         }
     }
