@@ -10,9 +10,9 @@ import couchdb
 import glob
 import string
 try:
-    import json
-except ImportError:
     import simplejson as json
+except ImportError:
+    import json
 
 server = couchdb.Server("http://localhost:5984/")
 
