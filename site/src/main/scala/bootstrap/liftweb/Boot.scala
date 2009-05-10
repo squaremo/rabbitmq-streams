@@ -21,7 +21,9 @@ class Boot {
     TableSorter.init
 
     // Build SiteMap
-    val entries = Menu(Loc("Home", List("index"), "Home")) :: Nil
+    val entries = 
+                  Menu(Loc("Home", List("index"), "Home")) ::
+                  Menu(Loc("Feeds", List("feeds"), "Feeds")) :: Nil
     LiftRules.setSiteMap(SiteMap(entries:_*))
     Feeds ! Init("http://localhost:5984")
   }

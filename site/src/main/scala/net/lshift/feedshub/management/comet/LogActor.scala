@@ -31,7 +31,7 @@ class LogActor extends CometActor {
 
     def controls : NodeSeq = {
         LogLevel.values.map(
-            level => SHtml.ajaxButton(level.stringValue, () => {changeLevel(level); Noop})
+            level => SHtml.ajaxButton(level.stringValue, () => {changeLevel(level); Noop}, "class" -> "control-button")
         )
     }
 
