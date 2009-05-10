@@ -14,3 +14,4 @@
 ^plugins/archive/target/
 ^plugins/archive/lib/
 (^|/)nb-configuration\.xml$
+^orch_log$

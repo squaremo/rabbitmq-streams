@@ -19,7 +19,7 @@ exchange = "feedshub/config"
 
 feedId = sys.argv[1]
 feedStatus = False
-if string.lower(sys.argv[2]) in ["true", "on", "activate", "yes", "indubitably", "positive", "1"]:
+if string.lower(sys.argv[2]) in ["true", "on", "activate", "yes", "indubitably", "positive", "1", "start"]:
     feedStatus = True
 
 docId = feedId

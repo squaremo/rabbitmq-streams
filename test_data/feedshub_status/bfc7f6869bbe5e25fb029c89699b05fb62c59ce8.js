@@ -19,7 +19,10 @@
 	    },
 	    "the_archiver": {
 	      "terminal": "7d2a9f159071e1c6f6edaccb59ae5f9c80688b6c"
-	    }
+	    },
+	    "the_relay": {
+	      "terminal": "d4bcd34acd92a9cad22b394de6b599f538685be2"
+            }
 	},
 	"edges": [
           {"from": {"node": "the_input1"},
@@ -27,6 +30,8 @@
           {"from": {"node": "the_input1"},
 	   "to":   {"node": "the_replacer", "channel": "input"}},
           {"from": {"node": "the_replacer", "channel": "positive"},
+	   "to":   {"node": "the_relay"}},
+	  {"from": {"node": "the_relay"},
 	   "to":   {"node": "the_archiver"}}
 	]
     }
