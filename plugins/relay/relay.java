@@ -15,7 +15,6 @@ public class relay extends Server {
 
     public final InputReader command = new InputReader() {
 
-        @Override
         public void handleDelivery(Delivery message) throws Exception {
 
             String serverIdterminalId = message.getEnvelope().getRoutingKey();
@@ -58,7 +57,6 @@ public class relay extends Server {
 
     public final InputReader input = new InputReader() {
 
-        @Override
         public void handleDelivery(Delivery message) throws Exception {
             String terminalId = message.getEnvelope().getRoutingKey();
             if (activeTerminals.contains(terminalId)) {
