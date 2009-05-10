@@ -55,13 +55,12 @@ class FeedsActor extends CometActor {
               </script>))
     }
 
-    override def localSetup {""
-        Console.println("Local setup")
-        Feeds ! AddListener(this)
+    override def localSetup {
+        Feeds ! Observe(this)
     }
 
     override def localShutdown {
-        Feeds ! RemoveListener(this)
+        Feeds ! Unobserve(this)
     }
 
     override def lowPriority : PartialFunction[Any, Unit] = {

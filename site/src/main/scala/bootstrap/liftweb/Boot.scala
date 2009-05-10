@@ -22,9 +22,9 @@ class Boot {
 
     // Build SiteMap
     val entries = 
-                  Menu(Loc("Home", List("index"), "Home")) ::
-                  Menu(Loc("Feeds", List("feeds"), "Feeds")) :: Nil
+                  Menu(Loc("home", List("index"), "Home")) ::
+                  Menu(Loc("feeds", List("feeds"), "Feeds")) ::
+                  Menu(Loc("terminals", List("terminals"), "Sources and Destinations")) :: Nil
     LiftRules.setSiteMap(SiteMap(entries:_*))
-    Feeds ! Init("http://localhost:5984")
   }
 }
