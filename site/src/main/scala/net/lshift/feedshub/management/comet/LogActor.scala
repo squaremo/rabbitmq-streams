@@ -36,14 +36,16 @@ class LogActor extends CometActor {
     }
 
     def list : NodeSeq = {
-        <ol>
-            {messages.map(msg => <li>{msg.level.stringValue} {msg.msg}</li>)}
-        </ol>
+        <dl>
+            {messages.map(msg =>
+                    <dt class={msg.level.stringValue.toLowerCase}>{msg.level.stringValue} {msg.component.foldLeft("")(_ + " | " + _)}</dt>
+                    <dd>{msg.msg}</dd>)}
+        </dl>
     }
 
     override def lowPriority : PartialFunction[Any, Unit] = {
         case History(ms) => println("History"); messages = ms; reRender(false)
-        case msg@LogMessage(a1, a2) => println("LogMessage " + a2); messages = msg :: messages; reRender(false)
+        case msg@LogMessage(a1, a2, a3) => messages = msg :: messages; reRender(false)
     }
 
     override def localSetup {

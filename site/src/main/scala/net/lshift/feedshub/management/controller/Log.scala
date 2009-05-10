@@ -51,7 +51,7 @@ object Warn extends LogLevel
 object Error extends LogLevel
 object Fatal extends LogLevel
 
-case class LogMessage(level: LogLevel, msg: String)
+case class LogMessage(level: LogLevel, msg: String, component: Array[String])
 
 case class AddLogListener(downToLevel: LogLevel, listener: Actor)
 case class RemoveLogListener(listener : Actor)
@@ -113,9 +113,9 @@ class Log(size: Int) extends Actor {
                                               properties : AMQP.BasicProperties,
                                               body : Array[Byte]) = {
                       val key = envelope.getRoutingKey
-                      println(key)
                       val logLevel = LogLevel.from(key.substring(0, key.indexOf(".")))
-                      listener ! LogMessage(logLevel, new String(body))
+                      val component = key.split("\\.").drop(1)
+                      listener ! LogMessage(logLevel, new String(body), component)
                   }
         }
 
@@ -132,7 +132,7 @@ class Log(size: Int) extends Actor {
     def act = {
         loop {
             react {
-                case msg@LogMessage(level, desc) =>
+                case msg@LogMessage(level, desc, component) =>
                     enbuffer(msg)
                     notifyListeners(msg)
                 case AddLogListener(level, listener) =>

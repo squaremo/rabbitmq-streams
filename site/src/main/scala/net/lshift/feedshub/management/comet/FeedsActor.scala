@@ -14,6 +14,8 @@ import net.liftweb.http._
 import net.liftweb.http.js.JsCmds.Noop
 import net.liftweb.util.{Box, Full}
 
+import net.liftweb.widgets.tablesorter.TableSorter
+
 import net.lshift.feedshub.management.controller._
 
 class FeedsActor extends CometActor {
@@ -36,13 +38,21 @@ class FeedsActor extends CometActor {
     override def render : RenderOut = {
         bind("list" ->
              (<table id="feeds-list" class="tablesorter">
-                    <tr><th>Feed</th><th>Status</th><th></th></tr>
-                    {feeds.map(f => <tr>
-                                <td>{f.id}</td>
-                                <td class="status">{if (f.active) "Active" else "Inactive"}</td>
-                                <td class="ctrl">{feedControl(f)}</td>
-                                    </tr>)}
-              </table>))
+                <thead>
+                       <tr><th>Feed</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                       {feeds.map(f =>
+                  <tr>
+                      <td>{f.id}</td>
+                      <td class="status">{if (f.active) "Active" else "Inactive"}</td>
+                      <td class="ctrl">{feedControl(f)}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+              <script>
+                {TableSorter.jsRender("feeds-list")}
+              </script>))
     }
 
     override def localSetup {""

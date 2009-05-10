@@ -6,6 +6,8 @@ import net.liftweb.sitemap._
 import net.liftweb.sitemap.Loc._
 import Helpers._
 
+import net.liftweb.widgets.tablesorter.TableSorter
+
 import net.lshift.feedshub.management.controller._
 
 /**
@@ -16,6 +18,7 @@ class Boot {
   def boot {
     // where to search snippet
     LiftRules.addToPackages("net.lshift.feedshub.management")
+    TableSorter.init
 
     // Build SiteMap
     val entries = Menu(Loc("Home", List("index"), "Home")) :: Nil
