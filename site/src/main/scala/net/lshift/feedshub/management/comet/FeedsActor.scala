@@ -28,16 +28,21 @@ class FeedsActor extends CometActor {
             Noop
         }
         if (feed.active)
-            SHtml.ajaxButton("Stop", () => sendCommand(StopFeed(feed.id)), "class" -> "blah")
+            SHtml.ajaxButton("Stop", () => sendCommand(StopFeed(feed.id)), "class" -> "control-button")
         else
-            SHtml.ajaxButton("Start", () => sendCommand(StartFeed(feed.id)))
+            SHtml.ajaxButton("Start", () => sendCommand(StartFeed(feed.id)), "class" -> "control-button")
     }
 
     override def render : RenderOut = {
         bind("list" ->
-            (<ul class="data-source-list">
-                {feeds.map(f => <li><span>{f.id}</span><span class="ctrl">{feedControl(f)}</span></li>)}
-            </ul>))
+             (<table id="feeds-list" class="tablesorter">
+                    <tr><th>Feed</th><th>Status</th><th></th></tr>
+                    {feeds.map(f => <tr>
+                                <td>{f.id}</td>
+                                <td class="status">{if (f.active) "Active" else "Inactive"}</td>
+                                <td class="ctrl">{feedControl(f)}</td>
+                                    </tr>)}
+              </table>))
     }
 
     override def localSetup {""
