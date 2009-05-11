@@ -11,10 +11,7 @@ import scala.actors.Actor
 import scala.collection.mutable.Set
 
 import com.rabbitmq.client._
-import org.jcouchdb.db.Database
-import org.jcouchdb.document.{BaseDocument, ViewResult, ValueRow}
-import org.jcouchdb.document.ViewResult
-import org.svenson.JSONProperty
+import com.fourspaces.couchdb._
 
 trait ConfigListener {
     val ConfigExchange = "feedshub/config"
@@ -81,7 +78,7 @@ trait FeedsHubConfig {
 
     val channel = newchannel
 
-    val statusDb : Database = new Database("localhost", 5984, StatusDb)
+    val statusDb : Database = new Session("localhost", 5984, "", "").getDatabase(StatusDb)
 }
 
 case class Observe(observer : Actor)

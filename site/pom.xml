@@ -69,55 +69,24 @@
             <version>1.0</version>
         </dependency>
     <dependency>
-            <groupId>jcouchdb</groupId>
-            <artifactId>jcouchdb</artifactId>
-            <version>0.9.0-2</version>
-        </dependency>
-
-<!-- For JCouchDB -->
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.5</version>
             <scope>test</scope>
-            </dependency>
+        </dependency>
 
-       <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
-      <version>1.1.1</version>
-      <scope>compile</scope>
-      <exclusions>
-                <exclusion>
-                    <artifactId>log4j</artifactId>
-                    <groupId>log4j</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>logkit</artifactId>
-                    <groupId>logkit</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>avalon-framework</artifactId>
-                    <groupId>avalon-framework</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>servlet-api</artifactId>
-                    <groupId>javax.servlet</groupId>
-                </exclusion>
-            </exclusions>
-    </dependency>
     <dependency>
-      <groupId>net.svenson</groupId>
-      <artifactId>svenson</artifactId>
-      <version>1.3.0</version>
-
+            <groupId>net.liftweb</groupId>
+            <artifactId>lift-widgets</artifactId>
+            <version>1.0</version>
     </dependency>
-    <dependency>
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils</artifactId>
-            <version>1.7.0</version>
-            </dependency>
-            
+    
+        <dependency>
+            <groupId>net.lshift.feedshub</groupId>
+            <artifactId>feedshub-harness</artifactId>
+            <version>1.0</version>
+        </dependency>
+        
 <!-- end for JCouchDB -->
 
 <!-- For dispatch
@@ -216,27 +185,8 @@
 	 </dependency>
      -->
 
-  <!-- up to date Rabbit client -->
-    <dependency>
-		    <groupId>net.rabbitmq</groupId>
-	    	<artifactId>amqp-client</artifactId>
-	    	<version>1.5.4</version>
-            </dependency>
-
-    <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>1.3.2</version>
-        </dependency>
-
-    <dependency>
-            <groupId>net.liftweb</groupId>
-            <artifactId>lift-widgets</artifactId>
-            <version>1.0</version>
-        </dependency>
   </dependencies>
 
-<!-- End Rabbit client -->
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>

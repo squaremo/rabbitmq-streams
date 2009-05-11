@@ -1,8 +1,6 @@
 /*
  * Terminals.scala
  *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
  */
 
 package net.lshift.feedshub.management.controller
@@ -11,20 +9,36 @@ import scala.collection.jcl.Conversions._
 import scala.actors.Actor
 import scala.actors.Actor._
 
-case class TerminalStatus(name : String, active: Boolean)
+import com.fourspaces.couchdb._
+import net.sf.json.JSONObject
+
+
+case class TerminalStatus(id : String, active: Boolean, source : Boolean, destination: Boolean, server: String)
 
 case class UpdateTerminalsList(terminals : List[TerminalStatus])
 
 object Terminals extends Actor with FeedsHubConfig with ConfigAwareActor with ObservableActor[UpdateTerminalsList] {
-    val TerminalStatusView = "terminals/status"
+    val TerminalStatusView = "terminals/join?group=true"
     
     override def bindingKey : String = "*.*" // i.e., only things with two components
 
-    private var terminalstata : List[TerminalStatus] = Nil
+    var terminalstata : List[TerminalStatus] = Nil
+
+    private def terminalStatusFromJSON(id: String, json : JSONObject) : TerminalStatus = {
+        val status = json.getJSONObject("terminal-status")
+        val config = json.getJSONObject("terminal")
+        val source = config.has("source")
+        val destination = config.has("destination")
+        TerminalStatus(id,
+                       status.getBoolean("active"),
+                       source,
+                       destination,
+                       config.getString("server"))
+    }
 
     def readStatus {
-        val vr = statusDb.queryView(TerminalStatusView, classOf[Boolean], null, null).getRows
-        terminalstata = vr.map(v => TerminalStatus(v.getKey.toString, v.getValue)) toList
+        val vr = statusDb.view(TerminalStatusView).getResults
+        terminalstata = vr.map(v => terminalStatusFromJSON(v.getString("key"), v.getJSONObject("value"))).toList
     }
 
     def newObserver(newbie : Actor) {

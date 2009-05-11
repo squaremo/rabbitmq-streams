@@ -11,10 +11,7 @@ import net.liftweb.util.Helpers._
 import scala.actors.Actor
 import scala.actors.Actor._
 import com.rabbitmq.client._
-import org.jcouchdb.db.Database
-import org.jcouchdb.document.{BaseDocument, ViewResult, ValueRow}
-import org.jcouchdb.document.ViewResult
-import org.svenson.JSONProperty
+import com.fourspaces.couchdb._
 
 // This should go in the model
 case class FeedStatus(id: String, active: Boolean) {
@@ -43,18 +40,11 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
 
     val StatusView = "feeds/all"
 
-    var feedMap = Map[String, Boolean]() // temp because we'll get this from couch
+    var feeds : List[FeedStatus] = Nil // temp because we'll get this from couch
 
-    def feeds : List[FeedStatus] =
-        feedMap.projection.map { case (id, active) => new FeedStatus(id, active)} toList
-
-    def readFeedMap {         
-        val vr = statusDb.queryView(StatusView, classOf[Boolean], null, null).getRows
-        feedMap = Map(vr.map(v => (v.getKey.toString -> v.getValue)):_*)
-    }
-
-    def changedStatus(feedid: String) {
-        readFeedMap // TODO for now, just reload everything
+    def readFeedStatus {
+        val vr = statusDb.view(StatusView).getResults
+        feeds = vr.map(v => FeedStatus(v.getString("key"), v.getBoolean("value"))) toList
     }
 
     def statusDocName(id : String) : String = id + "_status"
@@ -63,9 +53,9 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
         // TODO put in couch
         // TODO: this should be indirect, in the sense that we should listen to
         // the command exchange and rearead our map when we get a status change
-        val doc = statusDb.getDocument(classOf[java.util.Map[String, Object]], statusDocName(feedid))
+        val doc = statusDb.getDocument(statusDocName(feedid))
         doc.put("active", boolean2Boolean(newStatus))
-        statusDb.updateDocument(doc)
+        statusDb.saveDocument(doc)
     }
 
     def sendStatusChange(feedid: String) {
@@ -99,7 +89,7 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
         case StartFeed(id) => startFeed(id); notifyOfUpdate
         case StopFeed(id) => stopFeed(id); notifyOfUpdate
         case StatusChange(id) =>
-            changedStatus(id); notifyOfUpdate
+            readFeedStatus; notifyOfUpdate
         case ConfigChange(id) =>
             true // ignore for the minute
     }
@@ -110,6 +100,6 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
         }
     }
 
-    readFeedMap
+    readFeedStatus
     start
 }

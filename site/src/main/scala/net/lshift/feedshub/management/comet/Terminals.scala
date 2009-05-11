@@ -27,14 +27,16 @@ class Terminals extends CometActor {
         bind("list" ->
              (<table id="terminals-list" class="tablesorter status-list">
                 <thead>
-                       <tr><th>Terminal</th><th>Status</th><th></th></tr>
+                       <tr><th>Terminal</th><th>Status</th><th>Source?</th><th>Destination?</th><th>Server</th></tr>
                 </thead>
                 <tbody>
                        {terminals.map(t =>
                   <tr>
-                      <td>{t.name}</td>
+                      <td>{t.id}</td>
                       <td class="status">{if (t.active) "Active" else "Inactive"}</td>
-                      <td class="ctrl"></td>
+                      <td>{if (t.source) "Yes" else "No"}</td>
+                      <td>{if (t.destination) "Yes" else "No"}</td>
+                      <td>{t.server}</td>
                   </tr>)}
                 </tbody>
               </table>
