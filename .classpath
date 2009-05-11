@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" output="harness/java/bin" path="harness/java/src"/>
+	<classpathentry kind="src" output="plugins/socket_destination" path="plugins/socket_destination"/>
 	<classpathentry kind="src" output="plugins/relay" path="plugins/relay"/>
 	<classpathentry kind="src" output="plugins/socket_source" path="plugins/socket_source"/>
 	<classpathentry kind="src" output="plugins/logger" path="plugins/logger"/>

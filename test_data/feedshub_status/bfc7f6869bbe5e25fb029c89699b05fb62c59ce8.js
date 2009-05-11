@@ -22,6 +22,9 @@
 	    },
 	    "the_relay": {
 	      "terminal": "d4bcd34acd92a9cad22b394de6b599f538685be2"
+            },
+	    "the_socket_output": {
+	      "terminal": "09f99bf874bd489fad3323254e709371dbd56987"
             }
 	},
 	"edges": [
@@ -31,6 +34,8 @@
 	   "to":   {"node": "the_replacer", "channel": "input"}},
           {"from": {"node": "the_replacer", "channel": "positive"},
 	   "to":   {"node": "the_relay"}},
+          {"from": {"node": "the_replacer", "channel": "negative"},
+	   "to":   {"node": "the_socket_output"}},
 	  {"from": {"node": "the_relay"},
 	   "to":   {"node": "the_archiver"}}
 	]
