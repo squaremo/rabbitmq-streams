@@ -100,13 +100,17 @@ public class socket_source extends Server {
             try {
                 ServerSocket server = new ServerSocket(port);
                 server.setReuseAddress(true);
+                StringBuilder sb = new StringBuilder();
                 while (isRunning()) {
                     Socket sock = server.accept();
                     BufferedReader r = new BufferedReader(
                             new InputStreamReader(sock.getInputStream()));
                     String line = r.readLine();
                     while (null != line && isRunning()) {
-                        socket_source.this.output.publishWithKey(line
+                        sb.setLength(0);
+                        sb.append(line);
+                        sb.append(newline);
+                        socket_source.this.output.publishWithKey(sb.toString()
                                 .getBytes(), termId);
                         line = r.readLine();
                     }

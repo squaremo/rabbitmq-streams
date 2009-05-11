@@ -22,8 +22,9 @@ public class socket_destination extends Server {
 
         public void handleDelivery(Delivery message) throws Exception {
             String terminalId = message.getEnvelope().getRoutingKey();
-            if (terminalMap.containsKey(terminalId)) {
-                terminalMap.get(terminalId).send(message.getBody());
+            SocketDestination dest = terminalMap.get(terminalId);
+            if (null != dest) {
+                dest.send(message.getBody());
             }
             socket_destination.this.ack(message);
         }
