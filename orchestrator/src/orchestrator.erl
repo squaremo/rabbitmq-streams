@@ -7,7 +7,7 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
-    ok = inets:start(),
+    ok = inets:start(permanent),
     {ok, _} = inets:start(httpc, [{profile, couchProfile}]),
     http:set_options([{ipv6, disabled}, {max_pipeline_length, 0}], couchProfile), % couch doesn't listen on ipv6
     orchestrator_root_sup:start_link().
