@@ -1,0 +1,234 @@
+/* Normalise styles
+==================================== */
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, font, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend, button
+table, caption, tbody, tfoot, thead, tr, th, td {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	outline: 0;
+	font-size: 100%;
+	vertical-align: baseline;
+	text-decoration: none;
+}
+body {
+    margin: 0 auto;
+    position: relative;
+    font: Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.6;
+    text-align: center;
+    background-color: #fff;
+    font-family: Helvetica,Arial,sans-serif;
+}
+
+div.top-bar {
+	background-color: #666;
+	color: #fff;
+	border-bottom: 1px solid #000;
+}
+div.app-name {
+	float: left;
+	background-color: #666;
+	color: #fff;
+	padding: 0px 12px 0 12px;
+	font-weight: bold;
+}
+div.top-bar ul {
+
+	float: right;
+}
+div.top-bar ul li {
+	float: right;
+	list-style-type: none;
+	padding:  0 12px 0 12px;
+	background-color: #666;
+	color: #fff;
+}
+ div.top-bar  ul li a:link,
+div.top-bar li a:visited  {
+	background-color: #666;
+	color: #ddd;
+}
+div.top-bar li a:hover,
+div.top-bar li a:active  {
+	background-color: #666;
+	color: #fff;
+}
+.clear {
+   clear: both;
+}
+div.page {
+	text-align: left;
+    padding: 0px 0px 0px 0px;
+	width:  900px;
+	margin:1px auto 0px auto;
+	background-color: #fff;
+	border: none;
+}
+div.foot {
+	text-align: left;
+    padding: 0px 0px 0px 0px;
+	margin:1px auto 0px auto;
+	background-color: #fff;
+	border: none;
+}
+
+/* defaults */
+div.page ul {
+	margin: 12px 0 12px 12px;
+}
+div.page ul li {
+	list-style-type: disc;
+}
+div.page p {
+	margin-bottom: 12px;
+}
+/* General
+==================================== */
+
+strong, b {
+	font-weight: bold;
+}
+p {
+	margin: 12px 0 12px 0;
+}
+dl {
+	float: left;
+	margin: 12px 0 12px 0;
+	}
+dt {
+	font-weight: bold;
+	float: left;
+	clear: left;
+	width: 112px;
+}
+dd {
+	float: left;
+}
+table {
+	border-collapse: collapse;
+	margin-top: 12px;
+	margin-bottom: 12px;
+	border-top: 1px solid #ccc;
+	border-left: 1px solid #ccc;
+}
+th, td {
+	border-right: 1px solid #ccc;
+	border-bottom: 1px solid #ccc;
+	text-align: left;
+	padding: 0px 10px 0 2px;
+}
+td {
+
+}
+a:link {
+	color: grey;
+}
+a:visited {
+	color: navy;
+}
+a:active, a:hover  {
+	color: red;
+}
+/* @forms */
+
+p label {
+	width: 150px;
+	display:  block;
+	float: left;
+}
+fieldset {
+border: 1px dashed red;
+}
+input,
+textarea,
+select,
+button {
+	font-family: inherit;
+}
+
+textarea,
+input[type='text'],
+input[type='password'],
+select {
+	border-width: 1px;
+	border-style: solid;
+	border-top-color: #999;
+	border-left-color: #999;
+	border-bottom-color: #ccc;
+	border-right-color: #ccc;
+	padding: 0 1px 1px 1px;
+}
+
+textarea:focus,
+input[type='radio']:focus,
+input[type='check']:focus,
+input[type='text']:focus,
+input[type='password']:focus,
+select:focus {
+	border-color: #888;
+	outline: 1px solid #ddd;
+}
+
+input.short {
+	width: 4em;
+}
+
+input.medium,
+textarea.medium {
+	width: 12em;
+}
+
+input.long,
+textarea.long {
+	width: 30em;
+}
+
+textarea {
+	width: 30em;
+	display: block;
+}
+
+button {
+	border: 0;
+	padding: 0;
+	cursor: pointer;
+	width: auto;
+	overflow: visible;
+}
+
+
+/* page specific */
+ul.data-source-list  {
+	padding: 0px;
+	margin: 0px 0px 0px 0px !important;
+}
+ul.data-source-list li {
+	list-style-type: none !important;
+    width: 400px;
+	margin: 0px 0px 12px 0px !important;
+}
+ul.data-source-list li span {
+	width: 300px;
+	float: left;
+}
+ul.data-source-list li span.ctrl {
+	width: 30px;
+	float: left;
+}
+ul.data-source-list li button{
+	float: right;
+	border: 1px solid green;
+}
+p.logs {
+    padding-top: 12px;
+}
+
