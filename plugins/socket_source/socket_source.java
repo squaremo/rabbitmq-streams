@@ -83,11 +83,14 @@ public class socket_source extends Server {
         final private int port;
         final private String termId;
         final private Object lockObj = new Object();
+        final private Thread worker;
         private boolean running = true;
+        private Socket sock = null;
 
         public SocketSource(Document terminalConfig) {
             port = terminalConfig.getJSONObject("source").getInt("port");
             termId = terminalConfig.getId();
+            worker = Thread.currentThread();
         }
 
         private boolean isRunning() {
@@ -102,7 +105,9 @@ public class socket_source extends Server {
                 server.setReuseAddress(true);
                 StringBuilder sb = new StringBuilder();
                 while (isRunning()) {
-                    Socket sock = server.accept();
+                    synchronized (lockObj) {
+                        sock = server.accept();
+                    }
                     BufferedReader r = new BufferedReader(
                             new InputStreamReader(sock.getInputStream()));
                     String line = r.readLine();
@@ -125,6 +130,13 @@ public class socket_source extends Server {
         public void stop() {
             synchronized (lockObj) {
                 running = false;
+                if (null != sock) {
+                    try {
+                        sock.close();
+                    } catch (IOException e) {
+                    }
+                }
+                worker.interrupt();
             }
         }
     }
