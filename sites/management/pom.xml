@@ -86,6 +86,12 @@
             <artifactId>feedshub-harness</artifactId>
             <version>1.0</version>
         </dependency>
+
+<dependency>
+            <groupId>net.liftweb</groupId>
+            <artifactId>lift-amqp</artifactId>
+            <version>1.0</version>
+        </dependency>
         
 <!-- end for JCouchDB -->
 

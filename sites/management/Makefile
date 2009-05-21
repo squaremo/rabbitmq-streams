@@ -1,6 +1,6 @@
 sources=$(shell find src -type f -name "*.scala") pom.xml
 jarfile=archive-1.0.jar
-harness_jar=../harness/java/feedshub_harness.jar
+harness_jar=../../harness/java/feedshub_harness.jar
 
 all: libs
 	mvn install
