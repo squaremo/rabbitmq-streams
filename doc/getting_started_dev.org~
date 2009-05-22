@@ -1,0 +1,187 @@
+#+TITLE:     Getting Started with Feedshub
+#+AUTHOR:    LShift Inc
+#+DATE:      2009-05-22 Fri
+#+LANGUAGE:  en
+#+OPTIONS:   H:6 num:t toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc timestamp:t
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:
+#+LINK_HOME:
+#+STYLE: <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+* Getting started with Feedshub
+*** General Overview
+
+Feedshub is a stream based-architecture conceived to bring order and
+managability into the BBC's massive and increasingly unwieldy feed
+infrastructre.
+
+However the framework is very general and not limited to working with
+Atom/RSS/... (for example binary data can be handled efficiently as well).
+Feeds. In a away you could think of Feedhubs as a distributed, robust,
+scalable, secure, user-friendly and manageable version of unix pipes (you can find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift
+                                                                                                                      //blog]]).
+                                                                                                                      //The
+basic logical building blocks are /Sources/ and /Sinks/ (=Servers=) of data
+and /Feeds/ (NB: Feed in this sense has nothing to do with RSS/Atom/etc.;
+/Processing Pipeline/ would be more accurate description) that are composed of
+=PipelineComponents= which can route (e.g. based on regexp matches on Atom
+feed entries) merge and transform the data in arbitrary ways (e.g. by applying
+xslt tranforms), as depicted below:
+
+#+CAPTION: Flow of Information in Feedshub (simplified excerpt).
+#+LABEL:   fig:flow-simplified
+    [[./flow-simplified.png]]
+
+=Servers= as well as =PipelineComponents= can currently be written in Java,
+Python and Ruby (*FIXME* really?), requiring almost no boilerplate see e.g.
+[[../plugins/regexp_replace/regexp_replace.py][regexp_replace.py]]. Support for other languages can be added straighforwardly
+by creating an appropriate =Harness=.
+
+
+
+*** Installation
+
+1. Install the runtime dependencies:
+#+BEGIN_SRC sh
+make setup
+#+END_SRC
+
+  This will attempt to download and install all required dependencies. At the
+  minute it assumes you are using a Linux distribution with `apt-get`; but
+  this is restricted to a small, easily replicated section of build
+  dependencies (the targets ending in =-debs=). Currently a couple of packages
+  (e.g. CouchDB and RabbitMQ) will be locally installed from sources in the
+  feedshub directory, but in the future feedshub will likely offer more
+  flexibility in this regard; just be aware of possible conflicts with
+  system-wide installs.
+
+2. Build everything:
+#+BEGIN_SRC sh
+make all
+#+END_SRC
+
+*** Running and debugging
+
+There are three components which need to be running: RabbitMQ (the messaging
+broker), CouchDB (the database used for configuration and per-component
+state), and the Orchestrator (which takes care setting up all the wiring
+between components). RabbitMQ and CouchDB are together referred to as the
+"core" and must be started before the Orchestrator. The following is currently
+our preferred means to get everthing up and running (Note: as the project
+matures this will become less fiddly and delicate, but for the moment make
+sure you follow the instructions exactly):
+
+1. Start up three xterms which are configured to listen to the outputs of
+   each component
+#+HTML: (<font color="#400000"><b>rabbitMQ</b></font> </font>,
+#+HTML: <font color="#004000"><b>couchDB</b></font> </font>,
+#+HTML: <font color="#000040"><b>orchestrator</b></font>)
+#+BEGIN_SRC sh
+make listen_all
+#+END_SRC
+
+2. Stop all the components (this doesn't hurt if they're not already running),
+   clean the CouchDB and RabbitMQ broker, set them back up, install the test
+   configuration and get everthing up and running:
+#+BEGIN_SRC sh
+make stop_all_nox all cleandb start_core_nox && sleep 2 \
+&& ./setup-core.sh && sleep 1 && make start_orchestrator_nox \
+&& sleep 5 && python sbin/install_test_data.py \
+&& make start_orchestrator_nox
+#+END_SRC
+
+   Note that if you already got a system install of couchDB or RabbitMQ etc.
+   you should make sure that they are either currently not running or using
+   different ports than the local versions that feedshub installs.
+
+In general, =Makefile= targets that end in =_nox= (/No X/) will not
+start new xterms.
+
+All three components are normal Erlang shells (though due to
+forwarding outputs over =nc=, the command history features are
+lost). Thus to quit any of the components, enter =q()= and press
+return in the shells. The Makefile targets take care of stopping the
+components as necessary.
+
+*** Developing
+
+***** Basic Architecture
+******* Main Components
+********* CouchDB
+********* RabbitMQ
+*********** TODO why do we need to bundle RabbitMQ?
+
+          - [[http://www.rabbitmq.com/admin-guide.html][RabbitMQ server admin]]
+
+          - [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP Overview]]
+          - [[http://www.rabbitmq.com/api-guide.html][RabbitMQ Java Client API guide]]
+          - [[file:~/feedshub/harness/java/lib/rabbitmq-java-client-1.5.4/test/src/com/rabbitmq/examples/SimpleConsumer.java][SimpleConsumer.java]] and [[file:~/feedshub/harness/java/lib/rabbitmq-java-client-1.5.4/test/src/com/rabbitmq/examples/SimpleProducer.java][SimpleProducer.java]]
+********* Orchestrator
+******* Simplified picture
+******* Full picture
+********* terminal is not an "active component"; instead queue is on a server instance basis
+********* shoveler add routing key
+
+***** Plugins
+********* The lifecycle of a plugin
+          1. The plugin configuration is read from stdin in json format.
+          2. The plugin prints its PID to stdout (so that runaway plugins can be
+             killed easily by the orchestrator).
+          3. The plugin initializes itself.
+          4. A worker thread or process is spawned by the main thread of the
+             plugin (this, or its children, will do the actual work).
+          4. The main thread blocks on reading stdout. As soon as stdout is closed
+             by the orchestrator the plugin kills itself and all spawned threads
+             or processes (this is the shutdown protocol; misbehaving plugins that
+             fail to shutdown if requested will be killed by sending a TERM signal
+             (verify) to the PID obtained in step 2).
+********* Plugin configuration
+: "configuration_specification": [
+:       {"label": "Regexp",
+:        "type": "string",
+:        "name": "regexp"
+:       },
+*********
+
+***** Writing Plugins Sinks/Sources (=Servers=) and =PipelineComponents=
+
+******* =plugin.js=
+#+BEGIN_SRC javascript
+// applies to both pipeline components and servers
+{ "name": "Some Plugin description",
+  "author": { "name":  "John Doe",
+              "email": "jondoe@example.tld" },
+  "type": "plugin-specification",
+  "harness": "java", // or "python" or "ruby"
+  "subtype": "pipeline_component", // or  "server"
+  "global_configuration_specification": [], // experimental, might disappear
+  /* the configuration that must be provided per plugin instance */
+  "configuration_specification":  [ { "name": "port", "label": "Port", "type": "Nat" }
+                                    // ...
+                                  ],
+  /* configuration per terminal (terminal ONLY) */
+  "destination_specification": [ { "name": "title", "label": "Title for RSS", "type": "String" }
+                                 // ...
+                               ],
+  /* configuration per terminal (terminal ONLY) */
+  "source_specification": [ { "name": "url", "label": "URL of RSS", "type": "URL" }
+                            // ...
+                          ],
+
+  /* configuration per feed component (feed_component ONLY) */
+  "inputs_specification": [ { "name": "input" }
+                            // ...
+                          ],
+  /* configuration per feed component (feed_component ONLY) */
+  "outputs_specification": [ { "name": "output" }
+                           //...
+                           ],
+   /* AWMS: again what's the point of this? Shouldn't this just be a bool? */
+  "database_specification": null // or {}  initial values for the per instance db
+}
+#+End_SRC
+
+
+***** Writing Harnesses to add plugin support for new languages
