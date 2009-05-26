@@ -1,33 +1,29 @@
 #+TITLE:     Getting Started with Feedshub
-#+AUTHOR:    LShift Inc
 #+DATE:      2009-05-22 Fri
 #+LANGUAGE:  en
 #+STARTUP: odd
-#+OPTIONS:   H:6 num:t toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
-#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc timestamp:t
-#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+OPTIONS:   H:4 num:t toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc timestamp:t author:nil
+#+INFOJS_OPT: view:overview toc:nil ltoc:t mouse:underline buttons:nil path:http://orgmode.org/org-info.js
 #+EXPORT_SELECT_TAGS: export
 #+EXPORT_EXCLUDE_TAGS: noexport
 #+LINK_UP:
 #+LINK_HOME:
 #+STYLE: <link rel="stylesheet" type="text/css" href="stylesheet.css" />
 
-
-* Getting started with Feedshub
-*** General Overview
+* General Overview
 
 Feedshub is a stream based-architecture conceived to bring order and
 manageability to the BBC's massive and increasingly unwieldy feed
-infrastructre.
+infrastructre (you can find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift blog]]).
 
 However the framework is very general and not limited to working with
 Atom/RSS/... Feeds (for example binary data can be handled efficiently as
 well). In a way you could think of Feedshub as a distributed, robust,
-scalable, secure, user-friendly and manageable version of Unix pipes (you can
-find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift blog]]).
-                                                                                                                      //The
+scalable, secure, user-friendly and manageable version of Unix pipes.
+
 The basic logical building blocks are /Sources/ and /Sinks/ (=Servers=) of
-data and /Feeds/ (NB: Feed in this sense has nothing to do with RSS/Atom/etc.;
+data and /Feeds/ (*NB:* Feed in this sense has nothing to do with RSS/Atom/etc.;
 /Processing Pipeline/ would be more accurate description) composed of
 =PipelineComponents= which can route (e.g. based on regexp matches on Atom
 feed entries) merge and transform the data in arbitrary ways (e.g. by applying
@@ -49,9 +45,9 @@ between components) as well as two proven off-the-shelf [[http://www.rabbitmq.co
 messaging broker which provides high-performance, fault-tolerant queued
 communication between components) and Apache's [[http://couchdb.apache.org/][CouchDB]] (which
 provides a store for configuration and persistent state for =Plugins= which
-require it)[fn:1]. (*FIXME* Erlang Blurp; e.g. supervisors)
+require it)[fn:1]. (*FIXME* [[http://erlang.org][Erlang Blurp]]; e.g. supervisors)
 
-*** Installation
+* Installation
 
 1. Install the runtime dependencies:
 #+BEGIN_SRC sh
@@ -72,7 +68,7 @@ make setup
 make all
 #+END_SRC
 
-*** Running and debugging
+* Running and debugging
 
 There are three components which need to be running: RabbitMQ , CouchDB (the
 database used for configuration and per-component state), and the
@@ -114,10 +110,24 @@ lost). Thus to quit any of the components, enter =q()= and press
 return in the shells. The Makefile targets take care of stopping the
 components as necessary.
 
-*** Developing
-***** Plugins
-******* =plugin.js=
-#+BEGIN_SRC javascript
+* Developing
+Although many of the core components of Feedshub are written in Erlang, relax!
+No Erlang skills are required for the most common development task: writing
+additional Sources/Sinks/Transformers ([[*Plugins][=Plugins=]]). The same is true for
+extending the set of languages that plugins can be written by writing
+additional [[*Harnesses][=Harnesses=]].
+
+For those who want to dig deeper into the [[*Feeshub Architecture][architecture of Feedshub]] it is
+useful to gain some familiarity with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (and [[http://www.rabbitmq.com][RabbitMQ]] in
+particular), [[http://couchdb.apache.org/][CouchDB]] and
+
+ - [[http://somic.org/d/samovskiy-amqp-rabbitmq-cohesiveft.pdf][A short presentation on AMQP and RabbitMQ]]
+
+*** TODO Plugins
+A good place to start for plugin development is
+***** =plugin.js=
+#+BEGIN_SRC js2
+File plugin.js =
 // applies to both pipeline components and servers
 { "name": "Some Plugin description",
   "author": { "name":  "John Doe",
@@ -152,29 +162,24 @@ components as necessary.
 }
 #+End_SRC
 
-********* The lifecycle of a plugin
-          1. The plugin configuration is read from stdin in json format.
-          2. The plugin prints its PID to stdout (so that runaway plugins can be
-             killed easily by the orchestrator).
-          3. The plugin initializes itself.
-          4. A worker thread or process is spawned by the main thread of the
-             plugin (this, or its children, will do the actual work).
-          4. The main thread blocks on reading stdout. As soon as stdout is closed
-             by the orchestrator the plugin kills itself and all spawned threads
-             or processes (this is the shutdown protocol; misbehaving plugins that
-             fail to shutdown if requested will be killed by sending a TERM signal
-             (verify) to the PID obtained in step 2).
-********* Plugin configuration
-: "configuration_specification": [
-:       {"label": "Regexp",
-:        "type": "string",
-:        "name": "regexp"
-:       },
-*********
+***** Writing Sinks/Sources (=Servers=)
+***** Writing =PipelineComponents=
+***** The lifecycle of a plugin
+      Although this information
 
-******* Writing Sinks/Sources (=Servers=)
-******* Writing =PipelineComponents=
-***** Writing Harnesses to add plugin support for new languages
+        1. The plugin configuration is read from stdin in json format.
+        2. The plugin prints its PID to stdout (so that runaway plugins can be
+           killed easily by the orchestrator).
+        3. The plugin initializes itself.
+        4. A worker thread or process is spawned by the main thread of the
+           plugin (this, or its children, will do the actual work).
+        4. The main thread blocks on reading stdout. As soon as stdout is closed
+           by the orchestrator the plugin kills itself and all spawned threads
+           or processes (this is the shutdown protocol; misbehaving plugins that
+           fail to shutdown if requested will be killed by sending a TERM signal
+           (verify) to the PID obtained in step 2).
+
+*** Writing Harnesses to add Plugin support for new languages
 Each environment (e.g., Java, Python) in which plugins run needs a
 harness.  Minimally, this is simply a shell script that starts a
 plugin process given a plugin name.
@@ -190,7 +195,7 @@ The set of harness and plugin conventions is currently a moving
 target; however, in general, the Python and Java harnesses (and this
 document) will be kept up-to-date.
 
-******* Harness invocation
+***** Harness invocation
 
 The type of the harness is indicated by the plugin descriptor
 =plugin.js= in the plugin directory.  The name is treated as a
@@ -232,7 +237,7 @@ sits, blocking on its =STDIN= file descriptor, and as soon as that
 file descriptor has been closed, the harness should terminate. This is
 the preferred means through which the Orchestrator stops plugins.
 
-******* Harness services
+***** Harness services
 
 The harness also provides convenience APIs for interacting with the
 system. In principle, following the invocation convention -- e.g., for
@@ -240,7 +245,7 @@ Python, providing a correctly-named module with a run(args) procedure
 -- is enough. But many details of the configuration can be taken care
 of for the plugin developer.
 
-********* Instance configuration
+******* Instance configuration
 
 An instance of the plugin may have configuration specific to that
 instance. (This is due to be tidied up)
@@ -248,7 +253,7 @@ instance. (This is due to be tidied up)
 This is supplied by the orchestrator, and should be exposed
 read-only to the plugin code.
 
-********* Channels
+******* Channels
 
 The plugin descriptor, =plugin.js=, specifies named input and output
 channels required by an instance of the plugin. E.g.,
@@ -285,8 +290,7 @@ plugin's fields for outputs, and dynamically looks up inputs, where
 the field names are the names of the channels given in the =plugin.js=
 specification.
 
-*********** Notifcation Channel
-
+********* Notification Channel
 Because the =STDOUT= file descriptor of the plugin is captured by the
 Orchestrator, it is not recommended to output text or debugging
 information though simply printing messages out. Instead, an
@@ -314,7 +318,7 @@ this exchange so that if you wish to treat messages sent by the plugin
 in its normal course of operation as transactional, then this does not
 force notification messages to also become transactional.
 
-******* State
+***** State
 
 A plugin instance gets a document in which to store its running
 state. This state will persist over restarts, and will be visible to
@@ -323,7 +327,7 @@ management interfaces. It should be exposed as read-write.
 TODO Avoiding conflicts -- maybe the state is the argument and result
 of any callback (and these are serialised)?
 
-******* Storage
+***** Storage
 
 The plugin descriptor can also specify a storage database private to
 each instance. The orchestrator provides the name of this database in
@@ -331,12 +335,13 @@ the initialisation configuration.
 
 TODO safe ways of exposing this to the plugin developer.
 
-***** The Architecture in more detail
+*** TODO The Feedshub Architecture in more detail
 #+CAPTION: Information flow (the /almost/ full picture)
 #+LABEL:   fig:flow-simplified
     [[./flow.png]]
 
-*** Administration
+
+* TODO Administration
 
 * Footnotes
 
