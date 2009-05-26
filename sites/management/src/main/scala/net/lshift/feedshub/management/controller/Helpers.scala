@@ -13,6 +13,8 @@ import scala.collection.mutable.Set
 import com.rabbitmq.client._
 import com.fourspaces.couchdb._
 
+
+// TODO: change to use liftweb.amqp (with custom consumer)
 trait ConfigListener {
     val ConfigExchange = "feedshub/config"
 
