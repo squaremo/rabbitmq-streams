@@ -1,5 +1,5 @@
 # make sure this is emacs23
-EMACS=emacs
+EMACS=$(shell which emacs-snapshot || which emacs)
 all: getting_started_dev.html
 setup:
 	sudo aptitude install emacs-snapshot emacs-goodies js2-mode
