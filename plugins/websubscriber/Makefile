@@ -2,10 +2,7 @@ sources=$(shell find src -type f -name "*.scala") pom.xml
 jarfile=archive-1.0.jar
 harness_jar=../../harness/java/feedshub_harness.jar
 
-# Dummy for now, so to not break the build
-all:
-
-#all: libs lib/$(jarfile)
+all: libs lib/$(jarfile)
 
 clean:
 	rm -rf target

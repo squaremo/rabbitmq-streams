@@ -15,7 +15,7 @@ import net.lshift.feedshub.harness.Logger
 import com.fourspaces.couchdb._
 
 import net.liftweb.util.ActorPing
-import net.liftweb.util.Helpers.intToTimeSpan
+import net.liftweb.util.Helpers._
 import java.util.concurrent.ScheduledFuture
 
 case object RetrieveNow
