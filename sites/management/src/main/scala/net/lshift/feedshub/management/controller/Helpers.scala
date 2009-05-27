@@ -30,7 +30,8 @@ trait ConfigListener {
                                               properties : AMQP.BasicProperties,
                                               body : Array[Byte]) = {
                       val tag = envelope.getDeliveryTag
-                      ConfigListener.this.handleConfigChange(envelope.getRoutingKey, new String(body))
+                      handleConfigChange(envelope.getRoutingKey, new String(body))
+                      println("Handle " + new String(body) + " sent to " + envelope.getRoutingKey)
                       channel.basicAck(tag, false)
                   }
         }
@@ -62,6 +63,7 @@ trait ConfigAwareActor extends ConfigListener {
             case "config change" => this ! ConfigChange(routingKey)
         }
     }
+    subscribeToConfigChanges
 }
 
 trait FeedsHubConfig {
