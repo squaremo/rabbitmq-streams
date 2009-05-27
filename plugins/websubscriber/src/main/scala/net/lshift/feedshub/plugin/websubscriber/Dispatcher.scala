@@ -32,19 +32,21 @@ class Dispatcher(log : Logger, terminalConfig : String => Document, terminalStat
                             if (! subscriptions.contains(id)) {
                                 val sub = new Subscription(log, stateFromConfig(id), saveSubscriptionState(id) _)
                                 subscriptions.incl(id -> sub)
-                                log.debug("Now listening to :" + subscriptions.toString)
                                 sub.start
                             }
+                            else log.debug(id + " already active")
                         }
                         else {
                             log.debug("Deactivating " + id)
                             subscriptions.get(id) match {
                                 case Some(sub) => {
-                                        subscriptions.excl(id) ;
+                                        subscriptions.excl(id)
                                         sub ! StopPolling
-                                }
+                                    }
+                                case None => ;
                             }
                         }
+                        log.debug("Now listening to :" + subscriptions.toString)
                         ack()
                     }
             }
@@ -56,8 +58,9 @@ class Dispatcher(log : Logger, terminalConfig : String => Document, terminalStat
         // Check the original URL against the configured one
         // Make a state documment and save it
         val config = terminalConfig(id)
-        val url = config.getString("url")
-        val interval = config.getInt("interval")
+        val sourceConfig = config.getJSONObject("source")
+        val url = sourceConfig.getString("url")
+        val interval = sourceConfig.getInt("interval")
         new State(url, url, 0, interval)
     }
 

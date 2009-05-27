@@ -9,10 +9,7 @@ import scala.actors.Actor._
 
 import net.sf.json._
 
-import java.util.Date
-
 import net.lshift.feedshub.harness.Logger
-import com.fourspaces.couchdb._
 
 import net.liftweb.util.ActorPing
 import net.liftweb.util.Helpers._
@@ -28,7 +25,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit) 
 
     def loop(alarm: ScheduledFuture[AnyRef],  state: State) {
         react {
-            case RetrieveNow => poll(state); loop(setAlarm(state), state)
+            case RetrieveNow => poll(state); loop(setAlarm(state.interval), state)
                 // don't try to interrupt something that's already running,
                 // just to avoid complication
             case StopPolling => alarm.cancel(false)
@@ -51,10 +48,13 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit) 
         log.debug(content)
     }
 
-    def setAlarm(state : State) : ScheduledFuture[AnyRef] = {
-        ActorPing.schedule(this, RetrieveNow, state.interval)
+    def setAlarm(seconds : Long) : ScheduledFuture[AnyRef] = {
+        log.debug("Setting alarm for " + seconds + " seconds")
+        val res = ActorPing.schedule(this, RetrieveNow, seconds * 1000)
+        //log.debug("Set alarm")
+        res
     }
 
-    private val firstAlarm = setAlarm(initialState) // make sure we set the alarm
+    private val firstAlarm = setAlarm(0) // make sure we set the alarm
     def act = loop(firstAlarm, initialState)
 }
