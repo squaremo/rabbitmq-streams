@@ -14,5 +14,6 @@
 ^plugins/archive/target/
 ^plugins/archive/lib/
 ^plugins/websubscriber/target/
+^plugins/websubscriber/lib/
 (^|/)nb-configuration\.xml$
 ^orch_log$
