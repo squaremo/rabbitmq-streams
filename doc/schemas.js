@@ -64,11 +64,13 @@ feedshub_status/abc123 (as a server)
 feedshub_config/abc123 (as a terminal)
 
 { type: "terminal" String
-  server: "abc123server" # the name of the server instance
-  destination: { name : value }
-  source: { name : value }
-  # must be provided if the _specification in the plugin.js is not empty,
-  # and correspond to the relevant sections in the plugin.js for the server
+  servers: [ {"server": "abc123server" # the name of the server instance
+              destination: { name : value }
+              source: { name : value }
+                # must be provided if the _specification in the plugin.js is not empty,
+                # and correspond to the relevant sections in the plugin.js for the server
+             } ...
+           ]
 }
 
 -----------------------
