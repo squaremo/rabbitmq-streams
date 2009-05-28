@@ -407,7 +407,8 @@ In particular
    one per server instance is less wasteful than having one per Terminal.
 
  - Similarly on the Egress side, there is a =Shoveler= process which takes
-   care, but can also be considered as an implementation detail.
+   care of transferring the feed data to the Terminals/Server but that can
+   also be considered as an implementation detail.
 
 * TODO Administration
 If you are not familiar with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (Advanced Message Queueing Protocol),
