@@ -20,9 +20,10 @@ setup: \
 	create-build-logs-dir \
 	install-couchdb \
 	install-erlang-rfc4627 \
+	install-ibrowse \
 	install-rabbitmq
 
-update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client
+update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
 all:
 	$(MAKE) -C orchestrator all
@@ -196,6 +197,30 @@ build/opt/erlang-rfc4627:
 		>> build/logs/build-erlang-rfc4627.txt 2>&1
 
 ###########################################################################
+# iBrowse
+
+install-ibrowse: build/src/jungerl build/opt/ibrowse
+
+update-ibrowse: build/src/jungerl
+	rm -rf build/opt/ibrowse
+	(cd build/src/jungerl && cvs update -Pd)
+	$(MAKE) build/opt/ibrowse
+
+build/src/jungerl:
+	@echo checking out jungerl
+	(mkdir -p build/src && cd build/src && \
+	 cvs -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
+	 cvs -z3 -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl co -P jungerl) \
+		> build/logs/clone-jungerl.txt 2>&1
+
+build/opt/ibrowse:
+	(cd build/src/jungerl/lib/ibrowse/src && $(MAKE)) \
+		> build/logs/build-ibrowse.txt 2>&1
+	(mkdir -p build/opt/ibrowse && \
+		cp -r build/src/jungerl/lib/ibrowse/ebin build/opt/ibrowse) \
+		>> build/logs/build-ibrowse.txt 2>&1
+
+###########################################################################
 # RabbitMQ
 
 install-rabbitmq: \
@@ -261,4 +286,4 @@ install-dev-debs:
 	- sudo apt-get install automake autoconf libtool help2man netcat-openbsd \
 	                       build-essential erlang libicu38 libicu-dev \
 	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
-	                       elinks python-json python-simplejson
+	                       elinks python-json python-simplejson cvs
