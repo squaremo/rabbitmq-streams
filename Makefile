@@ -1,4 +1,5 @@
 SHELL=/bin/bash
+RABBITMQCTL="build/opt/rabbitmq/sbin/rabbitmqctl -q"
 
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
@@ -79,6 +80,13 @@ full_reset_core:
 
 create-build-logs-dir:
 	mkdir -p build/logs
+
+create_fresh_accounts:
+	@echo 'Re-initializing RabbitMQ with fresh `guest` and `feedshub_admin` accounts'
+	@$(RABBITMQCTL) delete_user guest
+	@$(RABBITMQCTL) add_user feedshub_admin feedshub_admin
+	@$(RABBITMQCTL) set_permissions feedshub_admin '.*' '.*' '.*'
+
 
 ###########################################################################
 # Run alternatives which don't create xterms unless you want them to
