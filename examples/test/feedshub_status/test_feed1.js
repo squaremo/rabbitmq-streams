@@ -21,7 +21,7 @@
 	      "terminal": "archive_destination"
 	    },
 	    "the_relay": {
-	      "terminal": "relay_destination"
+	      "terminal": "relay"
             },
 	    "the_socket_output": {
 	      "terminal": "socket_destination_12345"

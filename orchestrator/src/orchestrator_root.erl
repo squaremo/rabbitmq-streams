@@ -212,11 +212,14 @@ check_active_feeds(Connection) ->
     ok.
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
-    case orchestrator_server:find_server_for_terminal(TermId) of
-	{ok, ServerId} ->
+    case orchestrator_server:find_servers_for_terminal(TermId) of
+	{ok, ServerIds} ->
 	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
-	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME,
-			     list_to_binary(binary_to_list(ServerId) ++ "." ++ binary_to_list(TermId)),
+            RK = lists:foldl(fun (Sid, Acc) ->
+                                     binary_to_list(Sid) ++ [$.|Acc]
+                             end, [], ServerIds) ++
+                binary_to_list(TermId),
+	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME, list_to_binary(RK),
 			     <<"status change">>, Props);
 	Err ->
 	    error_logger:error_report({?MODULE, thing_terminal, Err, TermId})

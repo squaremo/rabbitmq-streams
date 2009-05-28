@@ -4,7 +4,7 @@
 
 -export([start_link/9]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([find_server_for_terminal/1]).
+-export([find_servers_for_terminal/1]).
 
 -include("orchestrator.hrl").
 -include("rabbit.hrl").
@@ -21,17 +21,23 @@ start_link(ServerSupPid, ServerId,
 				    EgressChannel, EgressBroker,
 				    RootPid], []).
 
-find_server_for_terminal(TermId) when is_binary(TermId) ->
+find_servers_for_terminal(TermId) when is_binary(TermId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
 	{ok, Doc} ->
-	    case rfc4627:get_field(Doc, "server") of
-		{ok, Server} -> {ok, Server};
+	    case rfc4627:get_field(Doc, "servers") of
+		{ok, Servers} -> ServerNames =
+                                     lists:map(fun (Server) ->
+                                                       {ok, ServerName} =
+                                                           rfc4627:get_field(Server, "server"),
+                                                       ServerName
+                                               end, Servers),
+                                 {ok, ServerNames};
 		Err ->
-		    error_logger:error_report({?MODULE, find_server_for_terminal, Err, TermId}),
+		    error_logger:error_report({?MODULE, find_servers_for_terminal, Err, TermId}),
 		    not_found
 	    end;
 	Err2 ->
-	    error_logger:error_report({?MODULE, find_server_for_terminal, Err2, TermId}),
+	    error_logger:error_report({?MODULE, find_servers_for_terminal, Err2, TermId}),
 	    not_found
     end.
 
@@ -89,7 +95,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
     CommandQueueNameBin = list_to_binary(CommandQueueName),
     amqp_channel:call(PipelineChannel, #'queue.declare'{queue = CommandQueueNameBin,
 							durable = false}),
-    CQRK = list_to_binary(ServerId ++ ".*"),
+    CQRK = list_to_binary("#." ++ ServerId ++ ".#.*"),
     lib_amqp:bind_queue(PipelineChannel, ?FEEDSHUB_CONFIG_XNAME,
 			CommandQueueNameBin, CQRK),
 
@@ -102,12 +108,12 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		OutNameBin = list_to_binary(ServerId ++ "_output"),
 		amqp_channel:call(EgressChannel,
 				  #'exchange.declare'{exchange = OutNameBin,
-						      type = <<"topic">>,
+						      type = <<"fanout">>,
 						      durable = true}),
 		amqp_channel:call(EgressChannel,
 				  #'queue.declare'{queue = OutNameBin,
 						   durable = true}),
-		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<"#">>),
+		lib_amqp:bind_queue(EgressChannel, OutNameBin, OutNameBin, <<>>),
 
 
 		{obj, [{"input", OutNameBin}, CommandElem]};
@@ -120,7 +126,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 		InNameBin = list_to_binary(ServerId ++ "_input"),
 		amqp_channel:call(IngressChannel,
 				  #'exchange.declare'{exchange = InNameBin,
-						      type = <<"topic">>,
+						      type = <<"fanout">>,
 						      durable = true}),
 		amqp_channel:call(IngressChannel,
 				  #'queue.declare'{queue = InNameBin,
@@ -148,7 +154,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 			       error
 		    end,
 
-		shovel:bind_source_to_exchange(Pid2, {InNameBin, <<"#">>}, keep),
+		shovel:bind_source_to_exchange(Pid2, {InNameBin, <<>>}, keep),
 			
 		{Pid2, {obj, [{"output", InNameBin}]}};
 	_ -> {undefined, {obj, []}}

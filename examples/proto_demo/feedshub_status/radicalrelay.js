@@ -1,6 +1,7 @@
 {
     "type": "terminal",
-    "server": "relay",
-    "source": {},
-    "destination": {}
+    "servers": [ {"server": "relay",
+                  "source": {},
+                  "destination": {}}
+               ]
 }

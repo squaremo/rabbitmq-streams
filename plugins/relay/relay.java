@@ -4,6 +4,7 @@ import java.util.Set;
 
 import net.lshift.feedshub.harness.InputReader;
 import net.lshift.feedshub.harness.Server;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Document;
@@ -18,28 +19,32 @@ public class relay extends Server {
         public void handleDelivery(Delivery message) throws Exception {
 
             String serverIdterminalId = message.getEnvelope().getRoutingKey();
-            int loc = serverIdterminalId.indexOf('.');
-            String serverId = serverIdterminalId.substring(0, loc);
+            int loc = serverIdterminalId.lastIndexOf('.');
+            String serverIds = serverIdterminalId.substring(0, loc);
             String terminalId = serverIdterminalId.substring(loc + 1);
 
             Document terminalConfig = relay.this.terminalConfig(terminalId);
             Document terminalStatus = relay.this.terminalStatus(terminalId);
 
-            String serverIdFromTerminalConfig = terminalConfig
-                    .getString("server");
-
-            if (!serverId.equals(relay.this.config.getString("server_id"))) {
+            String serverIdFromConfig = relay.this.config
+                    .getString("server_id");
+            if (!serverIds.contains(serverIdFromConfig)) {
                 relay.this.log.fatal("Received a terminal status change "
-                        + "message which was not routed for us: "
-                        + serverIdFromTerminalConfig);
+                        + "message which was not routed for us: " + serverIds);
                 return;
             }
 
-            if (!serverIdFromTerminalConfig.equals(relay.this.config
-                    .getString("server_id"))) {
+            JSONArray terminalServers = terminalConfig.getJSONArray("servers");
+            boolean found = false;
+            for (int idx = 0; !found && idx < terminalServers.size(); ++idx) {
+                found = terminalServers.getJSONObject(idx).getString("server")
+                        .equals(serverIdFromConfig);
+            }
+
+            if (!found) {
                 relay.this.log.fatal("Received a terminal status change "
                         + "message for a terminal which isn't "
-                        + "configured for us: " + serverIdFromTerminalConfig);
+                        + "configured for us: " + terminalServers);
                 return;
             }
 

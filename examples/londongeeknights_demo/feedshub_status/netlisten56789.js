@@ -1,5 +1,6 @@
 {
     "type": "terminal",
-    "server": "netlistener",
-    "source": {"port": 56789}
+    "servers": [ {"server": "netlistener",
+                  "source": {"port": 56789}}
+               ]
 }

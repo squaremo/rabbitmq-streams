@@ -1,5 +1,6 @@
 {
     "type": "terminal",
-    "server": "archiver",
-    "destination": {"title": "Not about Rabbit"}
+    "servers": [ {"server": "archiver",
+                  "destination": {"title": "Not about Rabbit"}}
+               ]
 }

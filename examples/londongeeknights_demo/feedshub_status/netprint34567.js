@@ -1,5 +1,6 @@
 {
     "type": "terminal",
-    "server": "netprinter",
-    "destination": {"port": 34567, "host": "localhost"}
+    "servers": [ {"server": "netprinter",
+                  "destination": {"port": 34567, "host": "localhost"}}
+               ]
 }
