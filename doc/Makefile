@@ -9,8 +9,9 @@ getting_started_dev.html: getting_started_dev.org stylesheet.css
 
 bitmaps: *.dia
 	for f in $?; do \
-		dia "$$f" --export=`basename $$f .dia`.png -s 714x495; \
+		dia "$$f" --export=`basename $$f .dia`.png; \
+		gm mogrify -resize '50%' `basename $$f .dia`.png; \
 	done
-	gm mogrify -crop 714x339 flow-simplified.png
+	gm mogrify -crop 'x339' flow-simplified.png
 
 .PHONY: setup all bitmaps
