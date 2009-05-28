@@ -40,7 +40,7 @@ feedshub_status/abc123 (as a feed)
             "node_name_for_terminal" :
                           { terminal : "abc123" String # the terminal name }
             },
-        wiring : [
+        edges : [
               {from: {node: "node_name", channel: "output"}, to: {node: "node_name2", channel: "input"}},
               {from: {node: "node_name", channel: "output"}, to: {node: "node_name_for_terminal"}}, # use terminal as output
               {from: {node: "node_name_for_terminal"}, to: {node: "node_name2", channel: "input"}}, # use terminal as input
