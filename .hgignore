@@ -17,3 +17,4 @@
 ^plugins/websubscriber/lib/
 (^|/)nb-configuration\.xml$
 ^orch_log$
+/.libs-done$
