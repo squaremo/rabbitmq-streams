@@ -2,13 +2,16 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import net.lshift.feedshub.harness.InputReader;
 import net.lshift.feedshub.harness.Server;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Document;
@@ -16,15 +19,17 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class socket_destination extends Server {
 
-    private final Map<String, SocketDestination> terminalMap = new HashMap<String, SocketDestination>();
+    private final Map<String, List<SocketDestination>> terminalMap = new HashMap<String, List<SocketDestination>>();
 
     public final InputReader input = new InputReader() {
 
         public void handleDelivery(Delivery message) throws Exception {
             String terminalId = message.getEnvelope().getRoutingKey();
-            SocketDestination dest = terminalMap.get(terminalId);
-            if (null != dest) {
-                dest.send(message.getBody());
+            List<SocketDestination> dests = terminalMap.get(terminalId);
+            if (null != dests && 0 != dests.size()) {
+                for (SocketDestination dest : dests) {
+                    dest.send(message.getBody());
+                }
             }
             socket_destination.this.ack(message);
         }
@@ -35,8 +40,8 @@ public class socket_destination extends Server {
         public void handleDelivery(Delivery message) throws Exception {
 
             String serverIdterminalId = message.getEnvelope().getRoutingKey();
-            int loc = serverIdterminalId.indexOf('.');
-            String serverId = serverIdterminalId.substring(0, loc);
+            int loc = serverIdterminalId.lastIndexOf('.');
+            String serverIds = serverIdterminalId.substring(0, loc);
             String terminalId = serverIdterminalId.substring(loc + 1);
 
             Document terminalConfig = socket_destination.this
@@ -44,46 +49,63 @@ public class socket_destination extends Server {
             Document terminalStatus = socket_destination.this
                     .terminalStatus(terminalId);
 
-            String serverIdFromTerminalConfig = terminalConfig
-                    .getString("server");
-
-            if (!serverId.equals(socket_destination.this.config
-                    .getString("server_id"))) {
+            String serverIdFromConfig = socket_destination.this.config
+                    .getString("server_id");
+            if (!serverIds.contains(serverIdFromConfig)) {
                 socket_destination.this.log
                         .fatal("Received a terminal status change "
                                 + "message which was not routed for us: "
-                                + serverIdFromTerminalConfig);
+                                + serverIds);
                 return;
             }
 
-            if (!serverIdFromTerminalConfig
-                    .equals(socket_destination.this.config
-                            .getString("server_id"))) {
+            JSONArray terminalServers = terminalConfig.getJSONArray("servers");
+            boolean found = false;
+            List<JSONObject> termConfigObjects = new ArrayList<JSONObject>();
+            for (int idx = 0; idx < terminalServers.size(); ++idx) {
+                JSONObject obj = terminalServers.getJSONObject(idx);
+                boolean match = obj.getString("server").equals(
+                        serverIdFromConfig);
+                found = found || match;
+                if (match) {
+                    termConfigObjects.add(obj.getJSONObject("destination"));
+                }
+            }
+
+            if (!found) {
                 socket_destination.this.log
                         .fatal("Received a terminal status change "
                                 + "message for a terminal which isn't "
-                                + "configured for us: "
-                                + serverIdFromTerminalConfig);
+                                + "configured for us: " + terminalServers);
                 return;
             }
 
             socket_destination.this.log
                     .info("Received terminal status change for " + terminalId);
 
-            SocketDestination source = terminalMap.get(terminalId);
             if (terminalStatus.getBoolean("active")) {
-                if (null == source) {
+                List<SocketDestination> sources = terminalMap.get(terminalId);
+                if (null == sources || 0 == sources.size()) {
                     try {
-                        source = new SocketDestination(terminalConfig);
-                        terminalMap.put(terminalId, source);
-                        new Thread(source).start();
+                        sources = new ArrayList<SocketDestination>(
+                                termConfigObjects.size());
+                        for (JSONObject termConfigObject : termConfigObjects) {
+                            SocketDestination source = new SocketDestination(
+                                    termConfigObject);
+                            sources.add(source);
+                            new Thread(source).start();
+                        }
+                        terminalMap.put(terminalId, sources);
                     } catch (IOException e) {
-                        log.error(e);
+                        socket_destination.this.log.error(e);
                     }
                 }
             } else {
-                if (null != source) {
-                    source.stop();
+                List<SocketDestination> sources = terminalMap.remove(terminalId);
+                if (null != sources && 0 != sources.size()) {
+                    for (SocketDestination source : sources) {
+                        source.stop();
+                    }
                 }
             }
 
@@ -107,12 +129,9 @@ public class socket_destination extends Server {
         final private Object lockObj = new Object();
         private boolean running = true;
 
-        public SocketDestination(Document terminalConfig) throws IOException {
-            JSONObject destinationConfig = terminalConfig
-                    .getJSONObject("destination");
-            port = destinationConfig.getInt("port");
-            address = InetAddress
-                    .getByName(destinationConfig.getString("host"));
+        public SocketDestination(JSONObject terminalConfig) throws IOException {
+            port = terminalConfig.getInt("port");
+            address = InetAddress.getByName(terminalConfig.getString("host"));
             socket = new Socket(address, port);
             socketOutputStream = socket.getOutputStream();
         }

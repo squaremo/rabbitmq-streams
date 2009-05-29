@@ -80,21 +80,19 @@ get_view_rows(DbName, ViewCollectionName, ViewName) ->
 
 %%---------------------------------------------------------------------------
 
-request(Method, Url) ->
-    request1(Method, {Url, []}).
+request(Method, URL) ->
+    request1(URL, [], Method, [], []).
 
-request(Method, Url, undefined) ->
-    request1(Method, {Url, [], [], []});
-request(Method, Url, Term) ->
-    request1(Method, {Url, [], "application/json", rfc4627:encode(Term)}).
+request(Method, URL, undefined) ->
+    request1(URL, [], Method, [], []);
+request(Method, URL, Term) ->
+    request1(URL, [], Method, rfc4627:encode(Term), [{centont_type, "application/json"}]).
 
-request1(Method, Request) ->
-    process_response(http:request(Method, Request, [], [], couchProfile)).
+request1(URL, Headers, Method, Body, Options) ->
+    process_response(ibrowse:send_req(URL, Headers, Method, Body, Options)).
 
-process_response({ok, {{_HttpVersion, StatusCode, _StatusLine}, _Headers, Body}}) ->
-    process_json_response(StatusCode, Body);
-process_response({ok, {StatusCode, Body}}) ->
-    process_json_response(StatusCode, Body);
+process_response({ok, StatusCodeStr, _Headers, Body}) ->
+    process_json_response(list_to_integer(StatusCodeStr), Body);
 process_response(E = {error, _}) ->
     E.
 

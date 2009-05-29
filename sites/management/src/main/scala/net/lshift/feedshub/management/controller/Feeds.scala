@@ -36,7 +36,7 @@ class FeedDefinition
  */
 object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with ObservableActor[UpdateFeedList] {
 
-    override def bindingKey : String = "*" // only things with one component
+    override def bindingKey : String = "#" // only things with one component
 
     val StatusView = "feeds/all"
 
@@ -82,13 +82,13 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
     }
 
     protected val handleCommands : PartialFunction[Any, Unit] = {
-        case ListFeeds() => reply(UpdateFeedList(feeds)) // FIXME do we need this?
         case AddFeed(dfn) =>
             // put the definition in CouchDB
             notifyOfUpdate
-        case StartFeed(id) => startFeed(id); notifyOfUpdate
-        case StopFeed(id) => stopFeed(id); notifyOfUpdate
+        case StartFeed(id) => startFeed(id)
+        case StopFeed(id) => stopFeed(id)
         case StatusChange(id) =>
+            println("Status change " + id)
             readFeedStatus; notifyOfUpdate
         case ConfigChange(id) =>
             true // ignore for the minute

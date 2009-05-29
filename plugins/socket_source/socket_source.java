@@ -3,11 +3,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.lshift.feedshub.harness.InputReader;
 import net.lshift.feedshub.harness.Server;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import com.fourspaces.couchdb.Document;
@@ -15,15 +18,15 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class socket_source extends Server {
 
-    private final Map<String, SocketSource> terminalMap = new HashMap<String, SocketSource>();
+    private final Map<String, List<SocketSource>> terminalMap = new HashMap<String, List<SocketSource>>();
 
     public final InputReader command = new InputReader() {
 
         public void handleDelivery(Delivery message) throws Exception {
 
             String serverIdterminalId = message.getEnvelope().getRoutingKey();
-            int loc = serverIdterminalId.indexOf('.');
-            String serverId = serverIdterminalId.substring(0, loc);
+            int loc = serverIdterminalId.lastIndexOf('.');
+            String serverIds = serverIdterminalId.substring(0, loc);
             String terminalId = serverIdterminalId.substring(loc + 1);
 
             Document terminalConfig = socket_source.this
@@ -31,41 +34,59 @@ public class socket_source extends Server {
             Document terminalStatus = socket_source.this
                     .terminalStatus(terminalId);
 
-            String serverIdFromTerminalConfig = terminalConfig
-                    .getString("server");
-
-            if (!serverId.equals(socket_source.this.config
-                    .getString("server_id"))) {
+            String serverIdFromConfig = socket_source.this.config
+                    .getString("server_id");
+            if (!serverIds.contains(serverIdFromConfig)) {
                 socket_source.this.log
                         .fatal("Received a terminal status change "
                                 + "message which was not routed for us: "
-                                + serverIdFromTerminalConfig);
+                                + serverIds);
                 return;
             }
 
-            if (!serverIdFromTerminalConfig.equals(socket_source.this.config
-                    .getString("server_id"))) {
+            JSONArray terminalServers = terminalConfig.getJSONArray("servers");
+            boolean found = false;
+            List<JSONObject> termConfigObjects = new ArrayList<JSONObject>();
+            for (int idx = 0; idx < terminalServers.size(); ++idx) {
+                JSONObject obj = terminalServers.getJSONObject(idx);
+                boolean match = obj.getString("server").equals(
+                        serverIdFromConfig);
+                found = found || match;
+                if (match) {
+                    termConfigObjects.add(obj.getJSONObject("source"));
+                }
+            }
+
+            if (!found) {
                 socket_source.this.log
                         .fatal("Received a terminal status change "
                                 + "message for a terminal which isn't "
-                                + "configured for us: "
-                                + serverIdFromTerminalConfig);
+                                + "configured for us: " + terminalServers);
                 return;
             }
 
             socket_source.this.log.info("Received terminal status change for "
                     + terminalId);
 
-            SocketSource source = terminalMap.get(terminalId);
             if (terminalStatus.getBoolean("active")) {
-                if (null == source) {
-                    source = new SocketSource(terminalConfig);
-                    terminalMap.put(terminalId, source);
-                    new Thread(source).start();
+                List<SocketSource> sources = terminalMap.get(terminalId);
+                if (null == sources || 0 == sources.size()) {
+                    sources = new ArrayList<SocketSource>(termConfigObjects
+                            .size());
+                    for (JSONObject termConfigObject : termConfigObjects) {
+                        SocketSource source = new SocketSource(
+                                termConfigObject, terminalId);
+                        sources.add(source);
+                        new Thread(source).start();
+                    }
+                    terminalMap.put(terminalId, sources);
                 }
             } else {
-                if (null != source) {
-                    source.stop();
+                List<SocketSource> sources = terminalMap.remove(terminalId);
+                if (null != sources && 0 != sources.size()) {
+                    for (SocketSource source : sources) {
+                        source.stop();
+                    }
                 }
             }
 
@@ -86,10 +107,11 @@ public class socket_source extends Server {
         final private Thread worker;
         private boolean running = true;
         private Socket sock = null;
+        private ServerSocket server = null;
 
-        public SocketSource(Document terminalConfig) {
-            port = terminalConfig.getJSONObject("source").getInt("port");
-            termId = terminalConfig.getId();
+        public SocketSource(JSONObject termConfigObject, String terminalId) {
+            port = termConfigObject.getInt("port");
+            termId = terminalId;
             worker = Thread.currentThread();
         }
 
@@ -101,13 +123,11 @@ public class socket_source extends Server {
 
         public void run() {
             try {
-                ServerSocket server = new ServerSocket(port);
+                server = new ServerSocket(port);
                 server.setReuseAddress(true);
                 StringBuilder sb = new StringBuilder();
                 while (isRunning()) {
-                    synchronized (lockObj) {
-                        sock = server.accept();
-                    }
+                    sock = server.accept();
                     BufferedReader r = new BufferedReader(
                             new InputStreamReader(sock.getInputStream()));
                     String line = r.readLine();
@@ -121,22 +141,36 @@ public class socket_source extends Server {
                     }
                     sock.close();
                 }
-                server.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                socket_source.this.log.warn(e);
+            } finally {
+                try {
+                    if (null != sock) {
+                        sock.close();
+                    }
+                    if (null != server) {
+                        server.close();
+                    }
+                } catch (IOException e2) {
+                    socket_source.this.log.warn(e2);
+                }
             }
         }
 
         public void stop() {
             synchronized (lockObj) {
-                running = false;
-                if (null != sock) {
-                    try {
-                        sock.close();
-                    } catch (IOException e) {
-                    }
-                }
                 worker.interrupt();
+                running = false;
+                try {
+                    if (null != sock) {
+                        sock.close();
+                    }
+                    if (null != server) {
+                        server.close();
+                    }
+                } catch (IOException e) {
+                    socket_source.this.log.warn(e);
+                }
             }
         }
     }

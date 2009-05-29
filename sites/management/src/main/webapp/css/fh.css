@@ -232,3 +232,36 @@ p.logs {
     padding-top: 12px;
 }
 
+table#feeds-list,
+table#terminals-list {
+  background-color: #eee;
+  border: 1px solid #ccc;
+  font-family:arial;
+  font-size:12px
+  margin:10px 0 15px;
+  text-align:left;
+  width:100%;
+    color:#3D3D3D;
+}
+table#feeds-list tr th, table#feeds-list tfoot tr th,
+table#terminals-list tr th, table#terminals-list tfoot tr th {
+  background-color:#eee;
+  border:1px solid #ccc;
+  font-size:12px
+  padding:4px;
+    color:#3D3D3D;
+}
+  table.tablesorter tbody td {
+    background-color:#FFFFFF;
+/*     color:#333; */
+    padding:4px;
+    vertical-align:top;
+}
+
+table#feeds-list thead tr .headerSortDown, table#feeds-list thead tr .headerSortUp,
+table#terminals-list thead tr .headerSortDown, table#terminals-list thead tr .headerSortUp {
+    background-color:#aaa;
+}
+table#terminals-list thead tr .headerSortDown {
+    background-image:url(desc.gif);
+}

@@ -9,10 +9,14 @@
 \.class$
 ^harness/java/feedshub_harness\.jar$
 # target directories are a Maven thing
-^site/target/
-^site/.*\.timestamp$
+^sites/.*/target/
+^sites/.*/.*\.timestamp$
 ^plugins/archive/target/
 ^plugins/archive/lib/
+^plugins/websubscriber/target/
+^plugins/websubscriber/lib/
 (^|/)nb-configuration\.xml$
 ^orch_log$
 ^doc/.*html$
+/.libs-done$
+

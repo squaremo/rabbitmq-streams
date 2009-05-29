@@ -182,9 +182,16 @@ activate_server(ServerId, Args) ->
 deactivate_server(ServerId, _Args) ->
     deactivate_thing(ServerId).
 
+id_from_status(Status) ->
+    case lists:reverse(Status) of
+        "sutats_" ++ T ->
+            lists:reverse(T);
+        NoStatusSuffix ->
+            NoStatusSuffix %% FIXME: this silently assumes that it was called mistakenly
+    end.
+
 check_active_servers(Channel, Connection) ->
-    ServerIds = [lists:takewhile(fun (C) -> C /= $_ end,
-				 binary_to_list(rfc4627:get_field(R, "id", undefined)))
+    ServerIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
 		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
     lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
@@ -199,18 +206,20 @@ deactivate_feed(FeedId, _Args) ->
     deactivate_thing(FeedId).
 
 check_active_feeds(Connection) ->
-    FeedIds = [lists:takewhile(fun (C) -> C /= $_ end,
-			       binary_to_list(rfc4627:get_field(R, "id", undefined)))
+    FeedIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
                || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
     lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection]) end, FeedIds),
     ok.
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
-    case orchestrator_server:find_server_for_terminal(TermId) of
-	{ok, ServerId} ->
+    case orchestrator_server:find_servers_for_terminal(TermId) of
+	{ok, ServerIds} ->
 	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
-	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME,
-			     list_to_binary(binary_to_list(ServerId) ++ "." ++ binary_to_list(TermId)),
+            RK = lists:foldl(fun (Sid, Acc) ->
+                                     binary_to_list(Sid) ++ [$.|Acc]
+                             end, [], ServerIds) ++
+                binary_to_list(TermId),
+	    lib_amqp:publish(Channel, ?FEEDSHUB_CONFIG_XNAME, list_to_binary(RK),
 			     <<"status change">>, Props);
 	Err ->
 	    error_logger:error_report({?MODULE, thing_terminal, Err, TermId})
@@ -220,8 +229,7 @@ activate_terminal(TermId, Channel) ->
 
 check_active_terminals(Channel) ->
     TermIds =
-	[lists:takewhile(fun (C) -> C /= $_ end,
-			  binary_to_list(rfc4627:get_field(R, "id", undefined)))
+	[id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
 	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.

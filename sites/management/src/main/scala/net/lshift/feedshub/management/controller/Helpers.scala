@@ -13,6 +13,8 @@ import scala.collection.mutable.Set
 import com.rabbitmq.client._
 import com.fourspaces.couchdb._
 
+
+// TODO: change to use liftweb.amqp (with custom consumer)
 trait ConfigListener {
     val ConfigExchange = "feedshub/config"
 
@@ -28,7 +30,8 @@ trait ConfigListener {
                                               properties : AMQP.BasicProperties,
                                               body : Array[Byte]) = {
                       val tag = envelope.getDeliveryTag
-                      ConfigListener.this.handleConfigChange(envelope.getRoutingKey, new String(body))
+                      handleConfigChange(envelope.getRoutingKey, new String(body))
+                      println("Handle " + new String(body) + " sent to " + envelope.getRoutingKey)
                       channel.basicAck(tag, false)
                   }
         }
@@ -60,6 +63,7 @@ trait ConfigAwareActor extends ConfigListener {
             case "config change" => this ! ConfigChange(routingKey)
         }
     }
+    subscribeToConfigChanges
 }
 
 trait FeedsHubConfig {

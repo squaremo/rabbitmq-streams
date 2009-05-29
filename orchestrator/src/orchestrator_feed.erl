@@ -85,41 +85,51 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
     {ok, FromJson} = rfc4627:get_field(EdgeJson, "from"),
     {ok, ToJson} = rfc4627:get_field(EdgeJson, "to"),
     {ok, FromNode} = rfc4627:get_field(FromJson, "node"),
-    {Exchange, RK} =
+    {Exchanges, RK} =
 	case rfc4627:get_field(FromJson, "channel") of
-	    {ok, FromChannel} -> {list_to_binary(resource_name(FeedId, FromNode, FromChannel)), <<>>};
-	    _ -> %% reading from a terminal. But we need to find the server
+	    {ok, FromChannel} -> {[list_to_binary(resource_name(FeedId, FromNode, FromChannel))], <<>>};
+	    _ -> %% reading from a terminal. But we need to find the servers
 		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)),
 		{ok, TerminalName} = rfc4627:get_field(TerminalNode, "terminal"),
-		{ok, ServerName} = orchestrator_server:find_server_for_terminal(TerminalName),
-		{ServerName, TerminalName}
+		{ok, ServerNames} = orchestrator_server:find_servers_for_terminal(TerminalName),
+		{ServerNames, TerminalName}
 	end,
     {ok, ToNode} = rfc4627:get_field(ToJson, "node"),
     case rfc4627:get_field(ToJson, "channel") of
 	{ok, ToChannel} -> %% destination is a pipeline component, which will have a normal input queue. Bind
 	    Queue = list_to_binary(resource_name(FeedId, ToNode, ToChannel)),
-	    lib_amqp:bind_queue(Channel, Exchange, Queue, RK);
+            lists:foreach(fun (Exchange) ->
+                                  lib_amqp:bind_queue(Channel, Exchange, Queue, RK)
+                          end, Exchanges);
 	_ -> %% destination is a terminal, we want to start up a shovel to connect the output exchange
 	    {ok, TerminalNode2} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(ToNode)),
 	    {ok, TerminalName2} = rfc4627:get_field(TerminalNode2, "terminal"),
-	    {ok, ServerName2} = orchestrator_server:find_server_for_terminal(TerminalName2),
-	    ExchangeName2 = list_to_binary(binary_to_list(ServerName2) ++ "_output"),
-	    {ok, Pid} =
-		case supervisor:start_child(PluginSupPid,
-					    {binary_to_list(Exchange) ++ "_" ++binary_to_list(TerminalName2),
-					     {shovel, start_link, [PipelineBroker, undefined,
-								   EgressBroker, ExchangeName2]},
-					     permanent,
-					     brutal_kill,
-					     worker,
-					     [shovel]
-					    }) of
-		    {ok, Pid2} -> {ok, Pid2};
-		    {error, {already_started, Pid2}} -> {ok, Pid2};
-		    Err -> error_logger:error_report({?MODULE, bind_edges, FeedId, Err}),
-			   error
-		end,
-	    ok = shovel:bind_source_to_exchange(Pid, {Exchange, RK}, TerminalName2)
+	    {ok, ServerNames2} = orchestrator_server:find_servers_for_terminal(TerminalName2),
+            lists:foreach(
+              fun (ServerName2) ->
+                      ExchangeName2 = list_to_binary(binary_to_list(ServerName2) ++ "_output"),
+                      lists:foreach(
+                        fun (Exchange) ->
+                                {ok, Pid} =
+                                    case supervisor:start_child(
+                                           PluginSupPid,
+                                           {binary_to_list(Exchange) ++ "_" ++
+                                            binary_to_list(ExchangeName2),
+                                            {shovel, start_link, [PipelineBroker, undefined,
+                                                                  EgressBroker, ExchangeName2]},
+                                            permanent,
+                                            brutal_kill,
+                                            worker,
+                                            [shovel]
+                                           }) of
+                                        {ok, Pid2} -> {ok, Pid2};
+                                        {error, {already_started, Pid2}} -> {ok, Pid2};
+                                        Err -> error_logger:error_report({?MODULE, bind_edges, FeedId, Err}),
+                                               error
+                                    end,
+                                ok = shovel:bind_source_to_exchange(Pid, {Exchange, RK}, TerminalName2)
+                        end, Exchanges)
+              end, ServerNames2)
     end.
 
 node_configuration(Channel, FeedId, {NodeId, NodeSpecJson}) ->

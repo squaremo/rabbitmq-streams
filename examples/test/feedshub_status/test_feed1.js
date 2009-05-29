@@ -3,7 +3,7 @@
     "wiring": {
 	"nodes": {
 	    "the_input1": {
-	      "terminal": "fbc1a57519d773628a67701036d0e3f6c6459a38"
+	      "terminal": "socket_source_45678"
 	    },
 	    "the_logger": {
 	      "type": "logger"
@@ -18,13 +18,13 @@
 				 }
 	    },
 	    "the_archiver": {
-	      "terminal": "7d2a9f159071e1c6f6edaccb59ae5f9c80688b6c"
+	      "terminal": "archive_destination"
 	    },
 	    "the_relay": {
-	      "terminal": "d4bcd34acd92a9cad22b394de6b599f538685be2"
+	      "terminal": "relay"
             },
 	    "the_socket_output": {
-	      "terminal": "09f99bf874bd489fad3323254e709371dbd56987"
+	      "terminal": "socket_destination_12345"
             }
 	},
 	"edges": [

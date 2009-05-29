@@ -13,6 +13,7 @@ import scala.actors.Actor
 import scala.actors.Actor._
 import com.rabbitmq.client._
 
+// FIXME: Make this an enumeration?
 class LogLevel {
     def andUp = LogLevel.downTo(this)
     def andDown = LogLevel.upFrom(this)

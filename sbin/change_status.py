@@ -37,9 +37,11 @@ if statusDoc == None:
 routingkey=feedId
 if statusDoc['type']=='terminal-status':
     configDoc = db.get(feedId)
-    routingkey = '%s.%s' % (configDoc['server'], feedId)
+    routingkey = ''
+    for server in configDoc['servers']:
+        routingkey += '%s.' % server['server']
+    routingkey += '%s' % feedId
 
-oldActive = statusDoc['active']
 statusDoc['active'] = feedStatus
 db.update([statusDoc])
 

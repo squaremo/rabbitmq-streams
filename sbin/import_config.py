@@ -6,6 +6,10 @@ if len(orig_path) > 0:
 path = orig_path + "../harness/python/lib"
 sys.path.insert(0, path)
 
+if len(sys.argv) < 2:
+    print "Usage: python import_config.py <directory>"
+    sys.exit(0)
+
 import couchdb
 import glob
 import string
@@ -16,7 +20,7 @@ except ImportError:
 
 server = couchdb.Server("http://localhost:5984/")
 
-for dbdir in glob.glob(orig_path + "../test_data/*"):
+for dbdir in glob.glob(sys.argv[1] + "/*"):
     dbname = os.path.split(dbdir)[1]
     try:
         db = server.create(dbname)
