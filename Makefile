@@ -286,4 +286,4 @@ install-dev-debs:
 	- sudo apt-get install automake autoconf libtool help2man netcat-openbsd \
 	                       build-essential erlang libicu38 libicu-dev \
 	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
-	                       elinks python-json python-simplejson cvs
+	                       elinks python-simplejson cvs
