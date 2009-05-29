@@ -17,6 +17,7 @@
 ^plugins/websubscriber/lib/
 (^|/)nb-configuration\.xml$
 ^orch_log$
+^doc/.*html$
 /.libs-done$
 \.iml$
 \.ipr$

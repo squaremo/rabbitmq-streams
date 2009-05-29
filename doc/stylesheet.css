@@ -1,0 +1,52 @@
+/* Documentation stylesheet */
+
+body {
+}
+
+body h1,
+body #table-of-contents,
+body div.outline-2,
+body #footnotes,
+body #postamble,
+#org-info-js_console-container,
+#org-info-js-window {
+	width: 800px !important;
+	margin: 10px auto;
+}
+
+.navH, pre, .strap, .seeAlso .nestedColumnContainer, .seeAlso h6, .readMore, .homeModule h5, #wp-calendar, img, .navV li, input, button, select, code, option, textarea, .foot {
+	font-size: 11px;
+	line-height: 15px;
+	font-family: monaco, "Lucida Console", "Bitstream Vera Sans Mono", Terminal, mono, monospace;
+	background: #eee;
+}
+
+blockquote {
+	border-left:10px solid #E5F5FA;
+	color:#003366;
+	padding-left:10px;
+}
+body {
+	text-align: left;
+	color: #666;
+	font-size: 12px;
+	line-height: 15px;
+	font-family: "Helvetica Neue", Helvetica, Arial, Geneva, sans-serif;
+}
+
+a img, p a img {
+	border: 0;
+}
+
+a {
+	text-decoration: none;
+	color: #09C;
+}
+
+a:hover {
+	color: #069;
+	background-color: #f5fbfd;
+}
+h2, h3, h4 {	
+	border: 1px solid #fff;
+}
