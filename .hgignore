@@ -21,3 +21,4 @@
 \.iml$
 \.ipr$
 \.iws$
+^doc/.*\.html$
