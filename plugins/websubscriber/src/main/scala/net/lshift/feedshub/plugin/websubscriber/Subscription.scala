@@ -56,7 +56,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
     }
 
     private def retrieveHttpFeed(state : State, url : URL) : (Response, State) = {
-        val conn : HttpURLConnection = (url openConnection).asInstanceOf[HttpURLConnection]
+        val conn : HttpURLConnection = (url.openConnection).asInstanceOf[HttpURLConnection]
         // TODO set headers from state
         // TODO conn.setConnectTimeout(int)
         // TODO conn.setReadTimeout(int)
@@ -81,6 +81,14 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
             }
             (response, newState)
         }
+        catch {
+            case err : Throwable => {
+                    log.error(err)
+                    val response = new Response(PollResult.Error, None)
+                    val newState = new State(state.currentUrl, state.originalUrl, now, state.interval, response.result)
+                    (response, newState)
+            }
+        }
         finally {
             conn.disconnect
         }
@@ -95,7 +103,10 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
             new Response(PollResult.OK, Some(feed))
         }
         catch {
-            case _ => new Response(PollResult.Error, None) // TODO could look at causes ..
+            case err : Throwable => {
+                    log.error(err)
+                    new Response(PollResult.Error, None) // TODO could look at causes ..
+            }
         }
         (response, new State(state.originalUrl, state.currentUrl, now, state.interval, response.result))
     }
@@ -116,9 +127,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
     def poll(state: State) {
         log.debug("Polling: " + state.currentUrl)
         actor {
-            // Actually go and get the thing;
-            // then make an updated state and pass it back
-
+            log.debug("In actor")
             val url = new URL(state.currentUrl)
             val (result, newstate) = url getProtocol match {
                 case "http" => retrieveHttpFeed(state, url)

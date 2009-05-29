@@ -14,8 +14,8 @@ import scala.collection.jcl.Conversions._
 
 class websubscriber(config : JSONObject) extends Server(config) {
 
-    val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
-    val dispatcher = new Dispatcher(log, couch)
+    //val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
+    val dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id))
     dispatcher.start
 
     override def terminalStatusChange(terminalId: String, configs : java.util.List[JSONObject], active : Boolean) {

@@ -16,11 +16,11 @@ import scala.collection.mutable.Map
 
 case class StatusChange(subscription: String, configs: Seq[JSONObject], active: Boolean)
 
-class Dispatcher(log : Logger, couch : Session) extends Actor {
+class Dispatcher(log : Logger, publish: (String, String) => Unit) extends Actor {
     private val subscriptions : Map[String, List[Subscription]] = Map()
 
-    def publish(message : String) {
-        log.debug("Publishing: " + message)
+    def publishAsTerminal(terminalId : String)(message : String) {
+        publish(message, terminalId)
     }
 
     def act() {
@@ -31,7 +31,7 @@ class Dispatcher(log : Logger, couch : Session) extends Actor {
                             log.info("Activating " + id)
                             if (! subscriptions.contains(id)) {
                                 val subs = configs.map(config =>
-                                    new Subscription(log, stateFromConfig(config), saveSubscriptionState(id) _, publish _))
+                                    new Subscription(log, stateFromConfig(config), saveSubscriptionState(id) _, publishAsTerminal(id) _))
                                 subscriptions += (id -> List(subs:_*))
                                 subs.foreach(_.start)
                             }
@@ -47,7 +47,7 @@ class Dispatcher(log : Logger, couch : Session) extends Actor {
                                 case None => log.info(id + " not known or not active")
                             }
                         }
-                        log.debug("Now listening to :" + subscriptions.toString)
+                        log.debug("Now listening to :" + subscriptions.keySet toString)
                     }
             }
         }
