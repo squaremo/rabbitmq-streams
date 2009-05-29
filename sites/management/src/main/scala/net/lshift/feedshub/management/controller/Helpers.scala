@@ -92,11 +92,11 @@ trait ObservableActor[M] {
     private val listeners : Set[Actor] = Set()
 
     protected def registerObserver(observer : Actor) {
-        listeners.incl(observer)
+        listeners += observer
     }
 
     protected def unregisterObserver(observer : Actor) {
-        listeners.excl(observer)
+        listeners -= observer
     }
 
     protected def notifyObservers(message : M) {

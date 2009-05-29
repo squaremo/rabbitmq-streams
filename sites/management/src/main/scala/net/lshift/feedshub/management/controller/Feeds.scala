@@ -49,7 +49,7 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
 
     def statusDocName(id : String) : String = id + "_status"
 
-    def updateStatusDocument(feedid: String, newStatus: boolean) {
+    def updateStatusDocument(feedid: String, newStatus: Boolean) {
         // TODO put in couch
         // TODO: this should be indirect, in the sense that we should listen to
         // the command exchange and rearead our map when we get a status change
@@ -64,7 +64,7 @@ object Feeds extends Actor with FeedsHubConfig with ConfigAwareActor with Observ
                              StatusChangeMsgBin)
     }
     
-    def updateFeedStatus(newStatus: boolean)(feedid: String) {
+    def updateFeedStatus(newStatus: Boolean)(feedid: String) {
         updateStatusDocument(feedid, newStatus)
         sendStatusChange(feedid)
     }

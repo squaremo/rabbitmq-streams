@@ -27,6 +27,7 @@ class LogLevel {
         }
     }
 }
+
 object LogLevel extends LogLevel {
     val values = List(Fatal, Error, Warn, Info, Debug)
     def downTo(level : LogLevel) : Set[LogLevel] = {
@@ -139,9 +140,9 @@ class Log(size: Int) extends Actor {
                 case AddLogListener(level, listener) =>
                     println("Add log listener " + listener.toString)
                     listener ! History(messages(level))
-                    listeners(level).incl(listener)
+                    listeners(level) += listener
                 case RemoveLogListener(listener) =>
-                    listeners.values.foreach(level => level.excl(listener))
+                    listeners.values.foreach(level => level -= listener)
             }
         }
     }
