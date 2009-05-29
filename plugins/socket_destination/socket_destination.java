@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Collection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,84 +36,35 @@ public class socket_destination extends Server {
         }
     };
 
-    public final InputReader command = new InputReader() {
-
-        public void handleDelivery(Delivery message) throws Exception {
-
-            String serverIdterminalId = message.getEnvelope().getRoutingKey();
-            int loc = serverIdterminalId.lastIndexOf('.');
-            String serverIds = serverIdterminalId.substring(0, loc);
-            String terminalId = serverIdterminalId.substring(loc + 1);
-
-            Document terminalConfig = socket_destination.this
-                    .terminalConfig(terminalId);
-            Document terminalStatus = socket_destination.this
-                    .terminalStatus(terminalId);
-
-            String serverIdFromConfig = socket_destination.this.config
-                    .getString("server_id");
-            if (!serverIds.contains(serverIdFromConfig)) {
-                socket_destination.this.log
-                        .fatal("Received a terminal status change "
-                                + "message which was not routed for us: "
-                                + serverIds);
-                return;
+    protected void terminalStatusChange(String terminalId,
+                                          List<JSONObject> terminalConfigs,
+                                          boolean active) {
+        if (active) {
+          List<SocketDestination> dests = terminalMap.get(terminalId);
+          if (null == dests || 0 == dests.size()) {
+            try {
+              dests = new ArrayList<SocketDestination>(terminalConfigs.size());
+              for (JSONObject termConfigObject : terminalConfigs) {
+                JSONObject destConfig = termConfigObject.getJSONObject("destination");
+                SocketDestination dest = new SocketDestination(destConfig);
+                dests.add(dest);
+                new Thread(dest).start();
+              }
+              terminalMap.put(terminalId, dests);
+            } catch (IOException e) {
+              socket_destination.this.log.error(e);
             }
-
-            JSONArray terminalServers = terminalConfig.getJSONArray("servers");
-            boolean found = false;
-            List<JSONObject> termConfigObjects = new ArrayList<JSONObject>();
-            for (int idx = 0; idx < terminalServers.size(); ++idx) {
-                JSONObject obj = terminalServers.getJSONObject(idx);
-                boolean match = obj.getString("server").equals(
-                        serverIdFromConfig);
-                found = found || match;
-                if (match) {
-                    termConfigObjects.add(obj.getJSONObject("destination"));
-                }
+          }
+        } else {
+          List<SocketDestination> dests = terminalMap.remove(terminalId);
+          if (null != dests && 0 != dests.size()) {
+            for (SocketDestination dest : dests) {
+              dest.stop();
             }
-
-            if (!found) {
-                socket_destination.this.log
-                        .fatal("Received a terminal status change "
-                                + "message for a terminal which isn't "
-                                + "configured for us: " + terminalServers);
-                return;
-            }
-
-            socket_destination.this.log
-                    .info("Received terminal status change for " + terminalId);
-
-            if (terminalStatus.getBoolean("active")) {
-                List<SocketDestination> sources = terminalMap.get(terminalId);
-                if (null == sources || 0 == sources.size()) {
-                    try {
-                        sources = new ArrayList<SocketDestination>(
-                                termConfigObjects.size());
-                        for (JSONObject termConfigObject : termConfigObjects) {
-                            SocketDestination source = new SocketDestination(
-                                    termConfigObject);
-                            sources.add(source);
-                            new Thread(source).start();
-                        }
-                        terminalMap.put(terminalId, sources);
-                    } catch (IOException e) {
-                        socket_destination.this.log.error(e);
-                    }
-                }
-            } else {
-                List<SocketDestination> sources = terminalMap.remove(terminalId);
-                if (null != sources && 0 != sources.size()) {
-                    for (SocketDestination source : sources) {
-                        source.stop();
-                    }
-                }
-            }
-
-            socket_destination.this.ack(message);
+          }
         }
-    };
-
+    }
+  
     public socket_destination(JSONObject config) throws IOException {
         super(config);
 

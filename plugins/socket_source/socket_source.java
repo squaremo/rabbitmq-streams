@@ -20,79 +20,30 @@ public class socket_source extends Server {
 
     private final Map<String, List<SocketSource>> terminalMap = new HashMap<String, List<SocketSource>>();
 
-    public final InputReader command = new InputReader() {
-
-        public void handleDelivery(Delivery message) throws Exception {
-
-            String serverIdterminalId = message.getEnvelope().getRoutingKey();
-            int loc = serverIdterminalId.lastIndexOf('.');
-            String serverIds = serverIdterminalId.substring(0, loc);
-            String terminalId = serverIdterminalId.substring(loc + 1);
-
-            Document terminalConfig = socket_source.this
-                    .terminalConfig(terminalId);
-            Document terminalStatus = socket_source.this
-                    .terminalStatus(terminalId);
-
-            String serverIdFromConfig = socket_source.this.config
-                    .getString("server_id");
-            if (!serverIds.contains(serverIdFromConfig)) {
-                socket_source.this.log
-                        .fatal("Received a terminal status change "
-                                + "message which was not routed for us: "
-                                + serverIds);
-                return;
-            }
-
-            JSONArray terminalServers = terminalConfig.getJSONArray("servers");
-            boolean found = false;
-            List<JSONObject> termConfigObjects = new ArrayList<JSONObject>();
-            for (int idx = 0; idx < terminalServers.size(); ++idx) {
-                JSONObject obj = terminalServers.getJSONObject(idx);
-                boolean match = obj.getString("server").equals(
-                        serverIdFromConfig);
-                found = found || match;
-                if (match) {
-                    termConfigObjects.add(obj.getJSONObject("source"));
-                }
-            }
-
-            if (!found) {
-                socket_source.this.log
-                        .fatal("Received a terminal status change "
-                                + "message for a terminal which isn't "
-                                + "configured for us: " + terminalServers);
-                return;
-            }
-
-            socket_source.this.log.info("Received terminal status change for "
-                    + terminalId);
-
-            if (terminalStatus.getBoolean("active")) {
-                List<SocketSource> sources = terminalMap.get(terminalId);
-                if (null == sources || 0 == sources.size()) {
-                    sources = new ArrayList<SocketSource>(termConfigObjects
-                            .size());
-                    for (JSONObject termConfigObject : termConfigObjects) {
-                        SocketSource source = new SocketSource(
-                                termConfigObject, terminalId);
-                        sources.add(source);
-                        new Thread(source).start();
-                    }
-                    terminalMap.put(terminalId, sources);
-                }
-            } else {
-                List<SocketSource> sources = terminalMap.remove(terminalId);
-                if (null != sources && 0 != sources.size()) {
-                    for (SocketSource source : sources) {
-                        source.stop();
-                    }
-                }
-            }
-
-            socket_source.this.ack(message);
+    protected void terminalStatusChange(String terminalId,
+                                        List<JSONObject> terminalConfigs,
+                                        boolean active) {
+      if (active) {
+        List<SocketSource> sources = terminalMap.get(terminalId);
+        if (null == sources || 0 == sources.size()) {
+          sources = new ArrayList<SocketSource>(terminalConfigs.size());
+          for (JSONObject termConfigObject : terminalConfigs) {
+            JSONObject sourceConfig = termConfigObject.getJSONObject("source");
+            SocketSource source = new SocketSource(sourceConfig, terminalId);
+            sources.add(source);
+            new Thread(source).start();
+          }
+          terminalMap.put(terminalId, sources);
         }
-    };
+      } else {
+        List<SocketSource> sources = terminalMap.remove(terminalId);
+        if (null != sources && 0 != sources.size()) {
+          for (SocketSource source : sources) {
+            source.stop();
+          }
+        }
+      }
+    }
 
     public socket_source(JSONObject config) throws IOException {
         super(config);

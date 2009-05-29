@@ -6,7 +6,7 @@ all: libs lib/$(jarfile)
 clean:
 	rm -rf target
 	rm -f .libs-done
-	rm -rf libs
+	rm -rf lib
 
 libs: .libs-done
 

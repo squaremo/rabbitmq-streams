@@ -15,22 +15,25 @@ import com.fourspaces.couchdb.Session
 import net.lshift.feedshub.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
+import net.sf.json.JSONObject
+
 import scala.collection.mutable.Map
 
 case class Entry(bytes : Array[Byte], key : String, ack : (() => Unit))
-case class DestinationStatusChange(destination: String, ack : (() => Unit))
+case class DestinationStatusChange(destination: String, configs: List[JSONObject], active: Boolean)
 
-class Dispatcher(log : Logger, terminalConfig : String => Document, terminalStatus : String => Document, couch : Session) extends Actor {
-    private val destinations : Map[String, Destination] = Map()
+class Dispatcher(log : Logger, couch : Session) extends Actor {
+    private val destinationsMap : Map[String, List[Destination]] = Map()
 
-    def act {
+    def act() {
         loop {
             react {
                 case Entry(bytes, key, ack) => {
-                        destinations.get(key) match {
-                            case Some(destination) => {
+                        destinationsMap.get(key) match {
+                            case Some(destinations) => {
                                 log.debug("Dispatch to " + key)
-                                destination ! NewEntry(bytes, ack)
+                                destinations.foreach(_ ! NewEntry(bytes))
+                                ack()
                             }
                             case None => {
                                 log.debug("Not listening for: " + key)
@@ -38,25 +41,32 @@ class Dispatcher(log : Logger, terminalConfig : String => Document, terminalStat
                             }
                         }
                     }
-                case DestinationStatusChange(destination, ack) => {
-                        val status = terminalStatus(destination)
-                        if (status.getBoolean("active")) {
-                            log.debug("Activating " + destination)
-                            if (! destinations.contains(destination)) {
-                                val dbname = "archive_" + destination
-                                couch.createDatabase(dbname)
-                                val db = couch.getDatabase(dbname)
-                                val d = new Destination(log, db)
-                                destinations.incl(destination -> d)
-                                log.debug("Now listening to :" + destinations.toString)
-                                d.start
+                case DestinationStatusChange(destination, configs, active) => {
+                        if (active) {
+                            log.info("Activating " + destination)
+                            if (! destinationsMap.contains(destination)) {
+                                val dests = configs.map(config => {
+                                        val destConfig = config.getJSONObject("destination")
+                                        val dbname = "archive_" + destination + destConfig.getString("name")
+                                        couch.createDatabase(dbname)
+                                        val db = couch.getDatabase(dbname)
+                                        new Destination(log, db)
+                                })
+                                destinationsMap += (destination -> dests)
+                                dests.foreach(_.start)
+                                log.debug("Now listening to :" + destinationsMap.keySet toString)
                             }
                         }
                         else {
-                            log.debug("Deactivating " + destination)
-                            destinations.excl(destination)
+                            log.info("Deactivating " + destination)
+                            destinationsMap.get(destination) match {
+                                case Some(dests) => {
+                                        dests.foreach(_.exit)
+                                        destinationsMap -= destination
+                                }
+                                case None => log.warn("Cannot deactivate " + destination + "; not known or already inactive.")
+                            }
                         }
-                        ack()
                     }
             }
         }

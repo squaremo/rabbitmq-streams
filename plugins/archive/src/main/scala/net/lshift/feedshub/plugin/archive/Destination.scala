@@ -1,8 +1,5 @@
 /*
  * Destination.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
  */
 
 package net.lshift.feedshub.plugin.archive
@@ -15,14 +12,14 @@ import java.util.Date
 import net.lshift.feedshub.harness.Logger
 import com.fourspaces.couchdb._
 
-case class NewEntry(bytes : Array[Byte], ack : () => Unit)
+case class NewEntry(bytes : Array[Byte])
 
 class Destination(log : Logger, postto: Database) extends Actor {
 
     def act {
         loop {
             react {
-                case NewEntry(bytes, ack) =>
+                case NewEntry(bytes) =>
                     val body = new String(bytes)
                     log.debug("Message received at " + postto + " of " + body)
                     val doc = new Document
@@ -30,7 +27,6 @@ class Destination(log : Logger, postto: Database) extends Actor {
                     doc.put("body", body)
                     log.debug("Saving doc" + doc.toString)
                     postto.saveDocument(doc)
-                    ack()
             }
         }
     }
