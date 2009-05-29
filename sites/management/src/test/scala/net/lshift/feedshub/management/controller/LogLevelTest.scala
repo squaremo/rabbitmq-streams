@@ -19,4 +19,8 @@ class LogLevelTest extends JUnit3Suite {
   def testFrom() = {
     expect(Fatal) {LogLevel.from("fatal")}
   }
+
+  def testFromWithBadData() = {
+    intercept[scala.MatchError] {LogLevel.from("wrong")}
+  }
 }
