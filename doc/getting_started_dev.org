@@ -1,0 +1,428 @@
+#+TITLE:     Getting Started with Feedshub
+#+DATE:      2009-05-22 Fri
+#+LANGUAGE:  en
+#+STARTUP:   odd
+#+OPTIONS:   H:4 num:t toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc timestamp:t author:nil
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:nil path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:
+#+LINK_HOME:
+#+STYLE: <link rel="stylesheet" type="text/css" href="stylesheet.css" />
+* If you want to...
+ - know more about what it's all about and how it all works, keep reading.
+ - add new means of supplying or publishing data feeds, see [[*Writing .* Servers][Writing Servers]].
+ - make new ways to manipulate data feeds, see [[*Writing%20PipelineComponents][Writing PipelineComponents]].
+ - let people write plugins in a new language, see [[*WritingHarnesses][Writing Harnesses]].
+ - hack about with the core code -- read the whole lot, but esp. [[*The Feedshub Architecture in more detail][The Feedshub Architecture in more detail]].
+
+* General Overview
+
+Feedshub is a stream based-architecture conceived to bring more order and
+manageability to the BBC's massive feed infrastructure (see [[http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml][this BBC radiolabs
+blog entry]]; the BBC have tasked us at [[http://www.lshift.net][LShift]] with some of the design and
+development work and you can find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift blog]]).
+
+However the framework is very general and not limited to working with
+Atom/RSS/... Feeds (for example binary data can be handled efficiently as
+well). In a way you could think of Feedshub as a distributed, robust,
+scalable, secure, user-friendly and manageable version of Unix pipes.
+
+The basic logical building blocks are /Sources/ and /Sinks/ (=Servers=) of
+data and /Feeds/ (*NB:* Feed in this sense has nothing to do with RSS/Atom/etc.;
+/Processing Pipeline/ would be more accurate description) composed of
+=PipelineComponents= which can route (e.g. based on regexp matches on Atom
+feed entries) merge and transform the data in arbitrary ways (e.g. by applying
+xslt transforms), as depicted below:
+
+#+CAPTION: Flow of Information in Feedshub (simplified excerpt).
+#+LABEL:   fig:flow-simplified
+    [[./flow-simplified.png]]
+
+=Servers= as well as =PipelineComponents= (jointly referred to as =Plugins=)
+can currently be written in Java, Python and require almost no boilerplate
+(see e.g. [[../plugins/regexp_replace/regexp_replace.py][regexp_replace.py]]) Support for other languages can be added
+straightforwardly by creating an appropriate [[*Writing][=Harness=]] (adding e.g. Ruby would
+be easy because plugins are essentially just programs following a simple
+protocol).
+
+Robustness, scalability etc. are achieved through the "plumbing" layer which
+is transparent to Plugin authors and (mostly) consists of the
+Feedshub-specific =Orchestrator= (which takes care setting up all the wiring
+between components) as well as two proven off-the-shelf [[http://www.rabbitmq.com][RabbitMQ]] (the
+messaging broker which provides high-performance, fault-tolerant queued
+communication between components) and Apache's [[http://couchdb.apache.org/][CouchDB]] (which
+provides a store for configuration and persistent state for =Plugins= which
+require it)[fn:1]. (*FIXME* [[http://erlang.org][Erlang Blurp]]; e.g. supervisors)
+
+* Installation
+
+1. Install the runtime dependencies:
+#+BEGIN_SRC sh
+make setup
+#+END_SRC
+
+  This will attempt to download and install all required dependencies. At the
+  minute it assumes you are using a Linux distribution with `apt-get`; but
+  this is restricted to a small, easily replicated section of build
+  dependencies (the targets ending in =-debs=). Currently a couple of packages
+  (e.g. CouchDB and RabbitMQ) will be locally installed from sources in the
+  Feedshub directory, but in the future Feedshub will likely offer more
+  flexibility in this regard; just be aware of possible conflicts with
+  system-wide installs.
+
+2. Build everything:
+#+BEGIN_SRC sh
+make all
+#+END_SRC
+
+* Running and debugging
+
+There are three components which need to be running: RabbitMQ (the messaging
+broker), CouchDB (the database used for configuration and per-component
+state), and the Orchestrator (which takes care of all the
+wiring/configuration). RabbitMQ and CouchDB are together referred to as the
+"core" and must be started before the Orchestrator. The following is currently
+our preferred means to get everything up and running (Note: as the project
+matures this will become less fiddly and delicate, but for the moment make
+sure you follow the instructions exactly):
+
+1. Start up three xterms which are configured to listen to the outputs of
+   each component
+#+HTML: (<font color="#400000"><b>rabbitMQ</b></font> </font>,
+#+HTML: <font color="#004000"><b>couchDB</b></font> </font>,
+#+HTML: <font color="#000040"><b>orchestrator</b></font>)
+#+BEGIN_SRC sh
+make listen_all
+#+END_SRC
+
+2. Stop all the components (=stop_all_nox=; this doesn't hurt if they're not
+   already running); clean the CouchDB and RabbitMQ broker (=cleandb=) and set
+   them back up (=start_core_nox=), then re-initialize the user/admin accounts
+   (=create_fresh_accounts=), install the test configuration
+   (=install_test_data.py=) and get everthing up and running with the new config
+   (=start_orchestrator_nox=):
+#+BEGIN_SRC sh
+make all \
+&& make stop_all_nox \
+&& make cleandb \
+&& make start_core_nox && sleep 2 \
+&& make create_fresh_accounts && sleep 1 \
+&& make start_orchestrator_nox sleep 5 \
+&& python sbin/install_test_data.py \
+&& make start_orchestrator_nox
+#+END_SRC
+* TODO FIXME change Makefile so =start_orchestrator_nox= is only needed once
+   Note that if you already got a system install of couchDB or RabbitMQ etc.
+   you should make sure that they are either currently not running or using
+   different ports than the local versions that feedshub installs.
+
+In general, =Makefile= targets that end in =_nox= (/No X/) will not
+start new xterms.
+
+All three components are normal Erlang shells (though due to
+forwarding outputs over =nc=, the command history features are
+lost). Thus to quit any of the components, enter =q()= and press
+return in the shells. The Makefile targets take care of stopping the
+components as necessary.
+
+* Developing
+Although many of the core components of Feedshub are written in Erlang, relax!
+No Erlang skills are required for the most common development task: writing
+additional Sources/Sinks/Transformers ([[*Plugins][=Plugins=]]). The same is true for
+extending the set of languages that plugins can be written by writing
+additional [[*Harnesses][=Harnesses=]].
+
+For those who want to dig deeper into the [[*Feeshub Architecture][architecture of Feedshub]] it is
+useful to gain some familiarity with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (and [[http://www.rabbitmq.com][RabbitMQ]] in
+particular); [[http://couchdb.apache.org/][CouchDB]] and [[http://erlang.org][Erlang]] skills would also help. The links have
+pointers to more in-depth info, but the following links are useful to hit the
+ground running:
+
+ - [[http://somic.org/d/samovskiy-amqp-rabbitmq-cohesiveft.pdf][A short presentation on AMQP and RabbitMQ]]
+*** TODO add more links here
+
+*** TODO Plugins
+Note: You might want to have a look at e.g.
+
+Writing a plugin (say =acme_frotz=) in Java or Python involves creating a
+subdirectory =plugins/acme_frotz= and (at a minimum) two files in it:
+
+ 1. =plugin.js= (specifying meta- and configuration/wiring info about the plugin)
+ 2. =acme_frotz.py= (or =acme_frotz.java=; the actual plugin)
+
+If there is a further =plugin/acme_frotz/lib= subdirectory, the Harness will
+take care of adding everything in it to the =sys.path= =acme_frotz.py= sees
+when run (in the case of python code; mutatis mutandis the same applies to
+other languages, e.g. =acme_frotz.java= would have all the =.jar= files in
+=lib/= added to its =CLASSPATH=). In other words future Harnesses for other
+languages are expected to follow an analogous convention and in general
+per-plugin library code should go into =lib/=.
+
+(*NB:* You might find it useful to have a look at [[../plugins/regexp_replace/]]
+(if you're a pythonista) or [[../plugins/regexp_split/]] (if you're Javanese) to
+have some concrete example to follow as you keep reading on.)
+
+***** =plugin.js= (Per-plugin (class) [[http://json.org][json]] configuration)
+#+BEGIN_SRC js2
+File plugin.js =
+// applies to both pipeline components and servers
+{ "name": "The ACME Frotz", // FIXME this will change to "label"
+  "author": { "name":  "John Doe",
+              "email": "jondoe@example.tld" },
+  "type": "plugin-specification", // FIXME this will go
+  "harness": "java", // or "python" or "ruby"
+  "subtype": "pipeline_component", // or  "server" // FIXME this will change to "plugin_type"
+  "global_configuration_specification": [], // FIXME get rid of this
+  /* the /schema/ of the configuration that must be provided per plugin instance */
+  "configuration_specification":  [ { "name": "port", "label": "Port", "type": "Nat" }
+                                    // ...
+                                  ],
+  /* configuration per terminal (terminal ONLY) */ //FIXME AMWS: "server ONLY"?
+  "destination_specification": [ { "name": "title", "label": "Title for RSS", "type": "String" }
+                                 // ...
+                               ],
+  /* configuration per terminal (terminal ONLY) */ //FIXME AMWS: "server ONLY"?
+  "source_specification": [ { "name": "url", "label": "URL of RSS", "type": "URL" }
+                            // ...
+                          ],
+
+  /* configuration per feed component (feed_component ONLY) */
+  "inputs_specification": [ { "name": "input" }
+                            // ...
+                          ],
+  /* configuration per feed component (feed_component ONLY) */
+  "outputs_specification": [ { "name": "output" }
+                           //...
+                           ],
+   /* FIXME: not used as of yet, but will provide couchdb view/design-doc info
+    if the plugin requires that*/
+  "database_specification": null // or {}  initial values for the per instance db
+}
+#+End_SRC
+***** TODO Some Guidelines applying to all types of Plugins
+The Harness provides abstract interfaces to the Plugin to access (inter alia)
+the following functionality:
+
+ - (hooked-up) input/output channels (as specified by =plugin.js=, *FIXME* add
+   example).
+
+ - data storage facilities.
+
+ - logging facilities.
+
+Note: since the Harness uses =stdin= and =stdout= for its own purposes (see
+[[*lifecycle%20of%20a%20plugin][lifecycle of a plugin]]) your plugin shouldn't try to use these internally.
+
+***** TODO Writing Sinks/Sources (=Servers=)
+***** TODO Writing =PipelineComponents=
+***** TODO The lifecycle of a Plugin (*FIXME* nuke?)
+      This information is not required for (normal) plugin development and
+      thus can be skipped by those not interested in the details.
+
+      1. The plugin configuration is read from stdin in json format.
+      2. The plugin prints its PID to stdout (so that runaway plugins can be
+         killed easily by the orchestrator).
+      3. The plugin initializes itself.
+      4. A worker thread or process is spawned by the main thread of the
+         plugin (this, or its children, will do the actual work).
+      4. The main thread blocks on reading stdout. As soon as stdout is
+         closed by the orchestrator the plugin kills itself and all spawned
+         threads or processes (this is the shutdown protocol; misbehaving
+         plugins that fail to shutdown if requested will be killed by
+         sending a signal to the PID obtained in step 2).
+*** Writing Harnesses to add Plugin support for new languages
+Each environment (e.g., Java, Python) in which plugins run needs a
+harness.  Minimally, this is simply a shell script that starts a
+plugin process given a plugin name.
+
+The harness also provides some abstraction of the services needed by
+plugins; e.g., hooking up communications channels, storing documents.
+This abstraction -- a base class, say -- encapsulates the conventions
+for how plugins are initialised, communicated with, and so on, letting
+the plugin developer be concerned only with the specific task of the
+plugin.
+
+The set of harness and plugin conventions is currently a moving
+target; however, in general, the Python and Java harnesses (and this
+document) will be kept up-to-date.
+
+***** Harness invocation
+
+The type of the harness is indicated by the plugin descriptor
+=plugin.js= in the plugin directory.  The name is treated as a
+directory under =harness/=, and the file =run_plugin.sh= in that
+directory is invoked.  The plugin configuration is then printed, as
+JSON, to that process's =stdin=. For example, the file
+=plugins/xslt/plugin.js= specifies the name of the harness as =java=
+and so that plugin will be launched by the =Orchestrator= calling
+=run_plugin.sh= in the directory =harness/java=.
+
+The harness, then, must /at least/ read the configuration, extract the
+plugin name (and use it as a directory under =plugins/=), and run the
+plugin code, supplying the configuration in an appropriate form.  It
+may also need to set environment variables, load modules, and so on.
+
+Each harness will have its own convention for how to run a plugin
+given its name.  For example, the Python harness treats the plugin
+name as the directory *and* as a module name, under which it (by
+convention) expects to find a callable named =run=, which it invokes
+with the arguments as a dictionary.  It also puts the harness
+directory on the =PYTHON_PATH= so that the plugin base class can be
+imported, as well as =lib/= in the plugin directory; and, it changes
+the working directory to the plugin directory so that resources can be
+loaded relative to that directory.
+
+One of the first things that a harness must do, is to print out its
+/PID/ on =STDOUT=. This is picked up by the orchestrator, and used to
+kill the plugin, should it be necessary to do so. Some programming
+languages make it tricky to get hold of the /PID/ and as a result, we
+ask the shell script, =run_plugin.sh= to supply the /PID/ as an
+argument to the plugin harness. For example, the file
+=harness/java/run_plugin.sh= contains:
+
+: exec java -cp feedshub_harness.jar net.lshift.feedshub.harness.Run $$
+
+After the harness has printed out its /PID/, it should continue with
+the startup of the plugin itself. It should also create a thread that
+sits, blocking on its =STDIN= file descriptor, and as soon as that
+file descriptor has been closed, the harness should terminate. This is
+the preferred means through which the Orchestrator stops plugins.
+
+***** Harness services
+
+The harness also provides convenience APIs for interacting with the
+system. In principle, following the invocation convention -- e.g., for
+Python, providing a correctly-named module with a run(args) procedure
+-- is enough. But many details of the configuration can be taken care
+of for the plugin developer.
+
+******* Instance configuration
+
+An instance of the plugin may have configuration specific to that
+instance. (This is due to be tidied up)
+
+This is supplied by the orchestrator, and should be exposed
+read-only to the plugin code.
+
+******* Channels
+
+The plugin descriptor, =plugin.js=, specifies named input and output
+channels required by an instance of the plugin. E.g.,
+
+:    ...
+:    "inputs": [{"name": "in"}],
+:    "outputs": [{"name": "result"}],
+:    ...
+
+The orchestrator constructs input channels as AMQP queues, and output channels
+as AMQP exchanges. The names of these queues and exchanges are supplied as
+part of the initialisation configuration as map values (with =plugin.js=
+specified channel names as keys); e.g.,
+
+:    {...
+:    "inputs" : {"in": $SOME_QUEUE_NAME},
+:    "outputs" :{"result": $SOME_EXCHANGE_NAME}
+:    ...}
+
+
+Note that the queue and exchange names will in general be arbitrary,
+and that they are supplied in an ordered list.  The harness must refer
+to the plugin descriptor to match the queue or exchange to the named
+channel. One way to think of this is that the =plugin.js= file
+specifies the type, or class of the available connections to and from
+the plugin, and the initialisation configuration contains instances of
+these types or classes.
+
+Giving the plugin programmer access to the channels in a convenient
+way will depend on the capabilities of the environment. The Python
+harness lets the plugin developer supply a maps of channel names to
+method names; input channels use the named method as a callback, and
+output channels are inserted into the object as methods. The Java
+harness similarly uses reflection to attach =Publisher= objects to the
+plugin's fields for outputs, and dynamically looks up inputs, where
+the field names are the names of the channels given in the =plugin.js=
+specification.
+
+********* Notification Channel
+Because the =STDOUT= file descriptor of the plugin is captured by the
+Orchestrator, it is not recommended to output text or debugging
+information though simply printing messages out. Instead, an
+independent notification exchange is provided to which messages can be
+sent. This exchange is called =feedshub/log= and is not supplied in
+the initialisation configuration. This is a topic exchange, and so the
+messages must have a routing key. The routing key should be
+=loglevel.feedID.pluginName.nodeID= where loglevel is one of =debug=,
+=info=, =warn=, =error=, =fatal=, and the three other components take
+the values supplied in the corresponding fields in the initialisation
+configuration. By using this scheme, it (currently potentially) allows
+the orchestrator to filter and select messages.
+
+The harness should try and present a suitable API to the plugin such
+that the plugin has the ability to send such informational
+messages. Both the Python and Java harnesses have methods for each of
+the five different log levels, filling in the other components of
+routing key automatically, and including any message supplied.
+
+Additionally, the harness should try and catch any errors that the
+plugin produces, sending such messages out on this exchange. Messages
+should be marked with =delivery mode= 2 (or /persistent/) to make sure
+messages are not lost. We recommend using a separate AMQP channel for
+this exchange so that if you wish to treat messages sent by the plugin
+in its normal course of operation as transactional, then this does not
+force notification messages to also become transactional.
+
+***** State
+
+A plugin instance gets a document in which to store its running
+state. This state will persist over restarts, and will be visible to
+management interfaces. It should be exposed as read-write.
+
+TODO Avoiding conflicts -- maybe the state is the argument and result
+of any callback (and these are serialised)?
+
+***** Storage
+
+The plugin descriptor can also specify a storage database private to
+each instance. The orchestrator provides the name of this database in
+the initialisation configuration.
+
+TODO safe ways of exposing this to the plugin developer.
+
+*** TODO The Feedshub Architecture in more detail
+#+CAPTION: Information flow (the almost full picture)
+#+LABEL:   fig:flow
+    [[./flow.png]]
+
+This diagram, apart from giving more detail than [[Fig:flow-simplified]] also
+shows that in the actual implementation the flow of information from Sources
+to Sinks is more complicated (for practical reasons such as resource usage).
+In particular
+
+ - =Terminals= are really "passive" components that do not directly connect to
+   an =AMQP Exchange=, instead each Server instance owns an =AMQP Exchange=
+   with /binding keys/ for each terminal (the key is the Terminal ID). This
+   is done because Exchanges are comparatively expensive resources and having
+   one per server instance is less wasteful than having one per Terminal.
+
+ - Similarly on the Egress side, there is a =Shoveler= process which takes
+   care of transferring the feed data to the Terminals/Server but that can
+   also be considered as an implementation detail.
+
+* TODO Administration
+If you are not familiar with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (Advanced Message Queueing Protocol),
+[[http://www.rabbitmq.com][RabbitMQ]] and [[http://couchdb.apache.org/][CouchDB]] (as well as possibly [[http://erlang.org][Erlang]]), please see the first two
+paragraphs under [[*Developing][Developing]] for pointers.
+
+*** TODO The webinterface
+*** TODO the directory structure
+***** TODO The commands in =sbin/=
+*** TODO Summary of used ports
+
+* Footnotes
+
+[fn:1] *FIXME* the aim is to just provide abstract interfaces to generic
+database and messaging services to =Plugin= writers but this isn't fully the
+case presently.
+
