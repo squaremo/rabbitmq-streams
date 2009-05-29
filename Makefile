@@ -1,5 +1,5 @@
 SHELL=/bin/bash
-RABBITMQCTL="build/opt/rabbitmq/sbin/rabbitmqctl -q"
+RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
 
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
@@ -76,8 +76,7 @@ stop_core:
 	sleep 3
 
 full_reset_core:
-	$(MAKE) stop_core cleandb run_core
-	./setup-core.sh
+	$(MAKE) stop_core cleandb run_core create_fresh_accounts
 
 create-build-logs-dir:
 	mkdir -p build/logs
@@ -161,8 +160,7 @@ stop_core_nox:
 stop_all_nox: stop_orchestrator_nox stop_core_nox
 
 full_reset_core_nox:
-	$(MAKE) stop_core_nox cleandb start_core_nox sleeper
-	./setup-core.sh
+	$(MAKE) stop_core_nox cleandb start_core_nox sleeper create_fresh_accounts
 
 ###########################################################################
 # CouchDB
