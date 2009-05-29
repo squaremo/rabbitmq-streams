@@ -45,6 +45,7 @@ public class Run {
 
             ClassLoader defaultCL = ClassLoader.getSystemClassLoader();
             URLClassLoader ucl = new URLClassLoader(classpathEntries, defaultCL);
+            Thread.currentThread().setContextClassLoader(ucl);
             Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
             plugin = clazz.getConstructor(JSONObject.class).newInstance(
                     jsonArgs);
