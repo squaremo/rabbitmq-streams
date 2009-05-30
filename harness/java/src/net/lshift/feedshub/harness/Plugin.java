@@ -78,7 +78,7 @@ public abstract class Plugin implements Runnable {
 
         Database privDb = null;
         if (config.has("database")
-                && !JSONNull.getInstance().equals(config.get("database"))) {
+            && ! JSONNull.getInstance().equals(config.get("database"))) {
             String privDbStr = config.getString("database");
             URL privDbURL = new URL(privDbStr);
             Session privDbCouchSession = new Session(privDbURL.getHost(),
@@ -86,7 +86,11 @@ public abstract class Plugin implements Runnable {
             String privDbPath = privDbURL.getPath();
             int loc = privDbPath.lastIndexOf('/');
             String privDbName = privDbPath.substring(1 + loc);
-            privDb = privDbCouchSession.createDatabase(privDbName);
+            // We do this in two steps, since if the DB already exists, couchdb4j will
+            // get a 412 (precondition failed) and return null.
+            privDbCouchSession.createDatabase(privDbName);
+            privDb = privDbCouchSession.getDatabase(privDbName);
+            log.debug("Database supplied: " + privDb.getName());
         }
         privateDb = privDb;
     }
