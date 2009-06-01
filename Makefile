@@ -1,12 +1,23 @@
 SHELL=/bin/bash
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
 
+SCREEN_SESSION=feedshub
+# FIXME: would be nice to have different bg colors for rabbit, couch etc.
+SCREEN=screen -S $(SCREEN_SESSION)
+
+
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
+
 
 LISTEN_ORCH_PORT := 7565
 LISTEN_RABBIT_PORT := 7566
 LISTEN_COUCH_PORT := 7567
+
+LISTEN_ORCHESTRATOR=while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done | tee -a orch_log
+LISTEN_RABBIT=while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done
+LISTEN_COUCH=while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done
+
 ORCH_FIFO := build/scratch/orch_fifo
 RABBIT_FIFO := build/scratch/rabbit_fifo
 COUCH_FIFO := build/scratch/couch_fifo
@@ -92,7 +103,10 @@ create_fresh_accounts:
 # Run alternatives which don't create xterms unless you want them to
 
 listen_orchestrator:
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done | tee -a orch_log" &
+	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(LISTEN_ORCHESTRATOR)" &
+
+listen_orchestrator_nox:
+	$(SCREEN) -X screen -t orchestrator_listener sh -c "$(LISTEN_ORCHESTRATOR)"
 
 start_orchestrator_nox: stop_orchestrator_nox
 	mkfifo $(ORCH_FIFO)
@@ -103,7 +117,11 @@ start_orchestrator_nox: stop_orchestrator_nox
 	  nc localhost $(LISTEN_ORCH_PORT) > $(ORCH_FIFO) 2>&1 ; rm -f $(ORCH_FIFO) ) 2>/dev/null &
 
 listen_couch:
-	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done" &
+	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "$(LISTEN_COUCH)" &
+listen_couch_nox:
+	$(SCREEN) -X screen -t couch_listener sh -c "$(LISTEN_COUCH)"
+
+
 
 start_couch_nox: stop_couch_nox
 	mkfifo $(COUCH_FIFO)
@@ -114,7 +132,10 @@ start_couch_nox: stop_couch_nox
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 
 listen_rabbit:
-	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done" &
+	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "$(LISTEN_RABBIT)" &
+listen_rabbit_nox:
+	$(SCREEN) -X screen -t rabbit_listener sh -c "$(LISTEN_RABBIT)"
+
 
 start_rabbit_nox: stop_rabbit_nox
 	mkfifo $(RABBIT_FIFO)
@@ -125,6 +146,17 @@ start_rabbit_nox: stop_rabbit_nox
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
 
 listen_all: listen_orchestrator listen_couch listen_rabbit
+
+dummy_screen:
+	@echo "starting up a screen session with 1-window per listener"
+	$(SCREEN) -md -t dummy
+
+listen_all_nox: dummy_screen listen_orchestrator_nox listen_couch_nox listen_rabbit_nox
+	@echo '=================================================================='
+	@echo 'Type ``screen -r`` to connect to a screen session w/ listeners for'
+	@echo '1.  orchestrator'
+	@echo '2.  couchDB'
+	@echo '3.  rabbitMQ'
 
 start_core_nox: start_couch_nox start_rabbit_nox
 

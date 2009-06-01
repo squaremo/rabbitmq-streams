@@ -96,6 +96,10 @@ sure you follow the instructions exactly):
 #+BEGIN_SRC sh
 make listen_all
 #+END_SRC
+   [Note: If you can't spawn xterms for some reason, e.g. because you're connected
+    via a remote terminal, you can also use =make listen_all_nox= which will
+    run the 3 listeners in a single (GNU) =screen= session, but this is really only
+    recommended in that specific case or for =screen= aficionados.]
 
 2. Stop all the components (=stop_all_nox=; this doesn't hurt if they're not
    already running); clean the CouchDB and RabbitMQ broker (=cleandb=) and set
