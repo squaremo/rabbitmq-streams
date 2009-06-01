@@ -1,0 +1,15 @@
+function(keys, values, rereduce) {
+  if (rereduce) {
+    return values;
+  } else {
+    for (ind in keys) {
+      var k = keys[ind];
+      var output = {"server": k[0]};
+      for (t in values) {
+        var v = values[t];
+        output[v.type] = v;
+      }
+      return output;
+    }
+  }
+}
