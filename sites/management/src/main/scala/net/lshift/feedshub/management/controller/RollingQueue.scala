@@ -14,5 +14,7 @@ trait RollingQueue {
     while(queue.size > maximumSize) queue.dequeue
   }
 
-  def dequeue: Option[T] = if(queue.isEmpty) None else Some(queue.dequeue) 
+  def dequeue: Option[T] = if(queue.isEmpty) None else Some(queue.dequeue)
+
+  def contents: Queue[T] = queue.clone
 }

@@ -27,4 +27,18 @@ class RollingQueueTest extends JUnit3Suite {
     expect(Some("4")) {q.dequeue}
     expect(None) {q.dequeue}
   }
+
+  def testNoAccessToUnderlyingQueue = {
+    val q = new RollingQueue {
+      type T = String
+      val maximumSize = 1
+    }
+
+    expect(None)  {
+      val q1 = q.contents
+      q1.enqueue("BANG")
+      q1.enqueue("BANG")
+      q.dequeue
+    }
+  }
 }
