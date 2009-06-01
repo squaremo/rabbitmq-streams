@@ -15,7 +15,7 @@ class LogMonitorTest extends JUnit3Suite  {
     }
 
     monitor ! LogMessage(Error, "Bang!", Array("X", "Y", "Z"))
-    expect(1) {monitor.messages.size}
+    expect(1) {monitor.size}
 
     monitor ! Stop
   }

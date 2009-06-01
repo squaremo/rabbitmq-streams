@@ -38,13 +38,13 @@ abstract class Logger(binding: LogBinding) extends Actor {
     ch.basicConsume(queue, true, LogConsumer)
   }
 
+  def handlers: PartialFunction[Any, Unit] = {
+    case msg@LogMessage(level, desc, component) => processMessage(msg)
+    case Stop => exit("stop")
+  }
+
   def act() = {
-    loop {
-      react {
-        case msg@LogMessage(level, desc, component) => processMessage(msg)
-        case Stop => exit("stop")
-      }
-    }
+    loop(react(handlers))
   }
 
   def processMessage(message: LogMessage)
