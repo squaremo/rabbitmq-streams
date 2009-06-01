@@ -36,12 +36,34 @@ case class Retrieved(content: Response, state : State)
 
 case class Response(result: PollResult.PollResult, feed: Option[SyndFeed])
 
-object PollResult extends Enumeration("ok", "notfound", "gone", "accessdenied", "error") {
+object PollResult extends Enumeration("ok", "notfound", "notmodified", "gone", "accessdenied", "error", "unknown") {
     type PollResult = Value
-    val OK, NotFound, Gone, AccessDenied, Error = Value
+    val OK, NotFound, NotModified, Gone, AccessDenied, Error, Unknown = Value
 }
 
-case class State(currentUrl : String, originalUrl : String, lastUpdated : Long, interval : Int, lastResult: PollResult.PollResult)
+case class State(currentUrl : String, originalUrl : String,
+                 lastUpdated : Long,
+                 interval : Int,
+                 lastResult: PollResult.PollResult,
+                 etag: Option[String],
+                 lastModified: Option[Long]) {
+
+    def updatedAt(updated : Long, result : PollResult.PollResult) : State = {
+        new State(currentUrl, originalUrl, updated, interval, result, etag, lastModified)
+    }
+
+    def withNewURL(url : String) : State = {
+        new State(url, originalUrl, lastUpdated, interval, lastResult, etag, lastModified)
+    }
+
+    def withETag(etag : String) : State = {
+        new State(currentUrl, originalUrl, lastUpdated, interval, lastResult, Some(etag), lastModified)
+    }
+
+    def withLastModified(lastModified: Long) : State = {
+        new State(currentUrl, originalUrl, lastUpdated, interval, lastResult, etag, Some(lastModified))
+    }
+}
 
 class Subscription(log : Logger, initialState: State, saveState: State => Unit, publish: String => Unit) extends Actor {
 
@@ -55,12 +77,21 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
         }
     }
 
+    private def extractConditionalHeaders(state : State, conn : HttpURLConnection) : State = {
+        val s = conn.getLastModified match {case 0 => state; case lms : Long => state.withLastModified(lms)}
+        conn.getHeaderField("ETag") match {case null => s; case etag: String => s.withETag(etag)}
+    }
+
     private def retrieveHttpFeed(state : State, url : URL) : (Response, State) = {
+        val ContentBearingResponseCodes = Set(200, 301, 302, 303, 307)
         val conn : HttpURLConnection = (url.openConnection).asInstanceOf[HttpURLConnection]
         // TODO set headers from state
+        state.etag match {case Some(etag) => conn.setRequestProperty("If-None-Match", etag); case None => ;}
+        state.lastModified match {case Some(lastmodified) => conn.setIfModifiedSince(lastmodified); case None => ;}
         // TODO conn.setConnectTimeout(int)
         // TODO conn.setReadTimeout(int)
         conn.setInstanceFollowRedirects(true)
+        conn.setAllowUserInteraction(false)
         conn.connect()
         val now = (new Date).getTime
         try {
@@ -71,13 +102,15 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
                 case 404 /* not found */ => new Response(PollResult.NotFound, None)
                 case 500 /* server error */ => new Response(PollResult.Error, None)
                 case 403 /* Forbidden, give up */ => new Response(PollResult.Gone, None)
-                case other : Int if (other >= 200 && other < 400) => /* OKs though redirects */
+                case 304 /* not modified */ => new Response(PollResult.NotModified, None)
+                case other : Int if (ContentBearingResponseCodes.contains(other)) => /* OKs though redirects */
                     new Response(PollResult.OK, Some(readFeed(conn)))
                 case _ => new Response(PollResult.Error, None) /* Cop out */
             }
             val newState = conn.getResponseCode match {
-                case 301 => new State(conn.getURL toString, state.originalUrl, now, state.interval, response.result)
-                case _   => new State(state.currentUrl, state.originalUrl, now, state.interval, response.result)
+                case 301 => state.withNewURL(conn.getURL toString).updatedAt(now, response.result)
+                case other : Int if (ContentBearingResponseCodes.contains(other)) => extractConditionalHeaders(state, conn)
+                case _   => state.updatedAt(now, response.result)
             }
             (response, newState)
         }
@@ -85,7 +118,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
             case err : Throwable => {
                     log.error(err)
                     val response = new Response(PollResult.Error, None)
-                    val newState = new State(state.currentUrl, state.originalUrl, now, state.interval, response.result)
+                    val newState = state.updatedAt(now, response.result)
                     (response, newState)
             }
         }
@@ -108,7 +141,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
                     new Response(PollResult.Error, None) // TODO could look at causes ..
             }
         }
-        (response, new State(state.originalUrl, state.currentUrl, now, state.interval, response.result))
+        (response, state.updatedAt(now, response.result))
     }
 
     private def readFeed(connection : URLConnection) : SyndFeed = {
@@ -127,7 +160,6 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
     def poll(state: State) {
         log.debug("Polling: " + state.currentUrl)
         actor {
-            log.debug("In actor")
             val url = new URL(state.currentUrl)
             val (result, newstate) = url getProtocol match {
                 case "http" => retrieveHttpFeed(state, url)
@@ -165,10 +197,9 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
     def setAlarm(seconds : Long) : ScheduledFuture[AnyRef] = {
         log.debug("Setting alarm for " + seconds + " seconds")
         val res = ActorPing.schedule(this, RetrieveNow, seconds * 1000)
-        //log.debug("Set alarm")
         res
     }
 
-    private val firstAlarm = setAlarm(0) // make sure we set the alarm
+    private val firstAlarm = setAlarm(0) // TODO set for lastUpdated + interval
     def act = loop(firstAlarm, initialState)
 }

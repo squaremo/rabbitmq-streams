@@ -11,12 +11,15 @@ import net.sf.json.JSONObject
 import com.fourspaces.couchdb.Session
 import net.lshift.feedshub.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
+import com.fourspaces.couchdb.{Database, Document}
+
+import net.liftweb.util.Helpers.hexDigest
 
 import scala.collection.mutable.Map
 
 case class StatusChange(subscription: String, configs: Seq[JSONObject], active: Boolean)
 
-class Dispatcher(log : Logger, publish: (String, String) => Unit) extends Actor {
+class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Database) extends Actor {
     private val subscriptions : Map[String, List[Subscription]] = Map()
 
     def publishAsTerminal(terminalId : String)(message : String) {
@@ -30,8 +33,13 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit) extends Actor 
                         if (active) {
                             log.info("Activating " + id)
                             if (! subscriptions.contains(id)) {
-                                val subs = configs.map(config =>
-                                    new Subscription(log, stateFromConfig(config), saveSubscriptionState(id) _, publishAsTerminal(id) _))
+                                val subs = configs.map(config => {
+                                        val sourceConfig = config.getJSONObject("source")
+                                        val name = subscriptionStateName(id, sourceConfig)
+                                    new Subscription(log, stateFromConfig(name, sourceConfig),
+                                                     saveSubscriptionState(name) _,
+                                                     publishAsTerminal(id) _)
+                                })
                                 subscriptions += (id -> List(subs:_*))
                                 subs.foreach(_.start)
                             }
@@ -53,18 +61,52 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit) extends Actor 
         }
     }
 
-    def stateFromConfig(config : JSONObject) : State = {
-        // Get the configuration, and go look for any current state
-        // Check the original URL against the configured one
-        // Make a state documment and save it
-        val sourceConfig = config.getJSONObject("source")
-        val url = sourceConfig.getString("url")
-        val interval = sourceConfig.getInt("interval")
-        new State(url, url, 0, interval, PollResult.OK)
+    private def populateDocFromState(doc : Document, state : State) {
+        doc.put("currentUrl", state.currentUrl)
+        doc.put("originalUrl", state.originalUrl)
+        doc.put("etag", state.etag getOrElse null)
+        doc.put("lastModified", state.lastModified getOrElse 0)
+        doc.put("lastUpdated", state.lastUpdated)
+        doc.put("lastResult", state.lastResult.toString)
     }
 
-    def saveSubscriptionState(id : String)(state : State) {
+    // Merge the state from a document with a config.
+    // Prefer the document's values -- this is used when starting a Subscription,
+    // so it will either be a blank document or from the last time it was started.
+    private def stateFromDoc(stateDoc : Document, config : JSONObject) : State = {
+        new State(stateDoc.optString("currentUrl", config.getString("url")),
+                  config.getString("url"),
+                  stateDoc.optLong("lastUpdated", 0),
+                  config.getInt("interval"),
+                  PollResult.valueOf(stateDoc.optString("lastResult", "")) getOrElse PollResult.Unknown,
+                  stateDoc.optString("etag", null) match {case null => None; case etag => Some(etag)},
+                  stateDoc.optLong("lastModified", 0) match {case 0 => None; case lm => Some(lm)})
+    }
+
+    def stateFromConfig(name : String, config : JSONObject) : State = {
+        val stateDoc = getSubscriptionStateDoc(name)
+        stateFromDoc(stateDoc, config)
+    }
+
+    def subscriptionStateName(terminalId: String, config : JSONObject) : String = {
+        // We don't have a way of identifying individual pollers,
+        // except by the URL they are supposed to poll.
+        val url = config.getString("url")
+        val extra = hexDigest(url.getBytes)
+        terminalId + extra
+    }
+
+    def getSubscriptionStateDoc(docName : String) : Document = {
+        couch.getDocument(docName) match {
+            case null => {val d = new Document; d.setId(docName); d}
+            case doc => doc
+        }
+    }
+
+    def saveSubscriptionState(docName : String)(state : State) {
         log.debug("Saving state : " + state)
-        // TODO Save to the correct place in the DB
+        val doc = getSubscriptionStateDoc(docName)
+        populateDocFromState(doc, state)
+        couch.saveDocument(doc)
     }
 }
