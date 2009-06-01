@@ -4,6 +4,7 @@ DIA=dia
 all: getting_started_dev.html bitmaps
 setup:
 	sudo aptitude install emacs-snapshot emacs-goodies js2-mode graphicsmagick dia
+
 getting_started_dev.html: getting_started_dev.org stylesheet.css
 	$(EMACS) --batch -l org --visit getting_started_dev.org --funcall org-export-as-html-batch
 
@@ -15,3 +16,7 @@ bitmaps: *.dia
 	gm mogrify -crop 'x339' flow-simplified.png
 
 .PHONY: setup all bitmaps
+
+clean:
+	rm getting_started_dev.html
+	rm *.png
