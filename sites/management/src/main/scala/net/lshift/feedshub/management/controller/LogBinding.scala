@@ -47,4 +47,5 @@ object LogBinding {
   private val zeroOrMoreWildCard = "#"
 
   def apply() = new LogBinding(None, None, Seq.empty)
+  def Any = LogBinding()
 }
