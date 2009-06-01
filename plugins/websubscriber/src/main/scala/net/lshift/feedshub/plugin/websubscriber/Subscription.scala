@@ -178,6 +178,7 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
                     case Some(syndfeed) => shredAndPublish(syndfeed)
                     case None => log.warn("Feed expected but not present " + content toString)
             }
+            case res => log.debug("No feed returned (" + res.toString + ") ; doing nothing")
         }
     }
 
