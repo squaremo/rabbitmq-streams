@@ -4,6 +4,7 @@ import scala.actors.Actor
 import scala.actors.Actor._
 import scala.collection.mutable.HashSet
 import com.rabbitmq.client._
+import net.lshift.feedshub.management.utils.actor.Stop
 
 /**
  * This is an abstract class used to consume messages from the feeshub log exchange.
@@ -61,4 +62,3 @@ abstract class Logger(binding: LogBinding) extends Actor {
 }
 
 case class LogMessage(level: LogLevel, msg: String, component: Array[String])
-case object Stop

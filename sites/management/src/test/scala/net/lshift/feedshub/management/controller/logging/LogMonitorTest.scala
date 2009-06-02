@@ -1,12 +1,11 @@
 package net.lshift.feedshub.management.controller.logging
 
-
 import scala.actors.Actor
 import scala.actors.Actor._
 import org.scalatest.junit.JUnit3Suite
+import net.lshift.feedshub.management.utils.actor.Stop
 
-class LogMonitorTest extends JUnit3Suite  {
-
+class LogMonitorTest extends JUnit3Suite {
   def testFilteringOfMessages = {
     val monitor = new LogMonitor(LogBinding.Any, 100) {
       override def scheduler = new scala.actors.SingleThreadedScheduler // Override for unit testing
