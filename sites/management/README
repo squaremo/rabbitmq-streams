@@ -1,0 +1,28 @@
+This web application can be built and run using make or Maven 2.0.
+
+make simply wraps Maven so Maven needs to be installed.
+
+USING MAKE
+
+To build everything type: make all
+
+To run the web application on localhost:8080: make run
+
+
+USING MAVEN
+
+Firstly there are three libraries that aren't available on public maven 
+repositories, scripts in the lib directory can be used to install these 
+locally, do something like this:
+
+> cd lib
+> ./install-jcouchdb.sh
+> ./install-rabbitmq-client.sh
+> mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=../../harness/java/feedshub_harness.jar
+
+The make file will handle these install for you if you use it!
+
+
+To build everything: mvn clean install
+
+To run the web application on localhost:8080: mvn jetty:run
