@@ -5,6 +5,10 @@ import collection.mutable.Queue
 import scala.actors.Actor
 import scala.actors.Actor._
 
+/**
+ * This class can be used to monitor logs and provides listeners partitioned by log level.
+ * 
+ */
 class LogMonitor(binding: LogBinding, capacity: Int) extends Logger(binding) {
   private val messages = new RollingQueue {
     type T = LogMessage
@@ -46,3 +50,10 @@ class LogMonitor(binding: LogBinding, capacity: Int) extends Logger(binding) {
     }
   }
 }
+
+case class AddLogListener(downToLevel: LogLevel, listener: Actor)
+case class RemoveLogListener(listener : Actor)
+
+case class History(msgs: List[LogMessage])
+
+object Log extends LogMonitor(LogBinding.Any, 100)

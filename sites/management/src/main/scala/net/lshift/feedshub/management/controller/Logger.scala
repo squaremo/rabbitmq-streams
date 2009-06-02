@@ -38,6 +38,13 @@ abstract class Logger(binding: LogBinding) extends Actor {
     ch.basicConsume(queue, true, LogConsumer)
   }
 
+  /**
+   * Override this definition to handle additional messages
+   *
+   * NB. don't forget to call this handler at the end of the over-ridden handler like this:
+   *
+   * <code>localHandlers orElse super.handlers</code>
+   */
   def handlers: PartialFunction[Any, Unit] = {
     case msg@LogMessage(level, desc, component) => processMessage(msg)
     case Stop => exit("stop")
@@ -53,4 +60,5 @@ abstract class Logger(binding: LogBinding) extends Actor {
   start
 }
 
+case class LogMessage(level: LogLevel, msg: String, component: Array[String])
 case object Stop
