@@ -30,9 +30,9 @@ class FeedsActor extends CometActor {
             Noop
         }
         if (feed.active)
-            SHtml.ajaxButton("Stop", () => sendCommand(StopFeed(feed.id)), "class" -> "control-button")
+            SHtml.ajaxButton("Stop", () => sendCommand(StopFeed(feed.id)), "class" -> "control-button button-stop")
         else
-            SHtml.ajaxButton("Start", () => sendCommand(StartFeed(feed.id)), "class" -> "control-button")
+            SHtml.ajaxButton("Start", () => sendCommand(StartFeed(feed.id)), "class" -> "control-button button-start")
     }
 
     override def render : RenderOut = {
