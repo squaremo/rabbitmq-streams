@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller
+package net.lshift.feedshub.management.controller.logging
 
 import scala.actors.Actor
 import scala.actors.Actor._

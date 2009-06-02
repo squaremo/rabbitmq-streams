@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller
+package net.lshift.feedshub.management.controller.logging
 
 class LogBinding private(val lowest: Option[LogLevel], val highest: Option[LogLevel], val components: Seq[String]) {
   val bindings: Set[String] = {
