@@ -95,7 +95,7 @@
     </dependency>
 
     <dependency>
-      <groupId>net.rabbitmq</groupId>
+      <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>1.5.4</version>
     </dependency>

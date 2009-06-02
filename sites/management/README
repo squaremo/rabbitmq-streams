@@ -17,7 +17,6 @@ locally, do something like this:
 
 > cd lib
 > ./install-jcouchdb.sh
-> ./install-rabbitmq-client.sh
 > mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=../../harness/java/feedshub_harness.jar
 
 The make file will handle these install for you if you use it!
