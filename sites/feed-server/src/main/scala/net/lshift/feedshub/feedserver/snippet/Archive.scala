@@ -1,15 +1,18 @@
 package net.lshift.feedshub.feedserver.snippet
 
-import net.lshift.feedshub.feedserver.model.{Server}
+import net.lshift.feedshub.feedserver.model.{LocalServer}
 import scala.xml.NodeSeq
-
-object LocalServer extends Server("http://localhost:5984", "feedshub_status")
 
 class Archive {
   def list : NodeSeq = {
       <ul>
       {LocalServer.archives map(
-          archive => <li>{archive.name}</li>
+          archive =>
+          <li>
+              {archive.title}
+              <a href={archive.name+".rss"}>RSS</a>
+              <a href={archive.name+".atom"}>Atom</a>
+          </li>
         )}
       </ul>
   }

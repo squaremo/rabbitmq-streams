@@ -5,6 +5,8 @@ import net.liftweb.http._
 import net.liftweb.sitemap._
 import net.liftweb.sitemap.Loc._
 import Helpers._
+
+import net.lshift.feedshub.feedserver.view.OutputFeed
  
 /**
   * A class that's instantiated early and run.  It allows the application
@@ -18,6 +20,11 @@ class Boot {
     // Build SiteMap
     val entries = Menu(Loc("home", List("index"), "Home")) :: Nil
     LiftRules.setSiteMap(SiteMap(entries:_*))
+    LiftRules.dispatch.append {
+        case Req(name :: Nil, "rss", GetRequest) =>
+            () => OutputFeed.rss(name)
+        case Req(name :: Nil, "atom", GetRequest) =>
+            () => OutputFeed.atom(name)
+    }
   }
 }
-

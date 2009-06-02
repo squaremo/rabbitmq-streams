@@ -1,7 +1,10 @@
 function(doc) {
-  if (doc.type == "terminal") {
-    for (var ind=0; ind < doc.servers.length; i++) {
-      emit(doc.servers[ind].server, doc);
+  if (doc.type=="terminal") {
+    for (var i=0; i < doc.servers.length; i++) {
+      var output = {};
+      for (k in doc) if (k != "servers") output[k] = doc[k];
+      output["server"] = doc.servers[i];
+      emit(doc.servers[i].server, output);
     }
   }
   else if (doc.type=="server") {
