@@ -28,19 +28,27 @@ class Server(url : String, configDatabaseName : String) {
     }
 
     def archives : Seq[Archive] = {
-        for (server <- configDb.view("terminals/byserver?group=true").getResults;
-            if server.getJSONObject("server").getString("server_type").equals("archive");
-            t <- server.getJSONArray("terminals");
-            terminal = t.asInstanceOf[JSONObject];
-            if terminal.optBoolean("publish", false))
-       yield newArchive(server.getJSONObject("server"), terminal)
+        for (row <- configDb.view("terminals/byserver?group=true").getResults;
+             server = row.getJSONObject("value")
+             if server.getJSONObject("server").getString("server_type").equals("archive");
+             t <- server.getJSONArray("terminals");
+             terminal = t.asInstanceOf[JSONObject];
+             destination = terminal.getJSONObject("server").getJSONObject("destination");
+             if destination.optBoolean("publish", false))
+        yield newArchive(server.getJSONObject("server"), destination)
     }
 
+    def archive(name : String) : Option[Archive] = {
+        archives.dropWhile(a => a.name != name).firstOption
+    }
 }
+
+object LocalServer extends Server("http://localhost:5984", "feedshub_status")
 
 /**
  * Represents an archive available as a feed
  */
 class Archive(val dbUrl : String, config : JSONObject) {
-    val name = config.getString("_id") // for now
+    val name = config.getString("name")
+    val title = config.getString("title")
 }
