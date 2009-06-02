@@ -120,8 +120,8 @@ public class Database {
 	 * @return
 	 */
 	public ViewResults view(View view) {
-    return view(view, true);
-  }
+          return view(view, true);
+        }
 
 	/**
 	 * Runs a view, appending "_view" to the request if isPermanentView is true. 

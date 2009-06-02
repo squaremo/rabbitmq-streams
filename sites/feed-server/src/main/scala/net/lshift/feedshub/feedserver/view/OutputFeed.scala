@@ -32,7 +32,19 @@ object OutputFeed {
     }
 
     private def toAtom(archive : Archive) : LiftResponse = {
-        new AtomResponse(<atom/>)
+        new AtomResponse(
+            <atom:feed xmlns="http://www.w3.org/2005/Atom">
+                <atom:title type="text">{archive.title}</atom:title>
+                <atom:entries>
+                    {for (entry <- archive.entries(10))
+                     yield (<atom:entry>
+                                <atom:updated>{entry.updated}</atom:updated>
+                                <atom:content type="text/html">
+                                    {entry.content}
+                                </atom:content>
+                            </atom:entry>)}
+                </atom:entries>
+            </atom:feed>)
     }
 
     private def toRSS(archive : Archive) : LiftResponse = {
