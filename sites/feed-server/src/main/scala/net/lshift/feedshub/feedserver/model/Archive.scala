@@ -15,16 +15,11 @@ import net.sf.json._
  * Represents a (CouchDB) database server
  */
 class Server(url : String, configDatabaseName : String) {
-    val couch = sessionFromString(url)
+    val couch = Server.sessionFromString(url)
     val configDb = couch.getDatabase(configDatabaseName)
 
-    private def sessionFromString(urlStr : String) : Session = {
-        val url = new URL(urlStr)
-        new Session(url.getHost(), url.getPort())
-    }
-
-    private def newArchive(server : JSONObject, terminal: JSONObject) : Archive = {
-        new Archive("http://localhost:5984/archive_"+terminal.get("_id"), terminal)
+    private def newArchive(server : JSONObject, terminal: JSONObject, destination : JSONObject) : Archive = {
+        new Archive(couch, "archive_"+terminal.get("_id")+destination.get("name"), destination)
     }
 
     def archives : Seq[Archive] = {
@@ -35,11 +30,17 @@ class Server(url : String, configDatabaseName : String) {
              terminal = t.asInstanceOf[JSONObject];
              destination = terminal.getJSONObject("server").getJSONObject("destination");
              if destination.optBoolean("publish", false))
-        yield newArchive(server.getJSONObject("server"), destination)
+        yield newArchive(server.getJSONObject("server"), terminal, destination)
     }
 
     def archive(name : String) : Option[Archive] = {
         archives.dropWhile(a => a.name != name).firstOption
+    }
+}
+object Server {
+    def sessionFromString(urlStr : String) : Session = {
+        val url = new URL(urlStr)
+        new Session(url.getHost(), url.getPort())
     }
 }
 
@@ -48,7 +49,32 @@ object LocalServer extends Server("http://localhost:5984", "feedshub_status")
 /**
  * Represents an archive available as a feed
  */
-class Archive(val dbUrl : String, config : JSONObject) {
+class Archive(private val couch: Session, private val dbName : String, private val config : JSONObject) {
     val name = config.getString("name")
     val title = config.getString("title")
+
+    private val db = couch.getDatabase(dbName)
+
+    def installView {
+        val d = new Document()
+        d.addView("entries", "updated", "function(doc) {emit(doc.updated, doc);}")
+        db.saveDocument(d)
+    }
+
+    def entries(limit : Int) : Seq[ArchiveEntry] = {
+        val entriesView = new View("entries/updated")
+        entriesView.setLimit(limit)
+        db.view(entriesView) match {
+            case null => installView; entries(limit)
+            case view =>
+                for (row <- view.getResults;
+                     doc = row.getJSONObject("value"))
+                yield new ArchiveEntry(doc)
+        }
+    }
+}
+
+class ArchiveEntry(private val doc : JSONObject) {
+    val updated = doc.getLong("updated")
+    val content = doc.getString("body")
 }
