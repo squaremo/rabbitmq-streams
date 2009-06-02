@@ -21,46 +21,41 @@ table, caption, tbody, tfoot, thead, tr, th, td {
 body {
     margin: 0 auto;
     position: relative;
-    font: Helvetica, Arial, sans-serif;
     font-size: 12px;
     line-height: 1.6;
     text-align: center;
     background-color: #fff;
+    color: #0B486B;
     font-family: Helvetica,Arial,sans-serif;
 }
-
 div.top-bar {
-	background-color: #666;
+	background-color: #0B486B;
 	color: #fff;
-	border-bottom: 1px solid #000;
+    padding: 12px 0 12px 0;
+    margin: 0 0 12px 0;
 }
 div.app-name {
 	float: left;
-	background-color: #666;
 	color: #fff;
 	padding: 0px 12px 0 12px;
 	font-weight: bold;
 }
 div.top-bar ul {
-
 	float: right;
 }
 div.top-bar ul li {
 	float: right;
 	list-style-type: none;
-	padding:  0 12px 0 12px;
-	background-color: #666;
 	color: #fff;
+    margin: 0px 12px 0 0;
 }
- div.top-bar  ul li a:link,
+div.top-bar  ul li a:link,
 div.top-bar li a:visited  {
-	background-color: #666;
-	color: #ddd;
+	color: #fff;
 }
 div.top-bar li a:hover,
 div.top-bar li a:active  {
-	background-color: #666;
-	color: #fff;
+	color: #cff09e;
 }
 .clear {
    clear: both;
@@ -72,15 +67,22 @@ div.page {
 	margin:1px auto 0px auto;
 	background-color: #fff;
 	border: none;
+    min-height: 500px;
+}
+h1, h2 {
+    font-size: 14px;
+    padding-bottom: 12px;
 }
 div.foot {
 	text-align: left;
     padding: 0px 0px 0px 0px;
-	margin:1px auto 0px auto;
+	margin:12px auto 12px auto;
 	background-color: #fff;
 	border: none;
 }
-
+div.foot p {
+	padding:  0 12px 0 12px;
+}
 /* defaults */
 div.page ul {
 	margin: 12px 0 12px 12px;
@@ -93,7 +95,6 @@ div.page p {
 }
 /* General
 ==================================== */
-
 strong, b {
 	font-weight: bold;
 }
@@ -113,6 +114,13 @@ dt {
 dd {
 	float: left;
 }
+#log-list dt {
+    width: 112px;
+}
+dt.info {
+    background:#EEEEEE none repeat scroll 0 0;
+}
+
 table {
 	border-collapse: collapse;
 	margin-top: 12px;
@@ -129,14 +137,11 @@ th, td {
 td {
 
 }
-a:link {
-	color: grey;
-}
-a:visited {
-	color: navy;
+a:link, a:visited {
+	color:  #3b8686;
 }
 a:active, a:hover  {
-	color: red;
+	color: #cff09e;
 }
 /* @forms */
 
@@ -154,7 +159,22 @@ select,
 button {
 	font-family: inherit;
 }
+.control-button {
+     padding-left: 12px;
+     padding-right: 12px;
+     margin-right: 12px;
+     color: #fff;
+     background-color: #3b8686;    
+}
+.button-start {
+     background-color: #a8dba8;
+     color: #fff;
 
+}
+.button-stop {
+    background-color: #e33258;
+     color: #fff;
+}
 textarea,
 input[type='text'],
 input[type='password'],
@@ -197,9 +217,9 @@ textarea {
 	display: block;
 }
 
-button {
-	border: 0;
-	padding: 0;
+    button {
+    border: 0;
+    padding: 0;
 	cursor: pointer;
 	width: auto;
 	overflow: visible;
@@ -237,8 +257,8 @@ table#terminals-list {
   background-color: #eee;
   border: 1px solid #ccc;
   font-family:arial;
-  font-size:12px
-  margin:10px 0 15px;
+  font-size: 12px;
+  margin: 10px 0 15px;
   text-align:left;
   width:100%;
     color:#3D3D3D;
@@ -247,7 +267,7 @@ table#feeds-list tr th, table#feeds-list tfoot tr th,
 table#terminals-list tr th, table#terminals-list tfoot tr th {
   background-color:#eee;
   border:1px solid #ccc;
-  font-size:12px
+  font-size:12px;
   padding:4px;
     color:#3D3D3D;
 }
@@ -260,7 +280,7 @@ table#terminals-list tr th, table#terminals-list tfoot tr th {
 
 table#feeds-list thead tr .headerSortDown, table#feeds-list thead tr .headerSortUp,
 table#terminals-list thead tr .headerSortDown, table#terminals-list thead tr .headerSortUp {
-    background-color:#aaa;
+    background-color:#628396;
 }
 table#terminals-list thead tr .headerSortDown {
     background-image:url(desc.gif);
