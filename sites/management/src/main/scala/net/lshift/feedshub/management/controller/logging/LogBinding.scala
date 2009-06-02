@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller
+package net.lshift.feedshub.management.controller.logging
 
 class LogBinding private(val lowest: Option[LogLevel], val highest: Option[LogLevel], val components: Seq[String]) {
   val bindings: Set[String] = {
@@ -36,7 +36,7 @@ class LogBinding private(val lowest: Option[LogLevel], val highest: Option[LogLe
 
   private def reduceWildcards(s: String): String = if(s.exists(c => c != '#' && c != '.')) s else LogBinding.zeroOrMoreWildCard
 
-  private def componentString: String = if(components.isEmpty) LogBinding.zeroOrMoreWildCard else components.mkString(LogBinding.seperator.toString)
+  private def componentString: String = if(components.isEmpty) LogBinding.zeroOrMoreWildCard else components.mkString(LogBinding.seperator) + LogBinding.seperator + LogBinding.zeroOrMoreWildCard
 
   def withComponents(cs: Seq[String]) = new LogBinding(lowest, highest, cs)
 

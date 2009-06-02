@@ -13,7 +13,7 @@ import net.liftweb.http._
 import net.liftweb.http.js.JsCmds.Noop
 import net.liftweb.util.{Box, Full}
 
-import net.lshift.feedshub.management.controller._
+import net.lshift.feedshub.management.controller.logging._
 
 class LogActor extends CometActor {
 

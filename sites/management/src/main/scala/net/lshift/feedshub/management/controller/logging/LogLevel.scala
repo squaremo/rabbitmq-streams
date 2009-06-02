@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller
+package net.lshift.feedshub.management.controller.logging
 
 class LogLevel {
   def andUp = LogLevel.downTo(this)

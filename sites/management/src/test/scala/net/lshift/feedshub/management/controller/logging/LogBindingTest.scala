@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller
+package net.lshift.feedshub.management.controller.logging
 
 import org.scalatest.junit.JUnit3Suite
 
@@ -43,5 +43,5 @@ class LogBindingTest extends JUnit3Suite {
     expect(Set(componentsToString(wildcard, components))) {binding.withComponents(components).withLogLevelAbove(Debug).bindings}
   }
   
-  private def componentsToString(level: String, components:List[String]) = (List(level) ::: components).mkString(separator)
+  private def componentsToString(level: String, components:List[String]) = (List(level) ::: components).mkString(separator) + separator + wildcard
 }

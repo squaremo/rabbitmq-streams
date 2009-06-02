@@ -18,6 +18,7 @@
 (^|/)nb-configuration\.xml$
 ^orch_log$
 ^doc/.*html$
+^doc/.*png$
 /.libs-done$
 \.iml$
 \.ipr$
