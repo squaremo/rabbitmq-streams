@@ -90,9 +90,9 @@ sure you follow the instructions exactly):
 
 1. Start up three xterms which are configured to listen to the outputs of
    each component
-#+HTML: (<font color="#400000"><b>rabbitMQ</b></font> </font>,
-#+HTML: <font color="#004000"><b>couchDB</b></font> </font>,
-#+HTML: <font color="#000040"><b>orchestrator</b></font>)
+#+HTML: (<font color="#400000"><b>RabbitMQ</b></font> </font>,
+#+HTML: <font color="#004000"><b>CouchDB</b></font> </font>,
+#+HTML: <font color="#000040"><b>Orchestrator</b></font>)
 #+BEGIN_SRC sh
 make listen_all
 #+END_SRC
@@ -101,12 +101,14 @@ make listen_all
     run the 3 listeners in a single (GNU) =screen= session, but this is really only
     recommended in that specific case or for =screen= aficionados.]
 
-2. Stop all the components (=stop_all_nox=; this doesn't hurt if they're not
-   already running); clean the CouchDB and RabbitMQ broker (=cleandb=) and set
-   them back up (=start_core_nox=), then re-initialize the user/admin accounts
-   (=create_fresh_accounts=), install the test configuration
-   (=install_test_data.py=) and get everthing up and running with the new config
-   (=start_orchestrator_nox=):
+2. Stop all the components (=stop_all_nox=; this doesn't hurt if
+   they're not already running); clean the CouchDB and RabbitMQ broker
+   (=cleandb=) and set them back up (=start_core_nox=), then
+   re-initialize the user/admin accounts (=create_fresh_accounts=),
+   install the test configuration (=sbin/import_config.py
+   examples/test=) and get everthing up and running with the new
+   config (=start_orchestrator_nox=):
+
 #+BEGIN_SRC sh
 make all \
 && make stop_all_nox \
@@ -114,9 +116,20 @@ make all \
 && make start_core_nox && sleep 2 \
 && make create_fresh_accounts && sleep 1 \
 && make start_orchestrator_nox sleep 5 \
-&& python sbin/install_test_data.py \
+&& python sbin/import_config.py examples/test \
 && make start_orchestrator_nox
 #+END_SRC
+
+=make full_reset_core_nox= and =make full_reset_core= will do all the
+above up to and including =create_fresh_accounts=, so you can also use
+
+#+BEGIN_SRC sh
+make all full_reset_core_nox start_orchestrator_nox\
+&& sleep 5 \
+&& python sbin/import_config.py examples/test \
+&& make start_orchestrator_nox
+#+END_SRC
+
 * TODO FIXME change Makefile so =start_orchestrator_nox= is only needed once
    Note that if you already got a system install of couchDB or RabbitMQ etc.
    you should make sure that they are either currently not running or using
@@ -132,6 +145,7 @@ return in the shells. The Makefile targets take care of stopping the
 components as necessary.
 
 * Developing
+
 Although many of the core components of Feedshub are written in Erlang, relax!
 No Erlang skills are required for the most common development task: writing
 additional Sources/Sinks/Transformers ([[*Plugins][=Plugins=]]). The same is true for
