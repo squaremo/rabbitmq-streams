@@ -23,7 +23,11 @@ class FeedMonitor(feedSource: Actor with ObservableActor[UpdateFeedList], capaci
   }
 
   private def updateMonitor(component: String) = {
-    monitors.update (component, new LogMonitor(LogBinding.Any.withComponents(List(component)), capacity))
+    monitors.get(component) match {
+      case Some(monitor) => monitor ! Stop
+      case None    => // Do nothing
+    }
+    monitors.update(component, new LogMonitor(LogBinding.Any.withComponents(List(component)), capacity))
     notifyObservers(MonitorMessage(component))
   }
 
