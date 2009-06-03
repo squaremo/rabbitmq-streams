@@ -47,10 +47,10 @@ class FeedsActor extends CometActor {
                       <td>{f.id}</td>
                       <td class="status">{if (f.active) "Active" else "Inactive"}</td>
                       <td>
-                        {f.lastLogMessage match {
+                        {SHtml.link("/feed-log", () => println("Show logs for " + f.id), Text(f.lastLogMessage match {
                           case Some(m) => m.level + " " + m.msg
                           case None    => "No log messages available"
-                        }}
+                        }), ("feed", f.id))}
                       </td>
                       <td class="ctrl">{feedControl(f)}</td>
                   </tr>)}
