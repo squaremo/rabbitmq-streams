@@ -25,7 +25,6 @@ class Boot {
       Menu(Loc("home", List("index"), "Home")) ::
       Menu(Loc("feeds", List("feeds"), "Feeds")) ::
       Menu(Loc("terminals", List("terminals"), "Sources and Destinations")) ::
-      Menu(Loc("monitors", List("monitors"), "Monitoring")) ::
       Menu(Loc("archives", List("archives"), "Archives")) :: Nil
 
     LiftRules.setSiteMap(SiteMap(entries: _*))
