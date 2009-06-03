@@ -14,6 +14,8 @@ class LogLevel {
       case Fatal => "FATAL"
     }
   }
+
+  override def toString: String = stringValue
 }
 
 object LogLevel extends LogLevel {

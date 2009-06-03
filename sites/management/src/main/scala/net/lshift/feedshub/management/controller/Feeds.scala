@@ -5,6 +5,8 @@
 
 package net.lshift.feedshub.management.controller
 
+import logging.LogMessage
+import net.lshift.feedshub.management.controller.monitoring.FeedMonitors
 import scala.collection.mutable.HashSet
 import scala.collection.jcl.Conversions._
 import net.liftweb.util.Helpers._
@@ -15,7 +17,7 @@ import com.fourspaces.couchdb._
 
 // This should go in the model
 case class FeedStatus(id: String, active: Boolean) {
-    // case class so we get the handy accessors
+    def lastLogMessage: Option[LogMessage] = FeedMonitors.lastLogMessage(id)
 }
 
 // For sending to listeners

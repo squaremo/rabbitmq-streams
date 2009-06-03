@@ -18,6 +18,8 @@ class LogMonitor(binding: LogBinding, capacity: Int) extends Logger(binding) {
       val levels = level.andUp
       contents.filter(msg => levels.contains(msg.level)).toList
     }
+
+    def mostRecent: Option[T] = contents.firstOption
   }
 
   def processMessage(message: LogMessage) = messages.enqueue(message)
@@ -25,6 +27,8 @@ class LogMonitor(binding: LogBinding, capacity: Int) extends Logger(binding) {
   def history(level: LogLevel) = messages.history(level)
 
   def size = messages.size
+
+  def mostRecent: Option[LogMessage] = messages.mostRecent
 
   val listeners = Map(
     Debug -> HashSet[Actor](),

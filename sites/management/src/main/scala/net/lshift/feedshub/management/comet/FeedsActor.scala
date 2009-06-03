@@ -39,13 +39,19 @@ class FeedsActor extends CometActor {
         bind("list" ->
              (<table id="feeds-list" class="tablesorter">
                 <thead>
-                       <tr><th>Feed</th><th>Status</th><th></th></tr>
+                       <tr><th>Feed</th><th>Status</th><th>Last log message</th><th></th></tr>
                 </thead>
                 <tbody>
                        {feeds.map(f =>
                   <tr>
                       <td>{f.id}</td>
                       <td class="status">{if (f.active) "Active" else "Inactive"}</td>
+                      <td>
+                        {f.lastLogMessage match {
+                          case Some(m) => m.level + " " + m.msg
+                          case None    => "No log messages available"
+                        }}
+                      </td>
                       <td class="ctrl">{feedControl(f)}</td>
                   </tr>)}
                 </tbody>

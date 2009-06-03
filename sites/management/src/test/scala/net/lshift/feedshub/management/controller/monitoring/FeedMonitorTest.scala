@@ -30,7 +30,7 @@ class FeedMonitorTest extends JUnit3Suite {
       override def scheduler = new scala.actors.SingleThreadedScheduler
     }
 
-    expect(Set(feedName)) {monitor.monitors.keySet}
+    expect(Set(feedName)) {monitor.knownFeeds}
 
     monitor ! Stop
     feedSource ! Stop
