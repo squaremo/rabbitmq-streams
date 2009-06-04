@@ -6,7 +6,7 @@
   <artifactId>site</artifactId>
   <version>1.0</version>
   <packaging>war</packaging>
-  <name>site</name>
+  <name>management-site</name>
   <inceptionYear>2007</inceptionYear>
   <properties>
     <scala.version>2.7.3</scala.version>
@@ -89,11 +89,10 @@
     </dependency>
 
     <dependency>
-      <groupId>net.lshift.feedshub</groupId>
-      <artifactId>feedshub-harness</artifactId>
-      <version>1.0</version>
+      <groupId>net.lshift.feedshub.thirdparty</groupId>
+      <artifactId>couchdb4j</artifactId>
+      <version>0.3.0-SVN</version>
     </dependency>
-
     <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
@@ -111,105 +110,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-
-    <!-- end for JCouchDB -->
-
-    <!-- For dispatch
-        <dependency>
-            <groupId>net.dispatch</groupId>
-            <artifactId>dispatch</artifactId>
-            <version>0.2-SNAPSHOT</version>
-            </dependency>
-
-    <dependency>
-      <groupId>net.lag</groupId>
-      <artifactId>configgy</artifactId>
-      <version>1.2.1a</version>
-    </dependency>
-    <dependency>
-      <groupId>org.scala-tools.testing</groupId>
-      <artifactId>scalatest</artifactId>
-      <version>0.9.5</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <version>4.0-beta2</version>
-    </dependency>
-    -->
-
-    <!-- For CouchDB4J
-   <dependency>
-       <groupId>couchdb4j</groupId>
-       <artifactId>couchdb4j</artifactId>
-       <version>0.3.0-SNAPSHOT</version>
-   </dependency>
-
-       <dependency>
-     <groupId>junit</groupId>
-     <artifactId>junit</artifactId>
-     <version>4.5</version>
-     <scope>test</scope>
-   </dependency>
-   <dependency>
-     <groupId>commons-logging</groupId>
-     <artifactId>commons-logging</artifactId>
-     <version>1.1.1</version>
-     <scope>compile</scope>
- <exclusions>
-   <exclusion>
-     <groupId>log4j</groupId>
-     <artifactId>log4j</artifactId>
-   </exclusion>
-   <exclusion>
-     <groupId>logkit</groupId>
-     <artifactId>logkit</artifactId>
-   </exclusion>
-   <exclusion>
-     <groupId>avalon-framework</groupId>
-     <artifactId>avalon-framework</artifactId>
-   </exclusion>
-   <exclusion>
-     <groupId>javax.servlet</groupId>
-     <artifactId>servlet-api</artifactId>
-   </exclusion>
- </exclusions>
-
-   </dependency>
-       <dependency>
-           <groupId>net.sf.json-lib</groupId>
-           <artifactId>json-lib</artifactId>
-           <version>2.2.2</version>
-           <scope>compile</scope>
-           <classifier>jdk15</classifier>
-           <exclusions>
-               <exclusion>
-                   <groupId>org.jruby</groupId>
-                   <artifactId>jruby</artifactId>
-               </exclusion>
-               <exclusion>
-                   <groupId>org.codehaus.groovy</groupId>
-                   <artifactId>groovy-all</artifactId>
-               </exclusion>
-               <exclusion>
-                   <groupId>log4j</groupId>
-                   <artifactId>log4j</artifactId>
-               </exclusion>
-           </exclusions>
-       </dependency>
-   <dependency>
-           <groupId>net.sf.ezmorph</groupId>
-           <artifactId>ezmorph</artifactId>
-           <version>1.0.4</version>
-           <scope>compile</scope>
-       </dependency>
- <dependency>
-       <groupId>org.apache.httpcomponents</groupId>
-       <artifactId>httpclient</artifactId>
-       <version>4.0-beta2</version>
-  </dependency>
-    -->
-
   </dependencies>
 
   <build>
