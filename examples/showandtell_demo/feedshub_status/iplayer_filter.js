@@ -9,18 +9,18 @@
 	      "type": "logger"
 	    },
 	    "detect_iplayer": {
-	        "type": "regexp_split",
-	      "configuration": {"regexp": "iplayer",
-				  "replacement": "",
+	        "type": "regexp_replace",
+	      "configuration": {"regexp": "(iplayer)",
+				  "replacement": "\\1",
                                   "multiline": false,
 				  "caseinsensitive": true,
 				  "dotall": false
 				 }
 	    },
 	    "detect_ylt": {
-	        "type": "regexp_split",
-		"configuration": {"regexp": "you're listening to",
-				  "replacement": "",
+	        "type": "regexp_replace",
+	      "configuration": {"regexp": "(you're listening to)",
+				  "replacement": "\\1",
                                   "multiline": false,
 				  "caseinsensitive": true,
 				  "dotall": false
