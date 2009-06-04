@@ -1,0 +1,19 @@
+harness_jar=../../harness/java/feedshub_harness.jar
+
+all: libs
+	mvn install
+
+clean:
+	mvn clean
+
+lib-clean:
+	rm .libs-done
+
+libs: .libs-done
+
+.libs-done: $(harness_jar)
+	mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=$(harness_jar)
+	touch .libs-done
+
+run: libs
+	mvn -Djetty.port=8081 jetty:run

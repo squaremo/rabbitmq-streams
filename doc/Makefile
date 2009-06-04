@@ -18,5 +18,5 @@ bitmaps: *.dia
 .PHONY: setup all bitmaps
 
 clean:
-	rm getting_started_dev.html
-	rm *.png
+	rm -f getting_started_dev.html
+	rm -f *.png

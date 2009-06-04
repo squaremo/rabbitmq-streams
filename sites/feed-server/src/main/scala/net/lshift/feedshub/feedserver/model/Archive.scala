@@ -63,7 +63,7 @@ class Archive(private val couch: Session, private val dbName : String, private v
 
     def entries(limit : Int) : Seq[ArchiveEntry] = {
         val entriesView = new View("entries/updated")
-        entriesView.setLimit(limit)
+        entriesView.setLimit(limit); entriesView.setDescending(true);
         db.view(entriesView) match {
             case null => installView; entries(limit)
             case view =>
