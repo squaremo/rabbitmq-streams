@@ -1,0 +1,47 @@
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/!svn/ver/42/trunk/src/java/com/fourspaces/couchdb
+END
+CouchResponse.java
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/42/trunk/src/java/com/fourspaces/couchdb/CouchResponse.java
+END
+Session.java
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/42/trunk/src/java/com/fourspaces/couchdb/Session.java
+END
+Database.java
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/30/trunk/src/java/com/fourspaces/couchdb/Database.java
+END
+AdHocView.java
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/7/trunk/src/java/com/fourspaces/couchdb/AdHocView.java
+END
+View.java
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/40/trunk/src/java/com/fourspaces/couchdb/View.java
+END
+ViewResults.java
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7/trunk/src/java/com/fourspaces/couchdb/ViewResults.java
+END
+Document.java
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/40/trunk/src/java/com/fourspaces/couchdb/Document.java
+END
