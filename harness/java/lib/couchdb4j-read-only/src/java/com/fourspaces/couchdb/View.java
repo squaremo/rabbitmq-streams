@@ -107,7 +107,7 @@ public class View {
 		}
 		if (reverse!=null && reverse.booleanValue()) {
 			if (!queryString.equals("")) { queryString+="&"; }
-			queryString+="reverse=true";
+			queryString+="descending=true";
 		}
                 if (group!=null && group.booleanValue()) {
 			if (!queryString.equals("")) { queryString+="&"; }
@@ -132,7 +132,7 @@ public class View {
         public void setGroup(Boolean group) {
           this.group = group;
         }
-  
+
 	/**
 	 * Stop listing at this key
 	 * @param endKey
@@ -143,11 +143,17 @@ public class View {
 	/**
 	 * Reverse the listing
 	 * @param reverse
+         * @deprecated in favour of descending
 	 */
 	public void setReverse(Boolean reverse) {
 		this.reverse = reverse;
 	}
-	/**
+
+        public void setDescending(Boolean descending) {
+          this.reverse = descending;
+        }
+  
+        /**
 	 * Skip listing these keys (not sure if this works, or the format)
 	 * @param skip
 	 */
