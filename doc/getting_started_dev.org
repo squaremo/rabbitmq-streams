@@ -115,7 +115,7 @@ make all \
 && make cleandb \
 && make start_core_nox && sleep 2 \
 && make create_fresh_accounts && sleep 1 \
-&& make start_orchestrator_nox sleep 5 \
+&& make start_orchestrator_nox && sleep 5 \
 && python sbin/import_config.py examples/test \
 && make start_orchestrator_nox
 #+END_SRC

@@ -94,7 +94,8 @@ create-build-logs-dir:
 
 create_fresh_accounts:
 	@echo 'Re-initializing RabbitMQ with fresh `guest` and `feedshub_admin` accounts'
-	@$(RABBITMQCTL) delete_user guest
+	-@$(RABBITMQCTL) delete_user guest
+	-@$(RABBITMQCTL) delete_user feedshub_admin
 	@$(RABBITMQCTL) add_user feedshub_admin feedshub_admin
 	@$(RABBITMQCTL) set_permissions feedshub_admin '.*' '.*' '.*'
 
@@ -303,7 +304,7 @@ build/opt/rabbitmq:
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 	(cd build/scratch && tar -zxvf ../src/rabbitmq-server/dist/rabbitmq-server-0.0.0.tar.gz) \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
-	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install PYTHON=python2.5 TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
+	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 
 build/opt/rabbitmq-erlang-client:
@@ -321,7 +322,8 @@ install-debs:
 
 install-dev-debs:
 	: # these come from the couchdb README.
-	- sudo apt-get install automake autoconf libtool help2man netcat-openbsd \
+	- sudo apt-get update && sudo apt-get install \
+                               automake autoconf libtool help2man netcat-openbsd \
 	                       build-essential erlang libicu38 libicu-dev \
 	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
-	                       elinks python-simplejson cvs
+	                       elinks python-simplejson cvs zip default-jdk ant maven2 screen
