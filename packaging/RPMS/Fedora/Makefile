@@ -11,7 +11,12 @@ rpms: clean feedshub
 feedshub: prepare
 	rpmbuild -ba --nodeps SPECS/feedshub.spec \
 		--define '_topdir $(TOP_DIR)' \
-		--define '_tmppath $(TOP_DIR)/tmp'
+		--define '_tmppath $(TOP_DIR)/tmp' \
+		--target i386
+	rpmbuild -ba --nodeps SPECS/feedshub.spec \
+		--define '_topdir $(TOP_DIR)' \
+		--define '_tmppath $(TOP_DIR)/tmp' \
+		--target x86_64
 	
 clean: 
 	rm -rf SOURCES SPECS RPMS SRPMS BUILD tmp
