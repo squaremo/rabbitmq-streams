@@ -327,3 +327,20 @@ install-dev-debs:
 	                       build-essential erlang libicu38 libicu-dev \
 	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
 	                       elinks python-simplejson cvs zip default-jdk ant maven2 screen
+
+###########################################################################
+
+install-dist:
+	mkdir -p tmp/FeedsHub-0.1/erlang-rfc4627
+	mkdir -p tmp/FeedsHub-0.1/ibrowse
+	mkdir -p tmp/FeedsHub-0.1/rabbitmq
+	mkdir -p tmp/FeedsHub-0.1/rabbitmq-erlang-client
+	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627	
+	cp -rf build/opt/ibrowse/ebin tmp/FeedsHub-0.1/ibrowse
+	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
+	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
+	cp dist/Makefile tmp/FeedsHub-0.1
+	cd tmp; tar zcvf ../dist/FeedsHub-0.1.tar.gz FeedsHub-0.1
+
+clean-dist:
+	rm -rf tmp

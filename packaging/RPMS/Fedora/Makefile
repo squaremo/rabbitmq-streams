@@ -1,14 +1,15 @@
-SOURCE_TARBALL_DIR=../../dist
+SOURCE_TARBALL_DIR=../../../dist
 TOP_DIR=$(shell pwd)
 
 prepare:
 	mkdir -p BUILD SOURCES SPECS SRPMS RPMS tmp
 	cp feedshub.spec SPECS
+	cp $(SOURCE_TARBALL_DIR)/FeedsHub-0.1.tar.gz SOURCES
 
 rpms: clean feedshub
 
 feedshub: prepare
-	rpmbuild -bp --nodeps SPECS/feedshub.spec \
+	rpmbuild -ba --nodeps SPECS/feedshub.spec \
 		--define '_topdir $(TOP_DIR)' \
 		--define '_tmppath $(TOP_DIR)/tmp'
 	
