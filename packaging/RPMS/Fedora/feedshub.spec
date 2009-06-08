@@ -20,7 +20,7 @@ The FeedsHub orchestrator blah blah blah
 %build
 
 %install
-make TARGET_DIR=%{buildroot}%{_feedshub_libdir} install 
+make LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} install 
 
 %clean
 rm -rf $RPM_BUILD_ROOT
