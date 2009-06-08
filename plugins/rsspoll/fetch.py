@@ -1,3 +1,4 @@
+
 import feedparser, time, sha, types
 import web.template as template
 
@@ -25,13 +26,22 @@ entry_fields = [ 'title', 'title_detail', 'link', 'links',
 status_fields = ['status', 'href', 'etags', 'modified']
 
 def stable_repr(val):
+    """Like repr but with a guranteed fixed ordering ('<' actually) for (sub-)dicts.
+
+    Note: handles only the basic builtin python container types.
+
+    >>> stable_repr([(dict((k, dict(enumerate("abcd"))) for k in "ab"),)])
+    [({'a': {0: 'a', 1: 'b', 2: 'c', 3: 'd'}, 'b': {0: 'a', 1: 'b', 2: 'c', 3: 'd'}})]
+
+    """
     t = type(val)
     if t == types.ListType:
         return '[' + ', '.join(map(stable_repr, val)) + ']'
     elif t == types.TupleType:
         return '(' + ', '.join(map(stable_repr, val)) + ')'
     elif t == types.DictType:
-        return '{' + ', '.join(sorted([repr(x) + ': ' + repr(y) for (x,y) in val.iteritems()])) + '}'
+        return '{' + ', '.join(sorted([stable_repr(x) + ': ' + stable_repr(y)
+                                       for (x,y) in val.iteritems()])) + '}'
     else:
         return repr(val)
 
