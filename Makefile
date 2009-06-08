@@ -23,6 +23,13 @@ RABBIT_FIFO := build/scratch/rabbit_fifo
 COUCH_FIFO := build/scratch/couch_fifo
 PLUGIN_MAKEFILES := $(shell find plugins -maxdepth 2 -type f -name Makefile)
 
+DEB_DEPENDENCIES := automake autoconf libtool help2man netcat-openbsd \
+	build-essential erlang libicu38 libicu-dev \
+	libmozjs-dev libcurl4-openssl-dev mercurial subversion \
+	elinks python-simplejson cvs zip default-jdk \
+	ant maven2 screen
+
+
 default_target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
@@ -321,12 +328,9 @@ install-debs:
 	: # none at the minute.
 
 install-dev-debs:
-	: # these come from the couchdb README.
-	- sudo apt-get update && sudo apt-get install \
-                               automake autoconf libtool help2man netcat-openbsd \
-	                       build-essential erlang libicu38 libicu-dev \
-	                       libmozjs-dev libcurl4-openssl-dev mercurial subversion \
-	                       elinks python-simplejson cvs zip default-jdk ant maven2 screen
+	: # if everything is already installed, don't require sudo'ing
+	- [ -n `dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) | grep -vq 'install ok installed'` ] || \
+	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
 
 ###########################################################################
 
@@ -336,7 +340,7 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 	mkdir -p tmp/FeedsHub-0.1/rabbitmq
 	mkdir -p tmp/FeedsHub-0.1/rabbitmq-erlang-client
 	mkdir -p tmp/FeedsHub-0.1/orchestrator
-	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627	
+	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627
 	cp -rf build/opt/ibrowse/ebin tmp/FeedsHub-0.1/ibrowse
 	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
 	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
