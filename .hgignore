@@ -25,3 +25,10 @@
 \.ipr$
 \.iws$
 ^doc/.*\.html$
+^packaging/RPMS/Fedora/BUILD/
+^packaging/RPMS/Fedora/RPMS/
+^packaging/RPMS/Fedora/SOURCES/
+^packaging/RPMS/Fedora/SPECS/
+^packaging/RPMS/Fedora/SRPMS/
+
+
