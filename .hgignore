@@ -30,6 +30,7 @@
 ^packaging/RPMS/Fedora/SOURCES/
 ^packaging/RPMS/Fedora/SPECS/
 ^packaging/RPMS/Fedora/SRPMS/
+^packaging/RPMS/Fedora/tmp/
 ^tmp/
 
 
