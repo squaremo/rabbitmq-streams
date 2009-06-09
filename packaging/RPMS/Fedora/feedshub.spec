@@ -16,7 +16,7 @@ The FeedsHub orchestrator blah blah blah
 
 %prep
 %setup -q
-sed -i 's|LIB_DIR|%{_feedshub_libdir}|' orchestrator.sh
+sed -i 's|LIB_DIR|%{_sbindir}|' orchestrator.sh
 
 %build
 
@@ -33,4 +33,5 @@ rm -rf $RPM_BUILD_ROOT
 %{_feedshub_libdir}/rabbitmq
 %{_feedshub_libdir}/rabbitmq-erlang-client
 %{_feedshub_libdir}/orchestrator
+%{_sbindir}/orchestrator.sh
 

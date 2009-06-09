@@ -3,6 +3,7 @@ SBIN_TARGET_DIR=tmp
 
 prepare:
 	mkdir -p ${LIB_TARGET_DIR}
+	mkdir -p ${SBIN_TARGET_DIR}
 
 install: prepare
 	cp -rf erlang-rfc4627 ${LIB_TARGET_DIR}
