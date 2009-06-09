@@ -8,11 +8,11 @@ try:
 except:
     import simplejson as json
 from threading import Thread
+import sys, os.path
+from imp import find_module, load_module
 import threading
 
 def main():
-    import sys, os.path
-    from imp import find_module, load_module
     sys.stdout.write(sys.argv[1] + '\n')
     sys.stdout.flush()
     args = json.loads(sys.stdin.readline())
@@ -39,10 +39,6 @@ def main():
     if 'run' not in dir(module):
         raise "Module %r does not contain a run procedure" % module
 
-    moduleThread = ModuleThread(module, args)
-    moduleThread.daemon = True
-    moduleThread.start()
-
     waiter = StdInWatcher(f)
     waiter.daemon = True
     waiter.start()
@@ -57,7 +53,6 @@ class StdInWatcher(Thread):
 
     def run(self):
         try:
-            import sys
             while not '' == sys.stdin.readline():
                 True
 
@@ -66,15 +61,6 @@ class StdInWatcher(Thread):
                 self.__f.close()
 
         sys.exit()
-
-class ModuleThread(Thread):
-    def __init__(self, module, args):
-        Thread.__init__(self)
-        self.__module = module
-        self.__args = args
-
-    def run(self):
-        self.__module.run(self.__args)
 
 # This is not intended to be used as a module, but
 # we follow Python idiom anyway.
