@@ -1,0 +1,116 @@
+# This is a makefile that builds the feedshub into a directory structure
+# that makes installation and packaging easier.
+
+TARGET_DIR=TARGET
+TMP_DIR=tmp
+INSTALL_LIB_DIR=${TMP_DIR}/lib
+INSTALL_INC_DIR=${TMP_DIR}/include
+INSTALL_SBIN_DIR=${TMP_DIR}/sbin
+INSTALL_CONFIG_DIR=${TMP_DIR}/config
+INSTALL_PLUGIN_DIR=${TMP_DIR}/plugins
+
+all: build
+
+prepare:
+	mkdir -p ${TARGET_DIR}
+
+clean:
+	rm -rf ${TARGET_DIR}
+	rm -rf ${TMP_DIR}
+
+build: build_libs build_plugins build_config build_sbin build_doc build_examples
+
+build_libs: prepare_libs \
+	build_orchestrator \
+	build_rfc4627 \
+	build_ibrowse \
+	build_couch \
+	build_amqp \
+	build_rabbit
+
+prepare_libs: prepare
+	mkdir -p ${TARGET_DIR}/lib/erlang
+	mkdir -p ${TARGET_DIR}/lib/java
+	mkdir -p ${TARGET_DIR}/lib/python
+
+
+### Build erlang libraries ###
+
+build_orchestrator: prepare_orchestrator
+	$(MAKE) -C orchestrator EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/orchestrator/ebin all
+	cp orchestrator/include/* ${TARGET_DIR}/lib/erlang/orchestrator/include
+
+prepare_orchestrator:
+	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/ebin
+	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/include
+
+build_rfc4627: prepare_rfc4627
+	$(MAKE) -C build/src/erlang-rfc4627 EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/rfc4627/ebin all
+
+prepare_rfc4627:
+	mkdir -p ${TARGET_DIR}/lib/erlang/rfc4627
+
+build_ibrowse: prepare_ibrowse
+	$(MAKE) -C build/src/jungerl/lib/ibrowse/src
+	cp -r build/src/jungerl/lib/ibrowse/ebin ${CURDIR}/${TARGET_DIR}/lib/erlang/ibrowse
+
+prepare_ibrowse:
+	mkdir -p ${TARGET_DIR}/lib/erlang/ibrowse/ebin
+
+build_couch: prepare_couch
+	cp -r build/opt/couchdb-0.9.0/lib/couchdb/erlang/lib/couch-0.9.0/ebin/* ${TARGET_DIR}/lib/erlang/couch/ebin
+
+prepare_couch:
+	mkdir -p ${TARGET_DIR}/lib/erlang/couch/ebin
+
+build_amqp: prepare_amqp
+
+prepare_amqp:
+	mkdir -p ${TARGET_DIR}/lib/erlang/amqp/ebin
+
+build_rabbit: prepare_rabbit
+	cp -r build/opt/rabbitmq/ebin/* ${TARGET_DIR}/lib/erlang/rabbit/ebin
+
+prepare_rabbit:
+	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
+
+#### Package everything else ####
+build_plugins: prepare_plugins
+
+prepare_plugins: prepare
+	mkdir -p ${TARGET_DIR}/plugins/erlang
+	mkdir -p ${TARGET_DIR}/plugins/java
+	mkdir -p ${TARGET_DIR}/plugins/python
+
+build_config: prepare_config
+
+prepare_config: prepare
+	mkdir -p ${TARGET_DIR}/config
+
+build_sbin: prepare_sbin
+
+prepare_sbin: prepare
+	mkdir -p ${TARGET_DIR}/sbin
+
+build_examples: prepare_examples
+
+prepare_examples:
+	mkdir -p ${TARGET_DIR}/examples
+
+build_doc: prepare_doc
+
+prepare_doc:
+	mkdir -p ${TARGET_DIR}/doc
+
+install: build prepare_install
+	cp -rf ${TARGET_DIR}/lib/* ${INSTALL_LIB_DIR}
+	cp -rf ${TARGET_DIR}/plugins/* ${INSTALL_PLUGIN_DIR}
+	cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
+	install ${TARGET_DIR}/sbin/* ${INSTALL_SBIN_DIR}
+
+prepare_install:
+	mkdir -p ${INSTALL_LIB_DIR}
+	mkdir -p ${INSTALL_SBIN_DIR}
+	mkdir -p ${INSTALL_CONFIG_DIR}
+	mkdir -p ${INSTALL_PLUGIN_DIR}
+
