@@ -1,7 +1,7 @@
 # This is a makefile that builds the feedshub into a directory structure
 # that makes installation and packaging easier.
 
-TARGET_DIR=TARGET
+TARGET_DIR=FeedsHub-0.1
 TMP_DIR=tmp
 INSTALL_LIB_DIR=${TMP_DIR}/lib
 INSTALL_INC_DIR=${TMP_DIR}/include
@@ -114,3 +114,6 @@ prepare_install:
 	mkdir -p ${INSTALL_CONFIG_DIR}
 	mkdir -p ${INSTALL_PLUGIN_DIR}
 
+package: build
+	cp ./Makefile.install ${TARGET_DIR}
+	tar zcvf feedshub.tar.gz ${TARGET_DIR}
