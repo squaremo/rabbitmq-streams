@@ -16,11 +16,12 @@ The FeedsHub orchestrator blah blah blah
 
 %prep
 %setup -q
+sed -i 's|LIB_DIR|%{_feedshub_libdir}|' orchestrator.sh
 
 %build
 
 %install
-make LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} install 
+make LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
 
 %clean
 rm -rf $RPM_BUILD_ROOT

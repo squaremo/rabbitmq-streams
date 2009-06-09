@@ -345,6 +345,7 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
 	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
 	cp -rf orchestrator/ebin tmp/FeedsHub-0.1/orchestrator
+	cp dist/orchestrator.sh tmp/FeedsHub-0.1
 	cp dist/Makefile tmp/FeedsHub-0.1
 	cd tmp; tar zcvf ../dist/FeedsHub-0.1.tar.gz FeedsHub-0.1
 

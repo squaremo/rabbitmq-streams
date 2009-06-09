@@ -10,5 +10,6 @@ install: prepare
 	cp -rf rabbitmq ${LIB_TARGET_DIR}
 	cp -rf rabbitmq-erlang-client ${LIB_TARGET_DIR}
 	cp -rf orchestrator ${LIB_TARGET_DIR}
+	cp orchestrator.sh ${SBIN_TARGET_DIR}
 
 
