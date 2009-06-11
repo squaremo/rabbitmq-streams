@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python run.py $$
+exec python2.5 -Wignore run.py $$
