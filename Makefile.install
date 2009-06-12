@@ -80,9 +80,7 @@ prepare_rabbit:
 build_plugins: prepare_plugins
 
 prepare_plugins: prepare
-	mkdir -p ${TARGET_DIR}/plugins/erlang
-	mkdir -p ${TARGET_DIR}/plugins/java
-	mkdir -p ${TARGET_DIR}/plugins/python
+	mkdir -p ${TARGET_DIR}/plugins
 
 build_config: prepare_config
 
@@ -107,7 +105,7 @@ prepare_doc:
 install: build prepare_install
 	cp -rf ${TARGET_DIR}/lib/* ${INSTALL_LIB_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${INSTALL_PLUGIN_DIR}
-	cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
+	#cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
 	install ${TARGET_DIR}/sbin/* ${INSTALL_SBIN_DIR}
 
 prepare_install:
