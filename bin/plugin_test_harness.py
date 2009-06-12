@@ -108,9 +108,8 @@ init = {
                        },
     "inputs":  inputs, # Q name provided by orchestrator
     "outputs": outputs, # Exchange name provided by orchestrator
-    "state": "http://localhost:5984/plugin_test_harness/%s" % statedocname, # %%% MAKE THIS
-    # the document within the feed state database that can be used to store state
-    "database": None # %%% MAKE THIS
+    "state": "http://localhost:5984/plugin_test_harness/%s" % statedocname,
+    "database": "http://localhost:5984/plugin_test_harness"
 }
 
 harnessdir = os.path.join(here, '..', 'harness', plugin['harness'])
@@ -123,11 +122,13 @@ print json.dumps(init)
 pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
 
 print
-print "Inputs are %s; type '<name>:<message>' to inject a message" % inputs.keys()
+print "Inputs are %s; type '<name>:<message>' to inject a message." % inputs.keys()
 while True:
     line = sys.stdin.readline()
     bits = line.split(":")
     talkername = bits[0]
     #print talkername
-    talkers[talkername]("".join(bits[1:]))
-
+    if talkername in talkers:
+        talkers[talkername]("".join(bits[1:])[:-1])
+    else:
+        print "No channel for %s" % talkername
