@@ -5,8 +5,8 @@
   <artifactId>feed-server</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>war</packaging>
-  <name>feed-server</name>
-  <inceptionYear>2007</inceptionYear>
+  <name>RSS and Atom feed server</name>
+  <inceptionYear>2009</inceptionYear>
   <properties>
     <scala.version>2.7.3</scala.version>
   </properties>
@@ -65,11 +65,10 @@
     </dependency>
 
     <dependency>
-        <groupId>net.lshift.feedshub</groupId>
-        <artifactId>feedshub-harness</artifactId>
-        <version>1.0</version>
+      <groupId>net.lshift.feedshub.thirdparty</groupId>
+      <artifactId>couchdb4j</artifactId>
+      <version>0.3.0-SVN</version>
     </dependency>
-
 
   </dependencies>
 
