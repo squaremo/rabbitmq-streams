@@ -1,14 +1,11 @@
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.lshift.feedshub</groupId>
-  <artifactId>feed-server</artifactId>
+  <artifactId>xmpppubsub</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <packaging>war</packaging>
-  <name>RSS and Atom feed server</name>
-  <inceptionYear>2009</inceptionYear>
+  <inceptionYear>2008</inceptionYear>
   <properties>
-    <scala.version>2.7.3</scala.version>
+    <scala.version>2.7.0</scala.version>
   </properties>
 
   <repositories>
@@ -17,6 +14,11 @@
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
     </repository>
+    <repository>
+        <name>SU Maven2</name>
+        <id>su-mvn</id>
+        <url>http://maven.it.su.se/it.su.se/maven2</url>
+        </repository>
   </repositories>
 
   <pluginRepositories>
@@ -34,40 +36,26 @@
       <version>${scala.version}</version>
     </dependency>
     <dependency>
-      <groupId>net.liftweb</groupId>
-      <artifactId>lift-webkit</artifactId>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.specs</groupId>
+      <artifactId>specs</artifactId>
+      <version>1.2.5</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>smackx</groupId>
+      <artifactId>pubsub</artifactId>
       <version>1.0</version>
     </dependency>
     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>servlet-api</artifactId>
-      <version>2.5</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mortbay.jetty</groupId>
-      <artifactId>jetty</artifactId>
-      <version>[6.1.6,)</version>
-      <scope>test</scope>
-    </dependency>
-    <!-- for LiftConsole -->
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-compiler</artifactId>
-      <version>${scala.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.feedshub.thirdparty</groupId>
-      <artifactId>couchdb4j</artifactId>
-      <version>0.3.0-SVN</version>
+      <groupId>net.lshift.feedshub</groupId>
+      <artifactId>feedshub-harness</artifactId>
+      <version>1.0</version>
     </dependency>
 
   </dependencies>
@@ -89,28 +77,9 @@
         </executions>
         <configuration>
           <scalaVersion>${scala.version}</scalaVersion>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.mortbay.jetty</groupId>
-        <artifactId>maven-jetty-plugin</artifactId>
-        <configuration>
-          <contextPath>/</contextPath>
-          <scanIntervalSeconds>5</scanIntervalSeconds>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>net.sf.alchim</groupId>
-        <artifactId>yuicompressor-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compress</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <nosuffix>true</nosuffix>
+          <args>
+            <arg>-target:jvm-1.5</arg>
+          </args>
         </configuration>
       </plugin>
       <plugin>
@@ -118,19 +87,16 @@
         <artifactId>maven-eclipse-plugin</artifactId>
         <configuration>
           <downloadSources>true</downloadSources>
-          <excludes>
-            <exclude>org.scala-lang:scala-library</exclude>
-          </excludes>
+          <buildcommands>
+            <buildcommand>ch.epfl.lamp.sdt.core.scalabuilder</buildcommand>
+          </buildcommands>
+          <additionalProjectnatures>
+            <projectnature>ch.epfl.lamp.sdt.core.scalanature</projectnature>
+          </additionalProjectnatures>
           <classpathContainers>
+            <classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
             <classpathContainer>ch.epfl.lamp.sdt.launching.SCALA_CONTAINER</classpathContainer>
           </classpathContainers>
-          <projectnatures>
-            <java.lang.String>ch.epfl.lamp.sdt.core.scalanature</java.lang.String>
-            <java.lang.String>org.eclipse.jdt.core.javanature</java.lang.String>
-          </projectnatures>
-          <buildcommands>
-            <java.lang.String>ch.epfl.lamp.sdt.core.scalabuilder</java.lang.String>
-          </buildcommands>
         </configuration>
       </plugin>
     </plugins>

@@ -10,12 +10,11 @@
 ^harness/java/feedshub_harness\.jar$
 # target directories are a Maven thing
 ^sites/.*/target/
+^plugins/.*/target/
 ^harness/.*/target/
 ^sites/.*/.*\.timestamp$
-^plugins/archive/target/
-^plugins/archive/lib/
-^plugins/websubscriber/target/
-^plugins/websubscriber/lib/
+# ONLY Mavenised plugins get things in lib/ through Maven
+^plugins/(archive|websubscriber|regexp_split)/lib/
 (^|/)nb-configuration\.xml$
 ^orch_log$
 ^doc/.*html$
@@ -32,6 +31,5 @@
 ^packaging/RPMS/Fedora/SRPMS/
 ^packaging/RPMS/Fedora/tmp/
 ^tmp/
-^plugins/.*/target/
 
 

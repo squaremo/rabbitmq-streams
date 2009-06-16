@@ -33,33 +33,33 @@ def main():
     sys.path.insert(0, os.path.join(here, 'lib'))
     f = None
     os.chdir(plugin_dir)
-    
-    f, p, d = find_module(plugin_type, [plugin_dir])
-    module = load_module(plugin_type, f, p, d)
-    if 'run' not in dir(module):
-        raise "Module %r does not contain a run procedure" % module
-
-    waiter = StdInWatcher(f)
-    waiter.daemon = True
-    waiter.start()
-
+    try:
+        
+        f, p, d = find_module(plugin_type, [plugin_dir])
+        module = load_module(plugin_type, f, p, d)
+        f.close()
+        f = None
+        if 'run' not in dir(module):
+            raise "Module %r does not contain a run procedure" % module
+        
+        waiter = StdInWatcher()
+        waiter.daemon = True
+        waiter.start()
+        
+        module.run(args)
+    finally:
+        if f is not None and not f.closed:
+            f.close()
     # let main thread exit. All other threads are daemon threads, so
     # anyone calling sys.exit() causes python to exit
 
 class StdInWatcher(Thread):
-    def __init__(self, f):
+    def __init__(self):
         Thread.__init__(self)
-        self.__f = f
 
     def run(self):
-        try:
-            while not '' == sys.stdin.readline():
-                True
-
-        finally:
-            if self.__f is not None:
-                self.__f.close()
-
+        while not '' == sys.stdin.readline():
+            pass
         sys.exit()
 
 # This is not intended to be used as a module, but

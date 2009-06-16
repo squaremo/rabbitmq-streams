@@ -1,9 +1,23 @@
-all: 
-	mvn install
-	mkdir -p dist
-	cp target/*.jar dist
-	cp -rf dist lib # This should just be until rpm packaging fixed
+sources=$(shell find src -type f -name "*.scala") pom.xml
+jarfile=regexp_split-1.0-SNAPSHOT.jar
+harness_jar=../../harness/java/feedshub_harness.jar
+
+all: lib/$(jarfile)
 
 clean:
 	mvn clean
-	rm -rf dist
+.libs-done: $(harness_jar)
+	mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=$(harness_jar)
+	touch .libs-done
+
+target/$(jarfile): $(sources) .libs-done
+	mvn package
+# Mavan may decide that nothing needs to be done, even
+# if say, feedshub_harness has a newer timestamp.  So we
+# make sure that if this target ran, it will look like
+# the jar file was updated.
+	touch target/$(jarfile)
+
+lib/$(jarfile): target/$(jarfile)
+	mkdir -p lib
+	cp target/*.jar lib/
