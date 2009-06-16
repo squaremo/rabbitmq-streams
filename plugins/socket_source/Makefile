@@ -1,7 +1,9 @@
-all: socket_source.class
+all: 
+	mvn install
+	mkdir -p dist
+	cp target/*.jar dist
+	cp -rf dist lib
 
 clean:
-	rm -f *.class
-
-socket_source.class: socket_source.java ../../harness/java/feedshub_harness.jar
-	CLASSPATH=../../harness/java/feedshub_harness.jar javac socket_source.java
+	mvn clean
+	rm -rf dist

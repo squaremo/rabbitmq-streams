@@ -1,7 +1,9 @@
-all: xslt.class
+all: 
+	mvn install
+	mkdir -p dist
+	cp target/*.jar dist
+	cp -rf dist lib
 
 clean:
-	rm -f *.class
-
-xslt.class: xslt.java ../../harness/java/feedshub_harness.jar
-	CLASSPATH=../../harness/java/feedshub_harness.jar javac xslt.java
+	mvn clean
+	rm -rf dist

@@ -1,7 +1,9 @@
-all: logger.class
+all: 
+	mvn install
+	mkdir -p dist
+	cp target/*.jar dist
+	cp -rf dist lib
 
 clean:
-	rm -f *.class
-
-logger.class: logger.java ../../harness/java/feedshub_harness.jar
-	CLASSPATH=../../harness/java/feedshub_harness.jar javac logger.java
+	mvn clean
+	rm -rf dist

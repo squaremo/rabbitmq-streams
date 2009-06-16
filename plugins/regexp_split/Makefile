@@ -5,10 +5,7 @@ harness_jar=../../harness/java/feedshub_harness.jar
 all: lib/$(jarfile)
 
 clean:
-	rm -rf target
-	rm -f .libs-done
-	rm -rf lib
-
+	mvn clean
 .libs-done: $(harness_jar)
 	mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=$(harness_jar)
 	touch .libs-done
