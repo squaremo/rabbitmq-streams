@@ -17,6 +17,8 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 import net.sf.json.JSONObject
 
+import org.jivesoftware.smack.{XMPPException}
+import org.jivesoftware.smack.packet.XMPPError
 import org.jivesoftware.smackx.pubsub.{PubSubManager,Node,Item,SimplePayload}
 
 import scala.collection.mutable.Map
@@ -38,7 +40,22 @@ class Dispatcher(log : Logger, conn : PubSubManager) extends Actor {
     private val destinationsMap : Map[String, List[Destination]] = Map()
 
     private def nodeFromConfig(config : JSONObject) : Node = {
-        conn.getNode(config.getString("node"))
+        val nodeId = config.getString("node")
+        try {
+            conn.getNode(nodeId)
+        }
+        catch {
+            case e : XMPPException => {
+                    if (e.getXMPPError.getCode == 404) {
+                        log.info("Node " + nodeId + " not found.  Creating.")
+                        conn.createNode(nodeId)
+                        conn.getNode(nodeId)
+                    }
+                    log.error(e)
+                    throw e
+            }
+        }
+
     }
 
     def act() {
