@@ -17,15 +17,20 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 import net.sf.json.JSONObject
 
-import org.jivesoftware.smackx.pubsub.{PubSubManager,Node}
+import org.jivesoftware.smackx.pubsub.{PubSubManager,Node,Item,SimplePayload}
 
 import scala.collection.mutable.Map
 
 case class Entry(bytes : Array[Byte], key : String, ack : (() => Unit))
 case class DestinationStatusChange(destination: String, configs: List[JSONObject], active: Boolean)
 
+class Payload(str : String) extends SimplePayload("content", "pubsub:content", str)
+
 class Destination(endpoint : Node) {
     def publish(msg: Array[Byte]) {
+        val payload = new Payload(new String(msg))
+        val item = new Item[Payload](null, payload)
+        endpoint.publish(item)
     }
 }
 
@@ -57,7 +62,7 @@ class Dispatcher(log : Logger, conn : PubSubManager) extends Actor {
                             log.info("Activating " + destination)
                             if (! destinationsMap.contains(destination)) {
                                 val dests = configs.map(config => {
-                                        val node = nodeFromConfig(conn, config.getJSONObject("destination"))
+                                        val node = nodeFromConfig(config.getJSONObject("destination"))
                                         new Destination(node)
                                 })
                                 destinationsMap += (destination -> dests)

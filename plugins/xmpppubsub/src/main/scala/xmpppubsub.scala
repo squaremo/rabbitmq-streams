@@ -8,9 +8,11 @@
 import net.sf.json.JSONObject
 import net.lshift.feedshub.harness.Server
 import org.jivesoftware.smackx.pubsub.PubSubManager
-import org.jivesoftware.smack.{XMPPConnection,ConnectionConfiguration}
+import org.jivesoftware.smack.{XMPPConnection, ConnectionConfiguration}
 
-import net.lshift.feedshub.xmpppubsub.Dispatcher
+import scala.collection.jcl.Conversions._
+
+import net.lshift.feedshub.xmpppubsub.{Dispatcher,Entry,DestinationStatusChange}
 
 class xmpppubsub(config : JSONObject) extends Server(config) {
 
@@ -20,10 +22,10 @@ class xmpppubsub(config : JSONObject) extends Server(config) {
 
     private def managerFromConfig(config : JSONObject) : PubSubManager = {
         val service = config.getString("service")
-        new PubSubManager(getConnectionFromConfig(config), service)
+        new PubSubManager(connectionFromConfig(config), service)
     }
 
-    private def connnectionFromConfig(config : JSONObject) : XMPPConnection = {
+    private def connectionFromConfig(config : JSONObject) : XMPPConnection = {
         val options = new ConnectionConfiguration(config.getString("host"),
                                                   config.getInt("port"))
         // see SmackTestCase for more config we may want to fill out
@@ -32,5 +34,12 @@ class xmpppubsub(config : JSONObject) extends Server(config) {
         conn.login(config.getString("username"), config.getString("password"))
         conn
     }
+
+    override def terminalStatusChange(destination : String, configs : java.util.List[JSONObject], active : Boolean) {
+        dispatcher ! DestinationStatusChange(destination, List(configs:_*), active)
+    }
+
+    postConstructorInit()
+
 
 }
