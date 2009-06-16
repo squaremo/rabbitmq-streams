@@ -77,7 +77,16 @@ prepare_rabbit:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
 
 #### Package everything else ####
+JAVA_PLUGINS := regexp_split socket_source relay xslt socket_destination logger
+PYTHON_PLUGINS := regexp_replace webfeed rsspoll
+
 build_plugins: prepare_plugins
+	for j in $(JAVA_PLUGINS); \
+		do echo $$j; mkdir -p ${TARGET_DIR}/plugins/$$j; cp plugins/$$j/plugin.js ${TARGET_DIR}/plugins/$$j; cp -rf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
+	done
+	for p in $(PYTHON_PLUGINS); \
+		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}/plugins; \
+	done
 
 prepare_plugins: prepare
 	mkdir -p ${TARGET_DIR}/plugins
