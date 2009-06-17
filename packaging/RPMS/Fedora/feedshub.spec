@@ -21,7 +21,7 @@ sed -i 's|LIB_DIR|%{_sbindir}|' orchestrator.sh
 %build
 
 %install
-make LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
+make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
 
 %clean
 rm -rf $RPM_BUILD_ROOT

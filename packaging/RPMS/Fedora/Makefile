@@ -1,12 +1,12 @@
-SOURCE_TARBALL_DIR=../../../dist
+SOURCE_TARBALL_DIR=../../..
 TOP_DIR=$(shell pwd)
+
+rpms: clean feedshub
 
 prepare:
 	mkdir -p BUILD SOURCES SPECS SRPMS RPMS tmp
 	cp feedshub.spec SPECS
 	cp $(SOURCE_TARBALL_DIR)/FeedsHub-0.1.tar.gz SOURCES
-
-rpms: clean feedshub
 
 feedshub: prepare
 	rpmbuild -ba --nodeps SPECS/feedshub.spec \
