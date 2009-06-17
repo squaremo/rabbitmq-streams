@@ -278,8 +278,8 @@ install-rabbitmq: \
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
-	(cd build/src/rabbitmq-codegen && hg pull && hg update)
-	(cd build/src/rabbitmq-server && hg pull && hg update)
+	(cd build/src/rabbitmq-codegen && hg pull && hg update -C default)
+	(cd build/src/rabbitmq-server && hg pull && hg update -C default)
 	$(MAKE) build/opt/rabbitmq
 
 update-rabbitmq-erlang-client: build/src/rabbitmq-erlang-client
