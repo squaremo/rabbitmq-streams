@@ -34,7 +34,9 @@ class xmpppubsub(config : JSONObject) extends Server(config) {
         // see SmackTestCase for more config we may want to fill out
         val conn = new XMPPConnection(options)
         conn.connect
-        conn.login(settings.getString("username"), settings.getString("password"))
+        conn.login(settings.getString("username"),
+                   settings.getString("password"),
+                   settings.optString("resource", "feedshub-"+config.getString("server_id")))
         conn
     }
 
