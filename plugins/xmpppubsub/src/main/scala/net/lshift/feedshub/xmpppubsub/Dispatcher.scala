@@ -19,7 +19,8 @@ import net.sf.json.JSONObject
 
 import org.jivesoftware.smack.{XMPPException}
 import org.jivesoftware.smack.packet.XMPPError
-import org.jivesoftware.smackx.pubsub.{PubSubManager,Node,Item,SimplePayload}
+import org.jivesoftware.smackx.pubsub.{PubSubManager,Node,Item}
+import org.jivesoftware.smackx.pubsub.{SimplePayload,ConfigureForm,FormType,AccessModel}
 
 import scala.collection.mutable.Map
 
@@ -42,20 +43,22 @@ class Dispatcher(log : Logger, conn : PubSubManager) extends Actor {
     private def nodeFromConfig(config : JSONObject) : Node = {
         val nodeId = config.getString("node")
         try {
-            conn.getNode(nodeId)
-        }
-        catch {
-            case e : XMPPException => {
-                    if (e.getXMPPError.getCode == 404) {
+            try {
+                conn.getNode(nodeId)
+            }
+            catch {
+                case e : XMPPException if (e.getXMPPError.getCode == 404) => {
                         log.info("Node " + nodeId + " not found.  Creating.")
-                        conn.createNode(nodeId)
+                        val opts = new ConfigureForm(FormType.submit)
+                        opts.setAccessModel(AccessModel.open)
+                        conn.createNode(nodeId, opts)
                         conn.getNode(nodeId)
                     }
-                    log.error(e)
-                    throw e
             }
         }
-
+        catch {
+            case e => log.error(e); throw e
+        }
     }
 
     def act() {
