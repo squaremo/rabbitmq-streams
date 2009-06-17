@@ -50,7 +50,7 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Databa
                             subscriptions.get(id) match {
                                 case Some(subs) => {
                                         subscriptions -= id
-                                        subs.foreach(_ ! StopPolling)
+                                        subs.foreach(_ ! StopPolling("deactivated"))
                                     }
                                 case None => log.info(id + " not known or not active")
                             }

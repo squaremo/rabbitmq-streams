@@ -31,14 +31,17 @@ import org.jdom.filter.ElementFilter
 import org.jdom.Element
 
 case object RetrieveNow
-case object StopPolling
+case class StopPolling(reason : String)
 case class Retrieved(content: Response, state : State)
 
 case class Response(result: PollResult.PollResult, feed: Option[SyndFeed])
 
+// We use these to decide what to do next.
+// See http://diveintomark.org/archives/2003/07/21/atom_aggregator_behavior_http_level
+// for the ideal.
 object PollResult extends Enumeration("ok", "notfound", "notmodified", "gone", "accessdenied", "error", "unknown") {
     type PollResult = Value
-    val OK, NotFound, NotModified, Gone, AccessDenied, Error, Unknown = Value
+    val OK, NotFound, NotModified, Gone, Forbidden, Error, Unknown = Value
 }
 
 case class State(currentUrl : String, originalUrl : String,
@@ -65,6 +68,10 @@ case class State(currentUrl : String, originalUrl : String,
     }
 }
 
+object Subscription {
+    val ContentBearingResponseCodes = Set(200, 301, 302, 303, 307)
+    val StopResults = Set(PollResult.Forbidden, PollResult.Gone)
+}
 class Subscription(log : Logger, initialState: State, saveState: State => Unit, publish: String => Unit) extends Actor {
 
     def loop(alarm: ScheduledFuture[AnyRef],  state: State) {
@@ -72,9 +79,23 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
             case RetrieveNow => poll(state); loop(setAlarm(state.interval), state)
                 // don't try to interrupt something that's already running,
                 // just to avoid complication
-            case StopPolling => alarm.cancel(false)
-            case Retrieved(content, responseState) => maybePublish(content, responseState); loop(alarm, responseState)
+            case StopPolling(reason) => stopPolling("Told to stop: " + reason, alarm)
+            case Retrieved(content, responseState) => {
+                    if (shouldContinue(responseState.lastResult)) {
+                        maybePublish(content, responseState)
+                        // TODO back off for some results
+                        loop(alarm, responseState)
+                    }
+                    else stopPolling(responseState.lastResult, alarm)
+                }
         }
+    }
+
+    private def shouldContinue(result : PollResult.PollResult) : Boolean = ! Subscription.StopResults.contains(result)
+
+    private def stopPolling(reason: AnyRef, alarm : ScheduledFuture[AnyRef]) {
+        log.info("Stopping: " + reason.toString)
+        alarm.cancel(false)
     }
 
     private def extractConditionalHeaders(state : State, conn : HttpURLConnection) : State = {
@@ -83,7 +104,6 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
     }
 
     private def retrieveHttpFeed(state : State, url : URL) : (Response, State) = {
-        val ContentBearingResponseCodes = Set(200, 301, 302, 303, 307)
         val conn : HttpURLConnection = (url.openConnection).asInstanceOf[HttpURLConnection]
         // TODO set headers from state
         state.etag match {case Some(etag) => conn.setRequestProperty("If-None-Match", etag); case None => ;}
@@ -95,21 +115,20 @@ class Subscription(log : Logger, initialState: State, saveState: State => Unit, 
         conn.connect()
         val now = (new Date).getTime
         try {
-            // See http://diveintomark.org/archives/2003/07/21/atom_aggregator_behavior_http_level
-            // for the ideal
             val response : Response = conn.getResponseCode match {
-                case 410 /* Gone */ => new Response(PollResult.Gone, None)
-                case 404 /* not found */ => new Response(PollResult.NotFound, None)
-                case 500 /* server error */ => new Response(PollResult.Error, None)
-                case 403 /* Forbidden, give up */ => new Response(PollResult.Gone, None)
-                case 304 /* not modified */ => new Response(PollResult.NotModified, None)
-                case other : Int if (ContentBearingResponseCodes.contains(other)) => /* OKs though redirects */
+                case 410 /* Gone, give up */ => new Response(PollResult.Gone, None)
+                case 404 /* Not found */ => new Response(PollResult.NotFound, None)
+                case 500 /* Server error */ => new Response(PollResult.Error, None)
+                case 403 /* Forbidden, give up */ => new Response(PollResult.Forbidden, None)
+                case 304 /* Not modified */ => new Response(PollResult.NotModified, None)
+                case other : Int if (Subscription.ContentBearingResponseCodes.contains(other)) => /* OKs though redirects */
                     new Response(PollResult.OK, Some(readFeed(conn)))
                 case _ => new Response(PollResult.Error, None) /* Cop out */
             }
             val newState = conn.getResponseCode match {
                 case 301 => state.withNewURL(conn.getURL toString).updatedAt(now, response.result)
-                case other : Int if (ContentBearingResponseCodes.contains(other)) => extractConditionalHeaders(state, conn)
+                case other : Int if (Subscription.ContentBearingResponseCodes.contains(other)) =>
+                    extractConditionalHeaders(state, conn)
                 case _   => state.updatedAt(now, response.result)
             }
             (response, newState)
