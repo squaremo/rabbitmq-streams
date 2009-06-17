@@ -3,7 +3,7 @@
     "wiring": {
 	"nodes": {
 	    "the_input1": {
-	      "terminal": "socket_source_45678"
+	      "terminal": "socket_source_4567x"
 	    },
 	    "the_logger": {
 	      "type": "logger"

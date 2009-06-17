@@ -3,7 +3,7 @@
     "wiring": {
 	"nodes": {
 	    "the_input": {
-		"terminal": "socket_source_45678"
+		"terminal": "socket_source_4567x"
             },
 	    "the_output": {
 		"terminal": "pubsub_destination"
