@@ -93,14 +93,21 @@ install_view(DbName, ViewDir) ->
 	 end,
     {ok, _} = couchapi:put(Path, Doc2).
 
-setup_core_couch() ->
-    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
+
+setup_root_config() ->
     {ok, _} = couchapi:put(?ROOT_STATUS_DOCID,
                            {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
                                   {"rabbitmq", {obj, [{"host", <<"localhost">>},
                                                       {"user", <<"feedshub_admin">>},
                                                       {"password", <<"feedshub_admin">>}]}}
                                  ]}),
+    ok.
+
+
+
+setup_core_couch() ->
+    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
+    ok = setup_root_config(),
     ok = install_views(),
     ok.
 
@@ -128,7 +135,13 @@ startup_couch_scan() ->
                                                   rfc4627:get_field(CouchInfo, "version")},
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME) of
         {ok, _DbInfo} ->
-            ok;
+            case couchapi:get(?ROOT_STATUS_DOCID) of
+                {error, 404, _} ->
+                    ok = setup_root_config(),
+                    ok = install_views();
+                {ok, _} ->
+                    ok
+            end;
         {error, 404, _} ->
             ok = setup_core_couch()
     end,
@@ -147,7 +160,7 @@ activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
         {error, {already_started, _Child}} ->
             ok;
 	Err -> error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module, Args, Err}}),
-            {error, start_error}     
+            {error, start_error}
     end;
 activate_thing(ThingId, Module, Args) ->
     activate_thing(list_to_binary(ThingId), Module, Args).
@@ -233,7 +246,7 @@ check_active_terminals(Channel) ->
 	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
-    
+
 status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status") of
 	{ok, Doc} ->
