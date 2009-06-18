@@ -34,5 +34,5 @@ rm -rf $RPM_BUILD_ROOT
 %{_feedshub_libdir}/rabbitmq
 %{_feedshub_libdir}/rabbitmq-erlang-client
 %{_feedshub_libdir}/orchestrator
-%{_sbindir}/orchestrator.sh
+#%{_sbindir}/orchestrator.sh
 

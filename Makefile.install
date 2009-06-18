@@ -4,9 +4,9 @@
 PACKAGE_FILE=FeedsHub-0.1.tar.gz
 TARGET_DIR=FeedsHub-0.1
 TMP_DIR=tmp
-INSTALL_LIB_DIR=${TMP_DIR}/lib
+LIB_TARGET_DIR=${TMP_DIR}/lib
 INSTALL_INC_DIR=${TMP_DIR}/include
-INSTALL_SBIN_DIR=${TMP_DIR}/sbin
+SBIN_TARGET_DIR=${TMP_DIR}/sbin
 INSTALL_CONFIG_DIR=${TMP_DIR}/config
 INSTALL_PLUGIN_DIR=${TMP_DIR}/plugins
 
@@ -76,6 +76,8 @@ build_rabbit: prepare_rabbit
 
 prepare_rabbit:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
+	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/include
+	echo 'rabbit prepared'
 
 #### Package everything else ####
 JAVA_PLUGINS := regexp_split socket_source relay xslt socket_destination logger
@@ -113,16 +115,16 @@ prepare_doc:
 	mkdir -p ${TARGET_DIR}/doc
 
 install: build prepare_install
-	cp -rf ${TARGET_DIR}/lib/* ${INSTALL_LIB_DIR}
+	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${INSTALL_PLUGIN_DIR}
 	#cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
-	install ${TARGET_DIR}/sbin/* ${INSTALL_SBIN_DIR}
+	install ${TARGET_DIR}/sbin/* ${SBIN_TARGET_DIR}
 
 prepare_install:
-	mkdir -p ${INSTALL_LIB_DIR}
-	mkdir -p ${INSTALL_SBIN_DIR}
-	mkdir -p ${INSTALL_CONFIG_DIR}
-	mkdir -p ${INSTALL_PLUGIN_DIR}
+	mkdir -p ${LIB_TARGET_DIR}
+	mkdir -p ${SBIN_TARGET_DIR}
+	#mkdir -p ${INSTALL_CONFIG_DIR}
+	#mkdir -p ${INSTALL_PLUGIN_DIR}
 
 package: 
 	rm -f ${PACKAGE_FILE}
