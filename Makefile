@@ -335,19 +335,19 @@ install-dev-debs:
 ###########################################################################
 
 install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
-	mkdir -p tmp/FeedsHub-0.1/erlang-rfc4627
-	mkdir -p tmp/FeedsHub-0.1/ibrowse
-	mkdir -p tmp/FeedsHub-0.1/rabbitmq
-	mkdir -p tmp/FeedsHub-0.1/rabbitmq-erlang-client
-	mkdir -p tmp/FeedsHub-0.1/orchestrator
-	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627
-	cp -rf build/opt/ibrowse/ebin tmp/FeedsHub-0.1/ibrowse
-	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
-	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
-	cp -rf orchestrator/ebin tmp/FeedsHub-0.1/orchestrator
-	cp dist/orchestrator.sh tmp/FeedsHub-0.1
-	cp dist/Makefile tmp/FeedsHub-0.1
-	cd tmp; tar zcvf ../dist/FeedsHub-0.1.tar.gz FeedsHub-0.1
+	mkdir -p tmp/Streams-0.1/erlang-rfc4627
+	mkdir -p tmp/Streams-0.1/ibrowse
+	mkdir -p tmp/Streams-0.1/rabbitmq
+	mkdir -p tmp/Streams-0.1/rabbitmq-erlang-client
+	mkdir -p tmp/Streams-0.1/orchestrator
+	cp -rf build/opt/erlang-rfc4627/ebin tmp/Streams-0.1/erlang-rfc4627
+	cp -rf build/opt/ibrowse/ebin tmp/Streams-0.1/ibrowse
+	cp -rf build/opt/rabbitmq/ebin tmp/Streams-0.1/rabbitmq
+	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/Streams-0.1/rabbitmq-erlang-client
+	cp -rf orchestrator/ebin tmp/Streams-0.1/orchestrator
+	cp dist/orchestrator.sh tmp/Streams-0.1
+	cp dist/Makefile tmp/Streams-0.1
+	cd tmp; tar zcvf ../dist/Streams-0.1.tar.gz Streams-0.1
 
 clean-dist:
 	rm -rf tmp

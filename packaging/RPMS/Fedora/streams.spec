@@ -1,18 +1,18 @@
-Summary: FeedsHub orchestrator - message exchange
-Name: FeedsHub
+Summary: Streams orchestrator - message exchange
+Name: Streams
 Version: 0.1
 Release: 1
 Source: %{name}-%{version}.tar.gz
-License: MPLv1.1
+License: BSD
 Group: Development/Libraries
 BuildRequires: erlang 
 Prereq: erlang
 Buildroot: %{_tmppath}/%{name}-%{version}-root 
 
 %description
-The FeedsHub orchestrator blah blah blah
+The Streams orchestrator manages gateways and transformations
 
-%define _feedshub_libdir %{_libdir}/feedshub
+%define _streams_libdir %{_libdir}/streams
 
 %prep
 %setup -q
@@ -22,17 +22,17 @@ The FeedsHub orchestrator blah blah blah
 
 %install
 make PYTHON=python2.5 create-build-logs-dir build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0 all
-make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
+make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_feedshub_libdir}/erlang-rfc4627
-%{_feedshub_libdir}/ibrowse
-%{_feedshub_libdir}/rabbitmq
-%{_feedshub_libdir}/rabbitmq-erlang-client
-%{_feedshub_libdir}/orchestrator
+%{_streams_libdir}/erlang-rfc4627
+%{_streams_libdir}/ibrowse
+%{_streams_libdir}/rabbitmq
+%{_streams_libdir}/rabbitmq-erlang-client
+%{_streams_libdir}/orchestrator
 %{_sbindir}/orchestrator.sh
 
