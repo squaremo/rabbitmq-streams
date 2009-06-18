@@ -175,7 +175,7 @@ start-orchestrator-nox: stop-orchestrator-nox
 	    echo "Orchestrator died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
-	sleep 4
+	sleep 6
 
 run-orchestrator: listen-orchestrator start-orchestrator-nox
 
@@ -199,7 +199,7 @@ start-couch-nox: stop-couch-nox
 	    echo "CouchDb died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
-	sleep 2
+	sleep 3
 
 run-couch: listen-couch start-couch-nox
 
@@ -225,7 +225,7 @@ start-rabbit-nox: stop-rabbit-nox
 	    echo "Myxomatosis" ; \
 	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
-	sleep 2
+	sleep 3
 
 run-rabbit: listen-rabbit start-rabbit-nox
 
@@ -424,17 +424,18 @@ demo-test: listen-all full-reset-core-nox start-orchestrator-nox
 	python sbin/import_config.py examples/test
 	$(MAKE) start-orchestrator-nox
 
-demo-showandtell: full-reset-core-nox
+demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-nox
 	@echo 'Running show and tell demo'
 	python sbin/import_config.py examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
-	make start-orchestrator-nox && sleep 3
+	sleep 1
+	make start-orchestrator-nox
 	xterm -T 'Show&tell Producer' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
 		echo $$! >> $(SHOWANDTELL_PIDSFILE)
 
-stop-showandtell: stop-orchestrator-nox
-	kill `cat $(SHOWANDTELL_PIDSFILE)`
-	make cleandb
+demo-showandtell-stop: stop-orchestrator-nox
+	-kill `cat $(SHOWANDTELL_PIDSFILE)`
+	-rm -f $(SHOWANDTELL_PIDSFILE)
 
 
