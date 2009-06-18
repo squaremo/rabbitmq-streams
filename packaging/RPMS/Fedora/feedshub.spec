@@ -21,7 +21,7 @@ The FeedsHub orchestrator blah blah blah
 %build
 
 %install
-make PYTHON=python2.5 create-build-logs-dir build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0
+make PYTHON=python2.5 create-build-logs-dir build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0 all
 make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_feedshub_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
 
 %clean
