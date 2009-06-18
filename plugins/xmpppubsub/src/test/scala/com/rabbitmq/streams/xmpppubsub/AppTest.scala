@@ -1,4 +1,4 @@
-package net.lshift.feedshub.xmpppubsub
+package com.rabbitmq.streams.xmpppubsub
 
 import org.junit._
 import Assert._

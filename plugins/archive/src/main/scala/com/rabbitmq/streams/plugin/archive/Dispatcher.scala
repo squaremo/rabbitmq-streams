@@ -5,14 +5,14 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.plugin.archive
+package com.rabbitmq.streams.plugin.archive
 
 import scala.actors.Actor
 import scala.actors.Actor._
 
 import com.fourspaces.couchdb.Document
 import com.fourspaces.couchdb.Session
-import net.lshift.feedshub.harness._
+import com.rabbitmq.streams.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 import net.sf.json.JSONObject

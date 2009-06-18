@@ -1,3 +1,3 @@
-package net.lshift.feedshub.management.utils.actor
+package com.rabbitmq.streams.management.utils.actor
 
 case object Stop

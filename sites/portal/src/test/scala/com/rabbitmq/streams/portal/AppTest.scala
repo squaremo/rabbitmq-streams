@@ -1,4 +1,4 @@
-package net.lshift.feedshub.portal;
+package com.rabbitmq.streams.portal;
 
 import junit.framework._;
 import Assert._;

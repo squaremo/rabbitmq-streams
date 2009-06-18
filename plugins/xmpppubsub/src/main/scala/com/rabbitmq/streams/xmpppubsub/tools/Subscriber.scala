@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.xmpppubsub.tools
+package com.rabbitmq.streams.xmpppubsub.tools
 
 import org.jivesoftware.smack.{XMPPConnection,ConnectionConfiguration,XMPPException}
 import org.jivesoftware.smackx.pubsub._

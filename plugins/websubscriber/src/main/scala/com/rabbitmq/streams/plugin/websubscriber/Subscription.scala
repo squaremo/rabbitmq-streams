@@ -2,14 +2,14 @@
  * Subscription.scala
  */
 
-package net.lshift.feedshub.plugin.websubscriber
+package com.rabbitmq.streams.plugin.websubscriber
 
 import scala.actors.Actor
 import scala.actors.Actor._
 
 import net.sf.json._
 
-import net.lshift.feedshub.harness.Logger
+import com.rabbitmq.streams.harness.Logger
 
 import net.liftweb.util.ActorPing
 import net.liftweb.util.Helpers._

@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller.logging
+package com.rabbitmq.streams.management.controller.logging
 
 import org.scalatest.junit.JUnit3Suite
 

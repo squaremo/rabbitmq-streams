@@ -13,8 +13,8 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import net.lshift.feedshub.harness.InputReader;
-import net.lshift.feedshub.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;

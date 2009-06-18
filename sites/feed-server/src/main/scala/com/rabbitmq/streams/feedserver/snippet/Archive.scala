@@ -1,6 +1,6 @@
-package net.lshift.feedshub.feedserver.snippet
+package com.rabbitmq.streams.feedserver.snippet
 
-import net.lshift.feedshub.feedserver.model.{LocalServer}
+import com.rabbitmq.streams.feedserver.model.{LocalServer}
 import scala.xml.NodeSeq
 
 class Archive {

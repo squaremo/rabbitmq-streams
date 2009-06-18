@@ -2,14 +2,14 @@
  * Dispatcher.scala
  */
 
-package net.lshift.feedshub.plugin.websubscriber
+package com.rabbitmq.streams.plugin.websubscriber
 
 import scala.actors.Actor
 import scala.actors.Actor._
 
 import net.sf.json.JSONObject
 import com.fourspaces.couchdb.Session
-import net.lshift.feedshub.harness._
+import com.rabbitmq.streams.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.fourspaces.couchdb.{Database, Document}
 

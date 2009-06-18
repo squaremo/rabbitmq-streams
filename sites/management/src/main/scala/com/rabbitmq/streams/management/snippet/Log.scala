@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.management.snippet
+package com.rabbitmq.streams.management.snippet
 
 import net.liftweb.http.SHtml
 import net.liftweb.util.Helpers._

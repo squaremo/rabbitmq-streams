@@ -5,11 +5,11 @@
  * and open the template in the editor.
  */
 
-import net.lshift.feedshub.harness._
+import com.rabbitmq.streams.harness._
 import com.fourspaces.couchdb.Document
 import com.rabbitmq.client.QueueingConsumer.Delivery
 import net.sf.json._
-import net.lshift.feedshub.plugin.archive._
+import com.rabbitmq.streams.plugin.archive._
 
 import scala.collection.jcl.Conversions._
 

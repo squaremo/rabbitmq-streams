@@ -1,11 +1,11 @@
-package net.lshift.feedshub.management.controller.monitoring
+package com.rabbitmq.streams.management.controller.monitoring
 
 import scala.actors.Actor
 import scala.actors.Actor._
 import scala.collection.mutable.Map
 import scala.collection.Set
-import net.lshift.feedshub.management.controller.logging._
-import net.lshift.feedshub.management.utils.actor.Stop
+import com.rabbitmq.streams.management.controller.logging._
+import com.rabbitmq.streams.management.utils.actor.Stop
 
 class FeedMonitor(feedSource: Actor with ObservableActor[UpdateFeedList], capacity: Int) extends Actor with ObservableActor[MonitorMessage] {
 

@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.management.controller
+package com.rabbitmq.streams.management.controller
 
 import scala.actors.Actor
 import scala.collection.mutable.Set

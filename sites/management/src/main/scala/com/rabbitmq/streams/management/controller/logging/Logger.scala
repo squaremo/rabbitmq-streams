@@ -1,10 +1,10 @@
-package net.lshift.feedshub.management.controller.logging
+package com.rabbitmq.streams.management.controller.logging
 
 import scala.actors.Actor
 import scala.actors.Actor._
 import scala.collection.mutable.HashSet
 import com.rabbitmq.client._
-import net.lshift.feedshub.management.utils.actor.Stop
+import com.rabbitmq.streams.management.utils.actor.Stop
 
 /**
  * This is an abstract class used to consume messages from the feeshub log exchange.

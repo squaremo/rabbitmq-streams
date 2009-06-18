@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.comet
+package com.rabbitmq.streams.management.comet
 
 
 import liftweb.http._

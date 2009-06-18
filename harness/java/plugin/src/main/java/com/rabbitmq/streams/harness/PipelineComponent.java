@@ -1,4 +1,4 @@
-package net.lshift.feedshub.harness;
+package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
 import java.net.URL;

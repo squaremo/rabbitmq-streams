@@ -1,4 +1,4 @@
-package net.lshift.feedshub.harness;
+package com.rabbitmq.streams.harness;
 
 public interface Publisher {
 }

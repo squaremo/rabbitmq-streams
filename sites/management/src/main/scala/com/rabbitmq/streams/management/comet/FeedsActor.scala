@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.management.comet
+package com.rabbitmq.streams.management.comet
 
 import scala.collection.mutable.HashMap
 import scala.xml.{NodeSeq, Text}
@@ -16,7 +16,7 @@ import net.liftweb.util.{Box, Full}
 
 import net.liftweb.widgets.tablesorter.TableSorter
 
-import net.lshift.feedshub.management.controller._
+import com.rabbitmq.streams.management.controller._
 
 class FeedsActor extends CometActor {
 

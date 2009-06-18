@@ -1,4 +1,4 @@
-package net.lshift.feedshub.plugin.archive
+package com.rabbitmq.streams.plugin.archive
 
 import org.junit._
 import Assert._

@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.management.comet
+package com.rabbitmq.streams.management.comet
 
 import scala.xml.{NodeSeq, Text}
 
@@ -13,7 +13,7 @@ import net.liftweb.http._
 import net.liftweb.http.js.JsCmds.Noop
 import net.liftweb.util.{Box, Full}
 
-import net.lshift.feedshub.management.controller.logging._
+import com.rabbitmq.streams.management.controller.logging._
 
 class LogActor extends CometActor {
 

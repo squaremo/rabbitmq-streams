@@ -1,4 +1,4 @@
-package net.lshift.feedshub.xmpppubsub
+package com.rabbitmq.streams.xmpppubsub
 
 import org.specs._
 import org.specs.runner.{ConsoleRunner, JUnit4}

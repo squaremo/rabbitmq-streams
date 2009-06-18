@@ -3,7 +3,7 @@
  *
  */
 
-package net.lshift.feedshub.management.controller
+package com.rabbitmq.streams.management.controller
 
 import scala.collection.jcl.Conversions._
 import scala.actors.Actor

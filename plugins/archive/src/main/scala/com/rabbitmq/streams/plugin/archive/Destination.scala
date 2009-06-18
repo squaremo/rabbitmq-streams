@@ -2,14 +2,14 @@
  * Destination.scala
  */
 
-package net.lshift.feedshub.plugin.archive
+package com.rabbitmq.streams.plugin.archive
 
 import scala.actors.Actor
 import scala.actors.Actor._
 
 import java.util.Date
 
-import net.lshift.feedshub.harness.Logger
+import com.rabbitmq.streams.harness.Logger
 import com.fourspaces.couchdb._
 
 case class NewEntry(bytes : Array[Byte])

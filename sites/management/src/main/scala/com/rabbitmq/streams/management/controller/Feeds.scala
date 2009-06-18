@@ -3,10 +3,10 @@
  *
  */
 
-package net.lshift.feedshub.management.controller
+package com.rabbitmq.streams.management.controller
 
 import logging.LogMessage
-import net.lshift.feedshub.management.controller.monitoring.FeedMonitors
+import com.rabbitmq.streams.management.controller.monitoring.FeedMonitors
 import scala.collection.mutable.HashSet
 import scala.collection.jcl.Conversions._
 import net.liftweb.util.Helpers._

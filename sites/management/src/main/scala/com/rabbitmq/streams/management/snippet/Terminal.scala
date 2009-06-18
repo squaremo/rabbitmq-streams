@@ -5,7 +5,7 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.management.snippet
+package com.rabbitmq.streams.management.snippet
 
 import net.liftweb.http.SHtml
 import net.liftweb.util.Helpers._
@@ -13,7 +13,7 @@ import scala.xml.NodeSeq
 
 import net.liftweb.widgets.tablesorter.TableSorter
 
-import net.lshift.feedshub.management.controller._
+import com.rabbitmq.streams.management.controller._
 
 class Terminal {
 

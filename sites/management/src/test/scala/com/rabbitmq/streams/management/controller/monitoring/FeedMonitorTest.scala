@@ -1,9 +1,9 @@
-package net.lshift.feedshub.management.controller.monitoring
+package com.rabbitmq.streams.management.controller.monitoring
 
 import scala.actors.Actor
 import scala.actors.Actor._
 import org.scalatest.junit.JUnit3Suite
-import net.lshift.feedshub.management.utils.actor.Stop
+import com.rabbitmq.streams.management.utils.actor.Stop
 
 class FeedMonitorTest extends JUnit3Suite {
   val feedName = "feed1"

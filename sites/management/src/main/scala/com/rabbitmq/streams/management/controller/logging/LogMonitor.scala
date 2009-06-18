@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.controller.logging
+package com.rabbitmq.streams.management.controller.logging
 
 import collection.mutable.HashSet
 import collection.mutable.Queue

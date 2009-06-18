@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.snippet
+package com.rabbitmq.streams.management.snippet
 
 
 import liftweb.widgets.tablesorter.TableSorter

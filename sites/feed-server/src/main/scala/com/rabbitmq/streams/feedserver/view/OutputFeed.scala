@@ -5,13 +5,13 @@
  * and open the template in the editor.
  */
 
-package net.lshift.feedshub.feedserver.view
+package com.rabbitmq.streams.feedserver.view
 
 import net.liftweb.http.{LiftView, S, LiftResponse, XmlResponse, AtomResponse}
 import net.liftweb.util.{Box, Full, Empty}
 
-import net.lshift.feedshub.feedserver.model.LocalServer
-import net.lshift.feedshub.feedserver.model.Archive
+import com.rabbitmq.streams.feedserver.model.LocalServer
+import com.rabbitmq.streams.feedserver.model.Archive
 
 object OutputFeed {
 

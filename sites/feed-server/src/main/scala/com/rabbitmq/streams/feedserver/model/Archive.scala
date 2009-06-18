@@ -3,7 +3,7 @@
  *
  */
 
-package net.lshift.feedshub.feedserver.model
+package com.rabbitmq.streams.feedserver.model
 
 import java.net.URL
 import scala.collection.jcl.Conversions._

@@ -1,4 +1,4 @@
-package net.lshift.feedshub.xmpppubsub
+package com.rabbitmq.streams.xmpppubsub
 
 /*
  * Dispatcher.scala
@@ -12,7 +12,7 @@ import scala.actors.Actor._
 
 import com.fourspaces.couchdb.Document
 import com.fourspaces.couchdb.Session
-import net.lshift.feedshub.harness._
+import com.rabbitmq.streams.harness._
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 import net.sf.json.JSONObject

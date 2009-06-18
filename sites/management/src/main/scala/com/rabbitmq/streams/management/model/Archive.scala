@@ -1,4 +1,4 @@
-package net.lshift.feedshub.management.model
+package com.rabbitmq.streams.management.model
 
 import java.net.URL
 import scala.collection.jcl.Conversions._
