@@ -5,7 +5,7 @@
 
 package com.rabbitmq.streams.management.controller
 
-import logging.LogMessage
+import com.rabbitmq.streams.management.controller.logging.LogMessage
 import com.rabbitmq.streams.management.controller.monitoring.FeedMonitors
 import scala.collection.mutable.HashSet
 import scala.collection.jcl.Conversions._

@@ -1,7 +1,7 @@
 package com.rabbitmq.streams.management.snippet
 
 
-import liftweb.widgets.tablesorter.TableSorter
+import net.liftweb.widgets.tablesorter.TableSorter
 import xml.NodeSeq
 
 class FeedMonitor {

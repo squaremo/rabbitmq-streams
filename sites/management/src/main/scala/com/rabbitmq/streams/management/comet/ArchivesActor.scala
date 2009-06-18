@@ -1,9 +1,9 @@
 package com.rabbitmq.streams.management.comet
 
 
-import liftweb.http._
-import liftweb.util.Full
-import liftweb.widgets.tablesorter.TableSorter
+import net.liftweb.http._
+import net.liftweb.util.Full
+import net.liftweb.widgets.tablesorter.TableSorter
 import model.{Archive, LocalServer}
 import scala.xml._
 class ArchivesActor extends CometActor {
