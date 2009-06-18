@@ -72,6 +72,7 @@ prepare_amqp:
 
 build_rabbit: prepare_rabbit
 	cp -r build/opt/rabbitmq/ebin/* ${TARGET_DIR}/lib/erlang/rabbit/ebin
+	cp -r build/opt/rabbitmq/include/* ${TARGET_DIR}/lib/erlang/rabbit/include
 
 prepare_rabbit:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
@@ -127,6 +128,6 @@ package:
 	rm -f ${PACKAGE_FILE}
 	mkdir -p tmp
 	hg clone . tmp/FeedsHub-0.1
-	$(MAKE) -C tmp/FeedsHub-0.1 PYTHON=python2.5 create-build-logs-dir build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen
-	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=build --exclude=.hg --exclude=.hgignore  --exclude=.svn FeedsHub-0.1
+	$(MAKE) -C tmp/FeedsHub-0.1 PYTHON=python2.5 create-build-logs-dir build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
+	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=.hg --exclude=.hgignore  --exclude=.svn FeedsHub-0.1
 	rm -rf tmp
