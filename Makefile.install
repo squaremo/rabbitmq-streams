@@ -127,5 +127,6 @@ package:
 	rm -f ${PACKAGE_FILE}
 	mkdir -p tmp
 	hg clone . tmp/FeedsHub-0.1
-	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=build --exclude=.hg --exclude=.hgignore --exclude-vcs FeedsHub-0.1
+	$(MAKE) -C tmp/FeedsHub-0.1 PYTHON=python2.5 create-build-logs-dir build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen
+	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=build --exclude=.hg --exclude=.hgignore  --exclude=.svn FeedsHub-0.1
 	rm -rf tmp
