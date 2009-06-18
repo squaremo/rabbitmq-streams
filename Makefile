@@ -175,6 +175,7 @@ start-orchestrator-nox: stop-orchestrator-nox
 	    echo "Orchestrator died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
+	sleep 4
 
 run-orchestrator: listen-orchestrator start-orchestrator-nox
 
@@ -198,6 +199,7 @@ start-couch-nox: stop-couch-nox
 	    echo "CouchDb died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
+	sleep 2
 
 run-couch: listen-couch start-couch-nox
 
@@ -223,6 +225,7 @@ start-rabbit-nox: stop-rabbit-nox
 	    echo "Myxomatosis" ; \
 	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
+	sleep 2
 
 run-rabbit: listen-rabbit start-rabbit-nox
 
@@ -247,8 +250,10 @@ listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rab
 	@echo '3.  rabbitMQ'
 
 start-core-nox: start-couch-nox start-rabbit-nox
+	sleep 3
 
-start-all-nox: start-core-nox sleeper start-orchestrator-nox
+start-all-nox: start-core-nox start-orchestrator-nox
+	sleep 3
 
 
 log-wipe-orchestrator:
@@ -289,7 +294,7 @@ stop-core-nox:
 
 stop-all-nox: stop-orchestrator-nox stop-core-nox
 
-full-reset-core-nox: stop-core-nox cleandb start-core-nox sleeper create-fresh-accounts
+full-reset-core-nox: stop-core-nox cleandb start-core-nox create-fresh-accounts
 
 ###########################################################################
 # CouchDB
@@ -421,7 +426,6 @@ demo-test: listen-all full-reset-core-nox start-orchestrator-nox
 
 demo-showandtell: full-reset-core-nox
 	@echo 'Running show and tell demo'
-	sleep 3
 	python sbin/import_config.py examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
