@@ -107,7 +107,7 @@ public class View {
 		}
 		if (reverse!=null && reverse.booleanValue()) {
 			if (!queryString.equals("")) { queryString+="&"; }
-			queryString+="reverse=true";
+			queryString+="descending=true";
 		}
                 if (group!=null && group.booleanValue()) {
 			if (!queryString.equals("")) { queryString+="&"; }
@@ -143,10 +143,15 @@ public class View {
 	/**
 	 * Reverse the listing
 	 * @param reverse
+     * @deprecated CouchDB 0.9 uses "descending" instead
 	 */
 	public void setReverse(Boolean reverse) {
 		this.reverse = reverse;
 	}
+
+    public void setDescending(Boolean descending) {
+        this.reverse = descending;
+    }
 	/**
 	 * Skip listing these keys (not sure if this works, or the format)
 	 * @param skip
