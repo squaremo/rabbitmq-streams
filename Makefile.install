@@ -117,7 +117,7 @@ install: build prepare_install
 	cp -rf ${TARGET_DIR}/lib/* ${INSTALL_LIB_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${INSTALL_PLUGIN_DIR}
 	#cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
-	install ${TARGET_DIR}/sbin/* ${INSTALL_SBIN_DIR}
+	cp -rf ${TARGET_DIR}/sbin/* ${INSTALL_SBIN_DIR}
 
 prepare_install:
 	mkdir -p ${INSTALL_LIB_DIR}
