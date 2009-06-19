@@ -24,15 +24,13 @@ mkdir -p %{buildroot}
 %install
 make create-var-dirs build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0 all
 make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
+echo '******%{_streams_libdir}'
 
 %clean
 
 %files
 %defattr(-,root,root)
-%{_streams_libdir}/erlang-rfc4627
-%{_streams_libdir}/ibrowse
-%{_streams_libdir}/rabbitmq
-%{_streams_libdir}/rabbitmq-erlang-client
-%{_streams_libdir}/orchestrator
+/usr/lib/streams
+%{_streams_libdir}
 %{_sbindir}
 
