@@ -349,7 +349,7 @@ update-ibrowse: build/src/jungerl
 build/src/jungerl:
 	@echo checking out jungerl
 	(mkdir -p build/src && cd build/src && \
-	 cvs -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
+	 cvs -d:pserver:anonymous:@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
 	 cvs -z3 -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl co -P jungerl) \
 		> build/logs/clone-jungerl.txt 2>&1
 
