@@ -7,7 +7,7 @@ License: BSD
 Group: Development/Libraries
 BuildRequires: erlang 
 Prereq: erlang
-Buildroot: %{_tmppath}/%{name}-%{version}-root 
+Buildroot: %{_tmppath}/%{name}-%{version} 
 
 %description
 The Streams orchestrator manages gateways and transformations
@@ -17,6 +17,7 @@ The Streams orchestrator manages gateways and transformations
 %prep
 %setup -q
 #sed -i 's|LIB_DIR|%{_sbindir}|' orchestrator.sh
+mkdir -p %{buildroot}
 
 %build
 
@@ -25,7 +26,6 @@ make create-var-dirs build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbit
 make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
 
 %clean
-rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
@@ -34,5 +34,5 @@ rm -rf $RPM_BUILD_ROOT
 %{_streams_libdir}/rabbitmq
 %{_streams_libdir}/rabbitmq-erlang-client
 %{_streams_libdir}/orchestrator
-%{_sbindir}/orchestrator.sh
+%{_sbindir}
 
