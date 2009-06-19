@@ -102,6 +102,7 @@ build_sbin: prepare_sbin
 
 prepare_sbin: prepare
 	mkdir -p ${TARGET_DIR}/sbin
+	cp sbin/* ${TARGET_DIR}/sbin
 
 build_examples: prepare_examples
 
