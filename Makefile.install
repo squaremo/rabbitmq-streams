@@ -84,7 +84,7 @@ PYTHON_PLUGINS := regexp_replace webfeed rsspoll
 
 build_plugins: prepare_plugins
 	for j in $(JAVA_PLUGINS); \
-		mkdir -p ${PLUGIN_TARGET_DIR}/$$j; cp plugins/$$j/plugin.js ${PLUGIN_TARGET_DIR}/$$j; cp -rf plugins/$$j/lib ${PLUGIN_TARGET_DIR}/$$j; \
+		do mkdir -p ${PLUGIN_TARGET_DIR}/$$j; cp plugins/$$j/plugin.js ${PLUGIN_TARGET_DIR}/$$j; cp -rf plugins/$$j/lib ${PLUGIN_TARGET_DIR}/$$j; \
 	done
 	for p in $(PYTHON_PLUGINS); \
 		do mkdir -p ${PLUGIN_TARGET_DIR}/$$p; cp -rf plugins/$$p ${PLUGIN_TARGET_DIR}; \
