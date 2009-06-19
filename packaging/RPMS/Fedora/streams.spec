@@ -13,6 +13,7 @@ Buildroot: %{_tmppath}/%{name}-%{version}
 The Streams orchestrator manages gateways and transformations
 
 %define _streams_libdir %{_libdir}/streams
+%define _plugin_dir %{_streams_libdir}/plugins
 
 %prep
 %setup -q
@@ -23,8 +24,7 @@ mkdir -p %{buildroot}
 
 %install
 make create-var-dirs build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0 all
-make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} install 
-echo '******%{_streams_libdir}'
+make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} PLUGIN_TARGET_DIR=%{buildroot}%{_plugin_dir} install 
 
 %clean
 
@@ -32,5 +32,5 @@ echo '******%{_streams_libdir}'
 %defattr(-,root,root)
 /usr/lib/streams
 %{_streams_libdir}
+%{_plugin_dir}
 %{_sbindir}
-
