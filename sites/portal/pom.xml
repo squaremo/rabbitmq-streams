@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>net.lshift.feedshub</groupId>
-  <artifactId>feedshub-portal</artifactId>
+  <groupId>com.rabbitmq.streams.sites</groupId>
+  <artifactId>portal</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>war</packaging>
-  <name>feedshub-portal</name>
-  <inceptionYear>2007</inceptionYear>
+  <name>Streams portal site</name>
+  <inceptionYear>2009</inceptionYear>
   <properties>
-    <scala.version>2.7.3</scala.version>
+    <scala.version>2.7.4</scala.version>
   </properties>
 
   <repositories>
@@ -55,11 +55,11 @@
             <version>1.0</version>
     </dependency>
 
-        <dependency>
-            <groupId>net.lshift.feedshub</groupId>
-            <artifactId>feedshub-harness</artifactId>
-            <version>1.0</version>
-        </dependency>
+    <dependency>
+      <groupId>com.rabbitmq.streams.thirdparty</groupId>
+      <artifactId>couchdb4j</artifactId>
+      <version>0.3.0-SVN</version>
+    </dependency>
 
     <dependency>
       <groupId>junit</groupId>

@@ -5,8 +5,8 @@ import java.io.InputStreamReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.lshift.feedshub.harness.InputReader;
-import net.lshift.feedshub.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
 import com.rabbitmq.client.QueueingConsumer.Delivery;

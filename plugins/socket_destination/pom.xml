@@ -2,15 +2,15 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>net.lshift.feedshub.plugins</groupId>
+  <groupId>com.rabbitmq.streams.plugins</groupId>
   <artifactId>socket_destination</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
-  <name>socket_destination</name>
+  <name>Socket destination gateway</name>
 
 	<dependencies>
 		<dependency>
-			<groupId>net.lshift.feedshub</groupId>
+			<groupId>com.rabbitmq.streams</groupId>
   		<artifactId>plugin</artifactId>
 			<version>1.0-SNAPSHOT</version>
 		</dependency>

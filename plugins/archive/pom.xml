@@ -1,12 +1,13 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>net.lshift.feedshub</groupId>
+    <groupId>com.rabbitmq.streams.plugins</groupId>
     <artifactId>archive</artifactId>
-    <version>1.0</version>
-    <inceptionYear>2008</inceptionYear>
+    <name>Archiver gateway</name>
+    <version>1.0-SNAPSHOT</version>
+    <inceptionYear>2009</inceptionYear>
     <properties>
-        <scala.version>2.7.3</scala.version>
+        <scala.version>2.7.4</scala.version>
     </properties>
 
     <repositories>
@@ -45,9 +46,9 @@
         </dependency>
 
         <dependency>
-            <groupId>net.lshift.feedshub</groupId>
-            <artifactId>feedshub-harness</artifactId>
-            <version>1.0</version>
+            <groupId>com.rabbitmq.streams</groupId>
+            <artifactId>plugin</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
 
     </dependencies>

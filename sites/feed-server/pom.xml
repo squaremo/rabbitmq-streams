@@ -1,14 +1,14 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>net.lshift.feedshub</groupId>
+  <groupId>com.rabbitmq.streams.sites</groupId>
   <artifactId>feed-server</artifactId>
   <version>1.0-SNAPSHOT</version>
   <packaging>war</packaging>
-  <name>RSS and Atom feed server</name>
+  <name>RSS and Atom feed site</name>
   <inceptionYear>2009</inceptionYear>
   <properties>
-    <scala.version>2.7.3</scala.version>
+    <scala.version>2.7.4</scala.version>
   </properties>
 
   <repositories>
@@ -65,7 +65,7 @@
     </dependency>
 
     <dependency>
-      <groupId>net.lshift.feedshub.thirdparty</groupId>
+      <groupId>com.rabbitmq.streams.thirdparty</groupId>
       <artifactId>couchdb4j</artifactId>
       <version>0.3.0-SVN</version>
     </dependency>

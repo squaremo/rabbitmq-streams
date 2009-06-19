@@ -1,15 +1,15 @@
 <?xml version="1.0"?><project>
   <parent>
-    <artifactId>net.lshift.feedshub</artifactId>
-    <groupId>net.lshift.feedshub</groupId>
+    <artifactId>streams-harness</artifactId>
+    <groupId>com.rabbitmq.streams</groupId>
     <version>1.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>net.lshift.feedshub</groupId>
+  <groupId>com.rabbitmq.streams</groupId>
   <artifactId>management</artifactId>
-  <name>management</name>
+  <name>Streams management API</name>
   <version>1.0-SNAPSHOT</version>
-  <url>http://maven.apache.org</url>
+  <url>http://www.rabbitmq.com/</url>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
