@@ -5,10 +5,10 @@ PACKAGE_FILE=Streams-0.1.tar.gz
 TARGET_DIR=Streams-0.1
 TMP_DIR=tmp
 LIB_TARGET_DIR=${TMP_DIR}/lib
-INSTALL_INC_DIR=${TMP_DIR}/include
 SBIN_TARGET_DIR=${TMP_DIR}/sbin
 INSTALL_CONFIG_DIR=${TMP_DIR}/config
-INSTALL_PLUGIN_DIR=${TMP_DIR}/plugins
+PLUGIN_TARGET_DIR=${TMP_DIR}/plugins
+INSTALL_INC_DIR=${TMP_DIR}/include
 
 all: build
 
@@ -84,10 +84,10 @@ PYTHON_PLUGINS := regexp_replace webfeed rsspoll
 
 build_plugins: prepare_plugins
 	for j in $(JAVA_PLUGINS); \
-		do echo $$j; mkdir -p ${TARGET_DIR}/plugins/$$j; cp plugins/$$j/plugin.js ${TARGET_DIR}/plugins/$$j; cp -rf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
+		do echo $$j; mkdir -p ${PLUGIN_TARGET_DIR}/$$j; cp plugins/$$j/plugin.js ${PLUGIN_TARGET_DIR}/$$j; cp -rf plugins/$$j/lib ${PLUGIN_TARGET_DIR}/$$j; \
 	done
 	for p in $(PYTHON_PLUGINS); \
-		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}/plugins; \
+		do mkdir -p ${PLUGIN_TARGET_DIR}/$$p; cp -rf plugins/$$p ${PLUGIN_TARGET_DIR}; \
 	done
 
 prepare_plugins: prepare
@@ -116,7 +116,7 @@ prepare_doc:
 
 install: build prepare_install
 	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/plugins/* ${INSTALL_PLUGIN_DIR}
+	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
 	#cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
 	cp -rf ${TARGET_DIR}/sbin/* ${SBIN_TARGET_DIR}
 
@@ -124,7 +124,7 @@ prepare_install:
 	mkdir -p ${LIB_TARGET_DIR}
 	mkdir -p ${SBIN_TARGET_DIR}
 	mkdir -p ${INSTALL_CONFIG_DIR}
-	mkdir -p ${INSTALL_PLUGIN_DIR}
+	mkdir -p ${PLUGIN_TARGET_DIR}
 
 CURRENT_BRANCH=$(shell hg branch)
 package: 
