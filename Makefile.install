@@ -125,10 +125,11 @@ prepare_install:
 	mkdir -p ${INSTALL_CONFIG_DIR}
 	mkdir -p ${INSTALL_PLUGIN_DIR}
 
+CURRENT_BRANCH=$(shell hg branch)
 package: 
 	rm -f ${PACKAGE_FILE}
 	mkdir -p tmp
-	hg clone -r bug21047 . tmp/Streams-0.1
+	hg clone -r $(CURRENT_BRANCH) . tmp/Streams-0.1
 	$(MAKE) -C tmp/Streams-0.1 create-build-logs-dir build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
 	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=.hg --exclude=.hgignore  --exclude=.svn Streams-0.1
 	rm -rf tmp
