@@ -129,6 +129,6 @@ package:
 	rm -f ${PACKAGE_FILE}
 	mkdir -p tmp
 	hg clone -r bug21047 . tmp/Streams-0.1
-	$(MAKE) -C tmp/Streams-0.1 PYTHON=python2.5 create-build-logs-dirs build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
+	$(MAKE) -C tmp/Streams-0.1 create-build-logs-dirs build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
 	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=.hg --exclude=.hgignore  --exclude=.svn Streams-0.1
 	rm -rf tmp
