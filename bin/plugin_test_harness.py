@@ -10,6 +10,7 @@ import feedshub as fh
 from feedshub import json
 
 pluginpath = sys.argv[1]
+pluginpath = pluginpath.endswith('/') and pluginpath[:-1] or pluginpath
 config = (len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}"
 
 print "Configuration: "
@@ -35,7 +36,7 @@ channel = connection.channel()
 
 def newname():
     import sha
-    return 'test/%s' % sha.new(os.urandom(8)).hexdigest()
+    return 'test-%s' % sha.new(os.urandom(8)).hexdigest()
 
 def declexchange():
     name = newname()
