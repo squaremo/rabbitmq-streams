@@ -17,7 +17,6 @@ import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
-
 public class xslt extends PipelineComponent {
 
     public InputReader input;

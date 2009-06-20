@@ -1,17 +1,18 @@
-from feedshub import Component
+from feedshub import Plugin
 import simplejson as json
 import re
 
-class RegexpReplacer(Component):
+class RegexpReplacer(Plugin):
 
     def __init__(self, config):
         super(RegexpReplacer, self).__init__(config)
-        match = self.setting("regexp")
-        replacement = self.setting("replacement")
-
-        multiline = self.setting("multiline")
-        caseinsensitive = self.setting("caseinsensitive")
-        dotall = self.setting("dotall")
+        
+    def input(self, msg, config):
+        match = config["regexp"]
+        replacement = config["replacement"]
+        multiline = config["multiline"]
+        caseinsensitive = config["caseinsensitive"]
+        dotall = config["dotall"]
 
         flags = 0
         if multiline:
@@ -20,12 +21,9 @@ class RegexpReplacer(Component):
             flags |= re.IGNORECASE
         if dotall:
             flags |= re.DOTALL
-        self.__regexp = re.compile(match, flags)
-        self.__replacement = replacement
-
-    def input(self, msg):
+        regexp = re.compile(match, flags)
         body = msg.body
-        result, count = re.subn(self.__regexp, self.__replacement, body)
+        result, count = re.subn(regexp, replacement, body)
         if 0 == count:
             self.negative(body)
         else:

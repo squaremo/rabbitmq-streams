@@ -8,6 +8,7 @@ import os
 import sys
 
 feedshub_log_xname = 'feedshub/log'
+plugin_config_header = 'x-streams-plugin-config'
 
 try:
     import json
@@ -18,45 +19,7 @@ def ensure_resource(resource):
     try:
         resource.head()
     except:
-        resource.put(content={})
-
-def db_name(db):
-    """Give the name of the database.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontest'))
-    >>> db_name(db)
-    "pythontests"
-    """
-    return db._name
-
-def db_server(db):
-    """Give the server part of a database.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontest'))
-    >>> db_server(db)
-    "http://localhost:5984"
-    """
-    return db.resource.uri[:-len(db._name)]
-
-def config_of_db(db):
-    """Give the configuration stanza of a store
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontests'))
-    >>> config = config_of_db(db)
-    >>> config['server']
-    "http://localhost:5984"
-    >>> config['database']
-    "pythontests"
-    """
-    return dict(database=db_name(db), server=db_server(db))
-
-def db_from_config(config):
-    """Make a store given a config.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontests'))
-    >>> db_name(db)
-    "pythontests"
-    >>> db_server(db)
-    "http://localhost:5984"
-    """
-    server = couch.Server(config['server'])
-    return server[config['database']]
+        resource.put(content={'id': resource.uri.rpartition('/')[2]})
 
 def amqp_connection_from_config(hostspec):
     hostname = hostspec['host']
@@ -85,7 +48,10 @@ def publish_to_exchange(component, channel, exchange, routing_key=''):
 def subscribe_to_queue(channel, queue, method):
     # no_ack: If this field is set the server does not expect
     # acknowledgements for messages.
-    channel.basic_consume(queue=queue, no_ack=False, callback=lambda msg: txifyPlugin(channel, method, msg))
+    channel.basic_consume(queue=queue,
+                          no_ack=False,
+                          callback=lambda msg:
+                              txifyPlugin(channel, method, msg))
 
 def txifyPlugin(channel, method, msg):
     try:
@@ -95,7 +61,7 @@ def txifyPlugin(channel, method, msg):
     except Exception:
         channel.tx_rollback()
 
-class Component(object):
+class Plugin(object):
 
     INPUTS = {}
     OUTPUTS = {}
@@ -108,7 +74,6 @@ class Component(object):
 
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
         self.build_logger(config)
-        self.info('Starting up...')
         
         self.__stateresource = couch.Resource(None, config['state'])
         ensure_resource(self.__stateresource)
@@ -120,7 +85,7 @@ class Component(object):
         settings = dict((item['name'], item['value'])
                         for item in config['plugin_type']['global_configuration_specification'])
         settings.update(config['configuration'])
-        self.__config = settings
+        self._static_config = settings
 
         for name, exchange in config['outputs'].iteritems():
             if name not in self.OUTPUTS:
@@ -128,11 +93,28 @@ class Component(object):
             setattr(self, self.OUTPUTS[name],
                     publish_to_exchange(self, self.__channel, exchange))
 
+    # An annotation for making a handler take dynamic config as well
+        def handler(fun):
+            def handle(msg):
+                if 'application_headers' in msg.delivery_info:
+                    headers = msg.delivery_info['application_headers']
+                    if headers and plugin_config_header in headers:
+                        self.debug("Plugin config found: " + headers[plugin_config_header])
+                        dynamic = {}
+                        dynamic.update(self._static_config)
+                        headerConfig = json.loads(headers[plugin_config_header])
+                        dynamic.update(headerConfig)
+                        return fun(msg, dynamic)
+                return fun(msg, self._static_config)
+            return handle
+
         for name, queue in config['inputs'].iteritems():
             if name not in self.INPUTS:
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
-            subscribe_to_queue(self.__channel, queue, method)
+            subscribe_to_queue(self.__channel, queue, handler(method))
+
+        self.info('Starting up...')
 
     def commit(self):
         self.__channel.tx_commit()
@@ -165,10 +147,6 @@ class Component(object):
 
     def privateDatabase(self):
         return self.__db
-
-    def setting(self, name, defaultValue = None):
-        """Get a configuration setting."""
-        return self.__config.get(name, defaultValue)
 
     def run(self):
         while True:
