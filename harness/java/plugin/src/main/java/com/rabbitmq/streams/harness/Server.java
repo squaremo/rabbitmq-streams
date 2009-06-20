@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 
 import net.sf.json.JSONObject;
 import net.sf.json.JSONArray;
@@ -16,7 +17,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 /**
- * A superclass for terminal servers (ho ho). These have predefined inputs and
+ * A superclass for gateways (ho ho). These have predefined inputs and
  * outputs, rather than having them specified, and don't enforce transactions.
  */
 public abstract class Server extends Plugin {
@@ -57,7 +58,9 @@ public abstract class Server extends Plugin {
                         try {
                             InputReader pluginConsumer = getter.get();
                             if (null != pluginConsumer) {
-                                pluginConsumer.handleDelivery(delivery);
+                                pluginConsumer.handleDelivery(
+                                        delivery,
+                                        configForDelivery(delivery));
                             } else {
                                 Server.this.log
                                         .warn("No non-null input reader field ");
@@ -74,8 +77,11 @@ public abstract class Server extends Plugin {
     }
 
     protected final void ack(Delivery delivery) throws IOException {
-        this.messageServerChannel.basicAck(delivery.getEnvelope()
-                .getDeliveryTag(), false);
+        this.ack(delivery.getEnvelope().getDeliveryTag());
+    }
+
+    protected final void ack(long tag) throws IOException {
+        messageServerChannel.basicAck(tag, false);
     }
 
     protected final Publisher publisher(final String name, final String exchange) {
@@ -123,11 +129,26 @@ public abstract class Server extends Plugin {
         }
     }
 
+    public static abstract class ServerInputReader extends InputReader {
+
+        @Override
+        public void handleDelivery(Delivery delivery, JSONObject config) throws Exception {
+            handleBodyForTerminal(delivery.getBody(),
+                    delivery.getEnvelope().getRoutingKey(),
+                    delivery.getEnvelope().getDeliveryTag());
+        }
+
+        public void handleBodyForTerminal(byte[] body, String key, long tagToAck) throws Exception {
+            // Allow override of either handleDelivery or handleBodyForTerminal
+        }
+  }
+
+
     public final InputReader command = new InputReader() {
 
-        public void handleDelivery(Delivery message) throws Exception {
+        public void handleDelivery(Delivery delivery, JSONObject config) throws Exception {
 
-            String serverIdterminalId = message.getEnvelope().getRoutingKey();
+            String serverIdterminalId = delivery.getEnvelope().getRoutingKey();
             int loc = serverIdterminalId.lastIndexOf('.');
             String serverIds = serverIdterminalId.substring(0, loc);
             String terminalId = serverIdterminalId.substring(loc + 1);
@@ -158,7 +179,7 @@ public abstract class Server extends Plugin {
             Server.this.terminalStatusChange(terminalId,
                                              terminalConfigs,
                                              terminalStatus.getBoolean("active"));
-            Server.this.ack(message);
+            Server.this.ack(delivery);
         }
     };
 
@@ -169,5 +190,4 @@ public abstract class Server extends Plugin {
   protected abstract void terminalStatusChange(String terminalId,
                                                List<JSONObject> configs,
                                                boolean active);
-
 }

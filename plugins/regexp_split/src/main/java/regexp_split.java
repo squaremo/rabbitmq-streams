@@ -18,22 +18,19 @@ public class regexp_split extends PipelineComponent {
     public PipelinePublisher positive;
     public PipelinePublisher negative;
 
-    public regexp_split(JSONObject config) throws IOException  {
-        super(config);
-
-        String regexp = configuration.getString("regexp");
-        int flags = (configuration.getBoolean("multiline") ? Pattern.MULTILINE
-                : 0)
-                | (configuration.getBoolean("caseinsensitive") ? Pattern.CASE_INSENSITIVE
-                        : 0)
-                | (configuration.getBoolean("dotall") ? Pattern.DOTALL : 0);
-
-        final Pattern pattern = Pattern.compile(regexp, flags);
+    public regexp_split(JSONObject configuration) throws IOException  {
+        super(configuration);
 
         input = new InputReader() {
 
-            public void handleDelivery(Delivery message) throws Exception {
-                byte[] body = message.getBody();
+            @Override
+            public void handleBodyAndConfig(byte[] body, JSONObject config) throws Exception {
+                String regexp = config.getString("regexp");
+                int flags = (config.getBoolean("multiline") ? Pattern.MULTILINE : 0)
+                        | (config.getBoolean("caseinsensitive") ? Pattern.CASE_INSENSITIVE : 0)
+                        | (config.getBoolean("dotall") ? Pattern.DOTALL : 0);
+
+                final Pattern pattern = Pattern.compile(regexp, flags);
 
                 BufferedReader br = new BufferedReader(new InputStreamReader(
                         new ByteArrayInputStream(body)));
@@ -52,7 +49,6 @@ public class regexp_split extends PipelineComponent {
                 } else {
                     negative.publish(body);
                 }
-
             }
         };
 

@@ -5,12 +5,9 @@ import java.util.List;
 
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.Server;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import com.fourspaces.couchdb.Document;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
-
+// TODO: update to deal with multiple source/destinations
 public class relay extends Server {
 
     private final Set<String> activeTerminals = new HashSet<String>();
@@ -25,14 +22,14 @@ public class relay extends Server {
       }
     }
 
-    public final InputReader input = new InputReader() {
+    public final InputReader input = new Server.ServerInputReader() {
 
-        public void handleDelivery(Delivery message) throws Exception {
-            String terminalId = message.getEnvelope().getRoutingKey();
-            if (activeTerminals.contains(terminalId)) {
-                relay.this.output.publishWithKey(message.getBody(), terminalId);
+        @Override
+        public void handleBodyForTerminal(byte[] body, String key, long tag) throws Exception {
+            if (activeTerminals.contains(key)) {
+                relay.this.output.publishWithKey(body, key);
             }
-            relay.this.ack(message);
+            relay.this.ack(tag);
         }
     };
 

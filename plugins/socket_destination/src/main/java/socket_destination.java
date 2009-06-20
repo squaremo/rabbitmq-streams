@@ -2,7 +2,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Collection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,27 +11,24 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.Server;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import com.fourspaces.couchdb.Document;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class socket_destination extends Server {
 
     private final Map<String, List<SocketDestination>> terminalMap = new HashMap<String, List<SocketDestination>>();
 
-    public final InputReader input = new InputReader() {
+    public final InputReader input = new Server.ServerInputReader() {
 
-        public void handleDelivery(Delivery message) throws Exception {
-            String terminalId = message.getEnvelope().getRoutingKey();
-            List<SocketDestination> dests = terminalMap.get(terminalId);
-            if (null != dests && 0 != dests.size()) {
+        @Override
+        public void handleBodyForTerminal(byte[] body, String key, long tag) throws Exception {
+            List<SocketDestination> dests = terminalMap.get(key);
+            if (null != dests) {
                 for (SocketDestination dest : dests) {
-                    dest.send(message.getBody());
+                    dest.send(body);
                 }
             }
-            socket_destination.this.ack(message);
+            socket_destination.this.ack(tag);
         }
     };
 

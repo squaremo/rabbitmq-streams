@@ -40,10 +40,10 @@ class xmpppubsub(config : JSONObject) extends Server(config) {
         conn
     }
 
-    object input extends InputReader {
-        override def handleDelivery(pkg : Delivery) {
-            log.debug("Input received: " + new String(pkg.getBody))
-            dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey.toString, () => ack(pkg))
+    object input extends Server.ServerInputReader {
+        override def handleBodyForTerminal(body : Array[Byte], terminalId : String, tag : Long) {
+            log.debug("Input received: " + new String(body))
+            dispatcher ! Entry(body, terminalId, () => ack(tag))
         }
     }
 
@@ -52,6 +52,5 @@ class xmpppubsub(config : JSONObject) extends Server(config) {
     }
 
     postConstructorInit()
-
 
 }

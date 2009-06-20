@@ -21,10 +21,10 @@ class archive(config : JSONObject) extends Server(config) {
     val dispatcher = new Dispatcher(log, couch)
     dispatcher.start
 
-    object input extends InputReader {
-        override def handleDelivery(pkg : Delivery) {
-            log.debug("Input received: " + new String(pkg.getBody))
-            dispatcher ! Entry(pkg.getBody, pkg.getEnvelope.getRoutingKey.toString, () => ack(pkg))
+    object input extends Server.ServerInputReader {
+        override def handleBodyForTerminal(body : Array[Byte], key : String, tag : Long) {
+            log.debug("Input received: " + new String(body))
+            dispatcher ! Entry(body, key, () => ack(tag))
         }
     }
 

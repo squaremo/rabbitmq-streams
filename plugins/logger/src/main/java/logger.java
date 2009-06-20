@@ -13,9 +13,8 @@ public class logger extends PipelineComponent {
 
     public final InputReader input = new InputReader() {
 
-        public void handleDelivery(Delivery message) throws Exception {
-            byte[] body = message.getBody();
-
+        @Override
+        public void handleBody(byte[] body) throws Exception {
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     new ByteArrayInputStream(body)));
             StringBuilder sb = new StringBuilder();
@@ -32,7 +31,6 @@ public class logger extends PipelineComponent {
 
     public logger(JSONObject config) throws IOException {
         super(config);
-
         postConstructorInit();
     }
 }

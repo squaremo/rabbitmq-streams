@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.Map;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONNull;
@@ -15,6 +16,7 @@ import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.impl.ChannelN;
@@ -27,13 +29,22 @@ public abstract class Plugin implements Runnable {
         basicPropsPersistent.deliveryMode = 2;
     }
 
+    static final BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
+        BasicProperties props = new BasicProperties();
+        props.deliveryMode = 2;
+        props.headers.putAll(headers);
+        return props;
+    }
+
+    public static final String PLUGIN_CONFIG_HEADER = "x-streams-plugin-config";
+
     final protected Connection messageServerConnection;
     final protected ChannelN messageServerChannel;
     final private ChannelN logChannel;
     final private String logRoutingKey;
     final protected JSONObject pluginType;
     final protected JSONObject config;
-    final protected JSONObject configuration;
+    final protected JSONObject staticConfiguration;
     final protected Database privateDb;
     final protected Logger log;
 
@@ -45,12 +56,12 @@ public abstract class Plugin implements Runnable {
         JSONObject mergedConfig = new JSONObject();
         for (Object configItem : globalConfig) {
             JSONObject item = (JSONObject) configItem;
-            mergedConfig.put(item.getString("name"), JSONObject.fromObject(item
-                    .get("value")));
+            mergedConfig.put(item.getString("name"),
+                    JSONObject.fromObject(item.get("value")));
         }
         JSONObject userConfig = config.getJSONObject("configuration");
         mergedConfig.putAll(userConfig);
-        this.configuration = mergedConfig;
+        this.staticConfiguration = mergedConfig;
 
         JSONObject messageServerSpec = config.getJSONObject("messageserver");
         messageServerConnection = AMQPConnection
@@ -99,6 +110,17 @@ public abstract class Plugin implements Runnable {
 
     protected abstract Runnable inputReaderRunnable(Getter get,
             QueueingConsumer consumer);
+
+    protected final JSONObject configForDelivery(Delivery delivery) {
+        if (delivery.getProperties().headers.containsKey(PLUGIN_CONFIG_HEADER)) {
+            String configHeader = delivery.getProperties().headers.get(PLUGIN_CONFIG_HEADER).toString();
+            JSONObject headerConf = JSONObject.fromObject(configHeader);
+            JSONObject dynamicConf = JSONObject.fromObject(this.staticConfiguration);
+            dynamicConf.putAll(headerConf);
+            return dynamicConf;
+        }
+        else return this.staticConfiguration;
+    }
 
     protected final void dieHorribly() {
         System.exit(1);

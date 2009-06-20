@@ -2,6 +2,7 @@ package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Map;
 
 import net.sf.json.JSONObject;
 
@@ -78,15 +79,14 @@ public abstract class PipelineComponent extends Plugin {
                             try {
                                 InputReader pluginConsumer = getter.get();
                                 if (null != pluginConsumer) {
-                                    pluginConsumer.handleDelivery(delivery);
+                                    pluginConsumer.handleDelivery(delivery, configForDelivery(delivery));
                                     PipelineComponent.this.messageServerChannel
                                             .basicAck(delivery.getEnvelope()
                                                     .getDeliveryTag(), false);
                                     PipelineComponent.this.messageServerChannel
                                             .txCommit();
                                 } else {
-                                    PipelineComponent.this.log
-                                            .warn("No non-null input reader field ");
+                                    PipelineComponent.this.log.warn("No non-null input reader field ");
                                 }
                             } catch (Exception e) {
                                 try {
@@ -125,6 +125,10 @@ public abstract class PipelineComponent extends Plugin {
 
         public void publish(byte[] body) throws IOException {
             channel.basicPublish(exchange, "", basicPropsPersistent, body);
+        }
+
+        public void publish(byte[] body, Map<String, Object> headers) throws IOException {
+            channel.basicPublish(exchange, "", propertiesWithHeaders(headers), body);
         }
     }
 

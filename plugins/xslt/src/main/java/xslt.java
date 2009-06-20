@@ -17,7 +17,6 @@ import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.PipelineComponent;
 import net.sf.json.JSONObject;
 
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class xslt extends PipelineComponent {
 
@@ -45,7 +44,7 @@ public class xslt extends PipelineComponent {
 
     public xslt(final JSONObject config) throws IOException  {
         super(config);
-        String xsltSrc = configuration.getString("stylesheet_url");
+        String xsltSrc = staticConfiguration.getString("stylesheet_url");
         URLConnection xsltConn = new URL(xsltSrc).openConnection();
         xsltConn.connect();
         InputStream xsltFileContent = (InputStream) xsltConn.getContent();
@@ -66,10 +65,11 @@ public class xslt extends PipelineComponent {
 
         input = new InputReader() {
 
-            public void handleDelivery(Delivery message) throws Exception,
+            @Override
+            public void handleBodyAndConfig(byte[] body, JSONObject object) throws Exception,
                     InterruptedException {
                 StreamSource xmlSource = new StreamSource(
-                        new ByteArrayInputStream(message.getBody()));
+                        new ByteArrayInputStream(body));
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 StreamResult result = new StreamResult(output);
 
