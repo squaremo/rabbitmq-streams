@@ -152,7 +152,7 @@ create-fresh-accounts:
 	$(RABBITMQCTL) set_permissions feedshub_admin '.*' '.*' '.*'
 
 
-listen-orchestrator:
+listen-orchestrator: create-var-dirs
 	if ! ( test -e $(ORCHESTRATOR_LISTENER_PIDFILE)  &&  kill -0 "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T orchestrator_listener -g 80x24-0+0700 -fg white -bg '#000040' -e "$(LISTEN_ORCHESTRATOR)" & \
 		echo $$! > $(ORCHESTRATOR_LISTENER_PIDFILE); \
@@ -179,7 +179,7 @@ start-orchestrator-nox: stop-orchestrator-nox
 
 run-orchestrator: listen-orchestrator start-orchestrator-nox
 
-listen-couch:
+listen-couch: create-var-dirs
 	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T couch_listener -g 80x24-0+0000 -fg white -bg '#400000' -e "$(LISTEN_COUCH)" &\
 		echo $$! > $(COUCH_LISTENER_PIDFILE); \
@@ -203,7 +203,7 @@ start-couch-nox: stop-couch-nox
 
 run-couch: listen-couch start-couch-nox
 
-listen-rabbit:
+listen-rabbit: create-var-dirs
 	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T rabbit_listener -g 80x24-0+0350 -fg white -bg '#004000' -e "$(LISTEN_RABBIT)" & \
 		echo $$! > $(RABBIT_LISTENER_PIDFILE); \
