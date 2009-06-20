@@ -56,7 +56,7 @@ public abstract class Server extends Plugin {
                     try {
                         Delivery delivery = consumer.nextDelivery();
                         try {
-                            InputReader pluginConsumer = getter.get();
+                            InputHandler pluginConsumer = getter.get();
                             if (null != pluginConsumer) {
                                 pluginConsumer.handleDelivery(
                                         delivery,

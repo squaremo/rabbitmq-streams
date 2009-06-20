@@ -174,16 +174,16 @@ public abstract class Plugin implements Runnable {
     }
 
     static interface Getter {
-        InputReader get() throws IllegalAccessException;
+        InputHandler get() throws IllegalAccessException;
     }
 
     protected final Getter inputGetter(String name) {
         try {
             final Field pluginQueueField = getClass().getField(name);
             return new Getter() {
-                public InputReader get() {
+                public InputHandler get() {
                     try {
-                        return (InputReader) pluginQueueField.get(Plugin.this);
+                        return (InputHandler) pluginQueueField.get(Plugin.this);
                     } catch (IllegalArgumentException e) {
                         Plugin.this.log.fatal(e);
                         dieHorribly();
@@ -199,9 +199,9 @@ public abstract class Plugin implements Runnable {
             try {
                 final Method pluginQueueMethod = getClass().getMethod(name);
                 return new Getter() {
-                    public InputReader get() {
+                    public InputHandler get() {
                         try {
-                            return (InputReader) pluginQueueMethod
+                            return (InputHandler) pluginQueueMethod
                                     .invoke(Plugin.this);
                         } catch (IllegalArgumentException e) {
                             Plugin.this.log.fatal(e);

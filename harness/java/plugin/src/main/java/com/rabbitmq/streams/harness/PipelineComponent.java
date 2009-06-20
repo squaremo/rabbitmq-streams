@@ -77,7 +77,7 @@ public abstract class PipelineComponent extends Plugin {
                         Delivery delivery = consumer.nextDelivery();
                         synchronized (privateLock) {
                             try {
-                                InputReader pluginConsumer = getter.get();
+                                InputHandler pluginConsumer = getter.get();
                                 if (null != pluginConsumer) {
                                     pluginConsumer.handleDelivery(delivery, configForDelivery(delivery));
                                     PipelineComponent.this.messageServerChannel
