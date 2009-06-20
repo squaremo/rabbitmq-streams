@@ -145,12 +145,11 @@ public abstract class Plugin implements Runnable {
             String name = (String) outKeysIt.next();
             String exchange = outputs.getString(name);
             try {
-                Field outputField = Plugin.this.getClass().getField(name);
-                outputField.set(Plugin.this, publisher(name, exchange));
+                Publisher p = publisher(name, exchange);
+                Setter setter = this.outputSetter(name, p);
+                setter.set(p);
             } catch (IllegalAccessException iac) {
                 illegalAccess(name);
-            } catch (NoSuchFieldException nsfe) {
-                noSuchField(name);
             }
         }
     }
@@ -177,6 +176,61 @@ public abstract class Plugin implements Runnable {
 
     static interface Getter {
         InputHandler get() throws IllegalAccessException;
+    }
+
+    static interface Setter {
+        void set(Publisher pub) throws IllegalAccessException;
+    }
+
+    protected final Setter outputSetter(String name, Publisher p) {
+        try {
+            final Field pluginQueueField = getClass().getField(name);
+            return new Setter() {
+                public void set(Publisher pub) {
+                    try {
+                        pluginQueueField.set(Plugin.this, pub);
+                    } catch (IllegalArgumentException e) {
+                        Plugin.this.log.fatal(e);
+                        dieHorribly();
+                        return;
+                    } catch (IllegalAccessException e) {
+                        Plugin.this.log.fatal(e);
+                        dieHorribly();
+                        return;
+                    }
+                }
+            };
+        } catch (NoSuchFieldException nsfe) {
+            try {
+                final Method pluginQueueMethod = getClass().getMethod(name, p.getClass());
+                return new Setter() {
+                    public void set(Publisher pub) {
+                        try {
+                            pluginQueueMethod.invoke(Plugin.this, new Object[] {pub});
+                        } catch (IllegalArgumentException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return;
+                        } catch (IllegalAccessException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return;
+                        } catch (InvocationTargetException e) {
+                            Plugin.this.log.fatal(e);
+                            dieHorribly();
+                            return;
+                        }
+                    }
+                };
+            } catch (NoSuchMethodException nsme) {
+                noSuchField(name);
+                return null;
+            }
+        } catch (SecurityException se) {
+            log.fatal(se);
+            dieHorribly();
+            return null; // .. but die will have exited
+        }
     }
 
     protected final Getter inputGetter(String name) {
