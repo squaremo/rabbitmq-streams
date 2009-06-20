@@ -111,12 +111,12 @@ public abstract class Plugin implements Runnable {
     protected abstract Runnable inputReaderRunnable(Getter get,
             QueueingConsumer consumer);
 
-    protected final JSONObject configForDelivery(Delivery delivery) {
+    protected final JSONObject configForDelivery(Delivery delivery) throws Exception {
         Map<String, Object> headers = delivery.getProperties().headers;
         if (headers != null && headers.containsKey(PLUGIN_CONFIG_HEADER)) {
-            log.debug("Plugin config found: " + headers.get(PLUGIN_CONFIG_HEADER).toString());
-            String configHeader = headers.get(PLUGIN_CONFIG_HEADER).toString();
-            JSONObject headerConf = JSONObject.fromObject(configHeader);
+            String confStr = headers.get(PLUGIN_CONFIG_HEADER).toString();
+            log.debug("Plugin config found: " + confStr);
+            JSONObject headerConf = (JSONObject) JSONObject.fromObject(confStr);
             JSONObject dynamicConf = JSONObject.fromObject(this.staticConfiguration);
             dynamicConf.putAll(headerConf);
             return dynamicConf;

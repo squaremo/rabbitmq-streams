@@ -96,13 +96,20 @@ class Plugin(object):
     # An annotation for making a handler take dynamic config as well
         def handler(fun):
             def handle(msg):
-                if 'application_headers' in msg.delivery_info:
-                    headers = msg.delivery_info['application_headers']
+                if 'application_headers' in msg.properties:
+                    headers = msg.properties['application_headers']
                     if headers and plugin_config_header in headers:
-                        self.debug("Plugin config found: " + headers[plugin_config_header])
+                        config = headers[plugin_config_header]
+                        self.debug("Plugin config found: " + config)
                         dynamic = {}
                         dynamic.update(self._static_config)
-                        headerConfig = json.loads(headers[plugin_config_header])
+                        try:
+                            headerConfig = json.loads(config)
+                            if not isinstance(headerConfig, dict):
+                                raise "Not a dict"
+                        except:
+                            self.error("Could not use config: " + config + "; ignoring message")
+                            return
                         dynamic.update(headerConfig)
                         return fun(msg, dynamic)
                 return fun(msg, self._static_config)

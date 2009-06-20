@@ -79,7 +79,15 @@ public abstract class PipelineComponent extends Plugin {
                             try {
                                 InputHandler pluginConsumer = getter.get();
                                 if (null != pluginConsumer) {
-                                    pluginConsumer.handleDelivery(delivery, configForDelivery(delivery));
+                                    JSONObject conf = null;
+                                    try {
+                                        conf = configForDelivery(delivery);
+                                    }
+                                    catch (Exception e) {
+                                        log.error("Cannot use config; ignoring message");
+                                        return;
+                                    }
+                                    pluginConsumer.handleDelivery(delivery, conf);
                                     PipelineComponent.this.messageServerChannel
                                             .basicAck(delivery.getEnvelope()
                                                     .getDeliveryTag(), false);

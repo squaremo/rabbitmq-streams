@@ -58,9 +58,15 @@ public abstract class Server extends Plugin {
                         try {
                             InputHandler pluginConsumer = getter.get();
                             if (null != pluginConsumer) {
-                                pluginConsumer.handleDelivery(
-                                        delivery,
-                                        configForDelivery(delivery));
+                                JSONObject conf = null;
+                                try {
+                                    conf = configForDelivery(delivery);
+                                }
+                                catch (Exception e) {
+                                    log.error("Cannot use config; ignoring message");
+                                    return;
+                                }
+                                pluginConsumer.handleDelivery(delivery, conf);
                             } else {
                                 Server.this.log
                                         .warn("No non-null input reader field ");
