@@ -1,4 +1,4 @@
-sources=$(shell find src -type f -name "*.scala") pom.xml
+sources:=$(shell find src -type f -name "*.java") pom.xml
 jarfile=regexp_split-1.0-SNAPSHOT.jar
 harness_jar=../../harness/java/feedshub_harness.jar
 
@@ -6,18 +6,10 @@ all: lib/$(jarfile)
 
 clean:
 	mvn clean
-.libs-done: $(harness_jar)
-	mvn install:install-file -DgroupId=net.lshift.feedshub -DartifactId=feedshub-harness -Dversion=1.0 -Dpackaging=jar -Dfile=$(harness_jar)
-	touch .libs-done
 	rm -rf lib
 
-target/$(jarfile): $(sources) .libs-done
+target/$(jarfile): $(sources) $(harness_jar)
 	mvn package
-# Mavan may decide that nothing needs to be done, even
-# if say, feedshub_harness has a newer timestamp.  So we
-# make sure that if this target ran, it will look like
-# the jar file was updated.
-	touch target/$(jarfile)
 
 lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib
