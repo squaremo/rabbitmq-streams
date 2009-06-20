@@ -4,8 +4,8 @@
 (^|/)erl_crash\.dump$
 \.pyc$
 ~$
-^#.*#$
-^.#
+^\#.*\#$
+^.\#
 ^var/
 \.class$
 ^harness/java/feedshub_harness\.jar$
@@ -15,7 +15,7 @@
 ^harness/.*/target/
 ^sites/.*/.*\.timestamp$
 # ONLY Mavenised plugins get things in lib/ through Maven
-^plugins/(archive|websubscriber|regexp_split|logger|xslt|xmpppubsub|relay|socket_destination|socket_source)/(lib|dist)/
+^plugins/(javascript|archive|websubscriber|regexp_split|logger|xslt|xmpppubsub|relay|socket_destination|socket_source)/(lib|dist)/
 (^|/)nb-configuration\.xml$
 ^orch_log$
 ^doc/.*html$
