@@ -1,5 +1,10 @@
 import sys
 import os
+import threading
+import httplib
+import subprocess
+import sha
+import re
 
 here = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, os.path.join(here, '../harness/python'))
@@ -35,7 +40,6 @@ connection = amqp.Connection(host='localhost:5672',
 channel = connection.channel()
 
 def newname():
-    import sha
     return 'test-%s' % sha.new(os.urandom(8)).hexdigest()
 
 def declexchange():
@@ -59,8 +63,17 @@ inputs = dict((spec['name'], declqueue()) for spec in inputspec)
 def talker(queue):
     exchange = declexchange()
     channel.queue_bind(queue, exchange)
-    def say(something):
-        channel.basic_publish(amqp.Message(body=something), exchange)
+    def say(something, rk='', config=None):
+        if config is not None:
+            headers = {'x-streams-plugin-config': config}
+            channel.basic_publish(amqp.Message(body=something,
+                                               application_headers=headers),
+                                  exchange,
+                                  routing_key=rk)
+        else:
+            channel.basic_publish(amqp.Message(body=something),
+                                  exchange,
+                                  routing_key=rk)
     return say
 
 talkers = dict((name, talker(queue)) for (name, queue) in inputs.items())
@@ -78,7 +91,6 @@ for (name, exchange) in outputs.items():
 
 subscribe("log", "feedshub/log", '#')
 
-import threading
 class ListenerThread(threading.Thread):
     def run(self):
         while True:
@@ -87,7 +99,6 @@ listen = ListenerThread()
 listen.daemon = True
 listen.start()
 
-import httplib
 couch = httplib.HTTPConnection("localhost", 5984)
 couch.request("PUT", "/plugin_test_harness")
 statedocname = newname()
@@ -117,20 +128,35 @@ init = {
 harnessdir = os.path.join(here, '..', 'harness', plugin['harness'])
 harness = os.path.join(harnessdir, 'run_plugin.sh')
 
-import subprocess
 pluginproc = subprocess.Popen([harness], cwd=harnessdir, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
 print "Initialising plugin with:"
 print json.dumps(init)
 pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
 
+talkerRe = re.compile("([a-zA-Z0-9]*)(/([a-zA-Z0-9]*))?(\(([^\)]*)\))?:(.*)")
+
+def parseInput(line):
+    m = talkerRe.match(line)
+    if m is None:
+        return None
+    else:
+        (channel, _1, rk, _2, conf, msg) = m.groups()
+        if conf is not None:
+            try:
+                json.loads(conf)
+            except:
+                return None
+        return (channel, rk or '', conf, msg)
+
 print
 print "Inputs are %s; type '<name>:<message>' to inject a message." % inputs.keys()
 while True:
     line = sys.stdin.readline()
-    bits = line.split(":")
-    talkername = bits[0]
-    #print talkername
-    if talkername in talkers:
-        talkers[talkername]("".join(bits[1:])[:-1])
+    bits = parseInput(line)
+    if bits is None:
+        print "Cannot parse line: try <input>[/<rk>][(<config>)]:msg"
+    elif not bits[0] in talkers:
+        print "No channel for %s" % bits[0]
     else:
-        print "No channel for %s" % talkername
+        talkername, rk, conf, msg = bits
+        talkers[talkername](msg, rk, conf)
