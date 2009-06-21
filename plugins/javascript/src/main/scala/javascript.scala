@@ -15,13 +15,20 @@ class javascript(config : JSONObject) extends PipelineComponent(config) {
     private val globalScope = context.initStandardObjects(null, false)
     // TODO Add things into the scope, then seal it.
     // TODO security object
-    private val functionText = config.getJSONObject("configuration").getString("function")
-    private val function = context.compileFunction(globalScope, "function(msg){return msg.toLowerCase();}", "<config>", 1, null)
+    private val functionText = cleanUpFunctionValue(config.getJSONObject("configuration").getString("function"))
+
+    private val function = context.compileFunction(globalScope, functionText, "<config>", 1, null)
 
     private var out : PipelineComponent.PipelinePublisher = null
     def output(pub : PipelineComponent.PipelinePublisher) {
         out = pub
     }
+
+    private def cleanUpFunctionValue(func : String) : String =
+        if (func.startsWith("\"") && func.endsWith("\""))
+            func.substring(1, func.length-1)
+        else
+            func
 
     object input extends InputReader {
         override def handleBody(body : Array[Byte]) {
