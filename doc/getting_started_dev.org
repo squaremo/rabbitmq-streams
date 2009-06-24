@@ -129,7 +129,7 @@ make all full_reset_core_nox start_orchestrator_nox\
 && python sbin/import_config.py examples/test \
 && make start_orchestrator_nox
 #+END_SRC
-
+[[http://www.heise.de]]
 * TODO FIXME change Makefile so =start_orchestrator_nox= is only needed once
    Note that if you already got a system install of couchDB or RabbitMQ etc.
    you should make sure that they are either currently not running or using
@@ -250,6 +250,19 @@ Note: since the Harness uses =stdin= and =stdout= for its own purposes (see
          threads or processes (this is the shutdown protocol; misbehaving
          plugins that fail to shutdown if requested will be killed by
          sending a signal to the PID obtained in step 2).
+***** testing Plugins
+The =plugin_test_harness.py= script allows one to run a plugin in isolation
+for testing purposes. It loads up the plugin with a configuration file,
+creates a dummy database and defines a simple protocol for sending data to
+channels by writing to stdout. Here is an example:
+
+#+BEGIN_SRC sh
+make start-all-nox # make sure everying is up
+echo -E '{"regexp": "(.){3}", "replacement": "(3 x \\1)",
+          "multiline": false, "dotall": false, "caseinsensitive": false }' \
+         > /tmp/plugin-config
+python  bin/plugin_test_harness.py plugins/regexp_replace /tmp/plugin-config
+#+END_SRC
 *** Writing Harnesses to add Plugin support for new languages
 Each environment (e.g., Java, Python) in which plugins run needs a
 harness.  Minimally, this is simply a shell script that starts a
