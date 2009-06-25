@@ -15,7 +15,7 @@ import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.impl.ChannelN;
 
 public class Logger implements Runnable {
-  private Map<String, Object> noheaders = Collections.emptyMap();
+  private static final Map<String, Object> noheaders = Collections.emptyMap();
 
   private static final String logExchange = "feedshub/log";
   private static final String headerName = "com.rabbitmq.streams.logging.label";

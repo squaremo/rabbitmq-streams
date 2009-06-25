@@ -24,14 +24,12 @@ public abstract class Plugin implements Runnable {
   public static final String newline = System.getProperty("line.separator");
   static final BasicProperties basicPropsPersistent = new BasicProperties();
 
-  {
+  static {
     basicPropsPersistent.deliveryMode = 2;
   }
 
   final protected Connection messageServerConnection;
   final protected ChannelN messageServerChannel;
-  final private ChannelN logChannel;
-  final private String logRoutingKey;
   final protected JSONObject pluginType;
   final protected JSONObject config;
   final protected JSONObject configuration;
@@ -41,50 +39,32 @@ public abstract class Plugin implements Runnable {
   public Plugin(final JSONObject config) throws IOException {
     this.config = config;
     pluginType = config.getJSONObject("plugin_type");
-    JSONArray globalConfig = pluginType
-      .getJSONArray("global_configuration_specification");
+    JSONArray globalConfig = pluginType.getJSONArray("global_configuration_specification");
     JSONObject mergedConfig = new JSONObject();
     for (Object configItem : globalConfig) {
       JSONObject item = (JSONObject) configItem;
-      mergedConfig.put(item.getString("name"), JSONObject.fromObject(item
-        .get("value")));
+      mergedConfig.put(item.getString("name"), JSONObject.fromObject(item.get("value")));
     }
     JSONObject userConfig = config.getJSONObject("configuration");
     mergedConfig.putAll(userConfig);
     this.configuration = mergedConfig;
 
     JSONObject messageServerSpec = config.getJSONObject("messageserver");
-    messageServerConnection = AMQPConnection
-      .amqConnectionFromConfig(messageServerSpec);
-    messageServerChannel = (ChannelN) messageServerConnection
-      .createChannel();
-    logChannel = (ChannelN) messageServerConnection.createChannel();
+    messageServerConnection = AMQPConnection.amqConnectionFromConfig(messageServerSpec);
+    messageServerChannel = (ChannelN) messageServerConnection.createChannel();
+    ChannelN logChannel = (ChannelN) messageServerConnection.createChannel();
 
-    String lrk = null;
-    if (config.containsKey("server_id")) {
-      String serverId = config.getString("server_id");
-      String pluginName = config.getString("plugin_name");
-      lrk = "." + serverId + "." + pluginName;
-    }
-    else {
-      String feedId = config.getString("feed_id");
-      String nodeId = config.getString("node_id");
-      String pluginName = config.getString("plugin_name");
-      lrk = "." + feedId + "." + pluginName + "." + nodeId;
-    }
-    logRoutingKey = lrk;
+    String logRoutingKey = logRoutingKey(config);
 
     log = new Logger(logChannel, logRoutingKey);
     new Thread(log).start();
     log.info("Starting up...");
 
     Database privDb = null;
-    if (config.has("database")
-      && !JSONNull.getInstance().equals(config.get("database"))) {
+    if (config.has("database") && !JSONNull.getInstance().equals(config.get("database"))) {
       String privDbStr = config.getString("database");
       URL privDbURL = new URL(privDbStr);
-      Session privDbCouchSession = new Session(privDbURL.getHost(),
-        privDbURL.getPort(), "", "");
+      Session privDbCouchSession = new Session(privDbURL.getHost(), privDbURL.getPort(), "", "");
       String privDbPath = privDbURL.getPath();
       int loc = privDbPath.lastIndexOf('/');
       String privDbName = privDbPath.substring(1 + loc);
@@ -95,6 +75,14 @@ public abstract class Plugin implements Runnable {
       log.debug("Database supplied: " + privDb.getName());
     }
     privateDb = privDb;
+  }
+
+  private String logRoutingKey(JSONObject config) {
+    if (config.containsKey("server_id")) {
+      return "." + config.getString("server_id") + "." + config.getString("plugin_name");
+    }
+
+    return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
   }
 
   protected abstract Publisher publisher(String name, String exchange);
@@ -151,7 +139,7 @@ public abstract class Plugin implements Runnable {
   }
 
   static interface Getter {
-    InputReader get() throws IllegalAccessException;
+    InputReader get();
   }
 
   protected final Getter inputGetter(String name) {
@@ -181,8 +169,7 @@ public abstract class Plugin implements Runnable {
         return new Getter() {
           public InputReader get() {
             try {
-              return (InputReader) pluginQueueMethod
-                .invoke(Plugin.this);
+              return (InputReader) pluginQueueMethod.invoke(Plugin.this);
             }
             catch (IllegalArgumentException e) {
               Plugin.this.log.fatal(e);
@@ -214,8 +201,7 @@ public abstract class Plugin implements Runnable {
     }
   }
 
-  protected void postConstructorInit() throws IOException,
-    IllegalArgumentException, SecurityException {
+  protected void postConstructorInit() throws IllegalArgumentException, SecurityException {
 
     // set up outputs FIRST, so we don't start processing messages
     // before we can put them anywhere
@@ -234,7 +220,7 @@ public abstract class Plugin implements Runnable {
       try {
         messageServerChannel.close();
       }
-      catch (ShutdownSignalException sse) {
+      catch (ShutdownSignalException ignored) {
       }
     }
     log.shutdown();
@@ -242,7 +228,7 @@ public abstract class Plugin implements Runnable {
       try {
         messageServerConnection.close();
       }
-      catch (ShutdownSignalException sse) {
+      catch (ShutdownSignalException ignored) {
       }
     }
   }
