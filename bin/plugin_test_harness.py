@@ -1,4 +1,5 @@
 from __future__ import with_statement
+import atexit
 import httplib
 import os
 import re
@@ -61,14 +62,16 @@ inputs = dict((spec['name'], declqueue()) for spec in inputspec)
 
 # Now, we want to *listen* to the outputs, and *talk* to the inputs
 
-def subscribe(name, exchange, key=''):
-    def out(msg):
-        line_sep = "\n%s :" % (' ' * len(name))
-        print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
+def stdout_msg_outputter(msg):
+    line_sep = "\n%s :" % (' ' * len(name))
+    print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
+
+
+def subscribe(name, exchange, key='', msg_outputter=stdout_msg_outputter):
     queue = declqueue()
     print "# %s bound to %s" % (name, queue)
     channel.queue_bind(queue, exchange, routing_key=key)
-    channel.basic_consume(queue, no_ack=True, callback=out)
+    channel.basic_consume(queue, no_ack=True, callback=stdout_msg_outputter)
 
 for (name, exchange) in outputs.items():
     subscribe(name, exchange)
@@ -86,29 +89,34 @@ talkers = dict((name, talker(queue)) for (name, queue) in inputs.items())
 
 class ListenerThread(threading.Thread):
     def run(self):
-        while True:
-            channel.wait()
-listen = ListenerThread()
-listen.daemon = True
-listen.start()
+        while True: channel.wait()
 
-couch = httplib.HTTPConnection("localhost", 5984)
-#TODO(alexander): this is stupid, what it should really be doing is create an
-#unique id; unfortunately the dreaded document update conflict needs to be
-#resolved first
-for req, allowable in [(("DELETE", "/plugin_test_harness"), range(600)),
-                       (("PUT", "/plugin_test_harness"), range(400))]:
-    couch.request(*req)
-    try:
-        ans = couch.getresponse()
-        ans_s = ans.read()
-    except Exception, msg:
-        print >> sys.stderr, "Couldn't successfully talk to CouchDB: %s -> %s" % (req, msg)
-        sys.exit(BAD_SYSTEM_STATE)
-    if ans.status not in allowable:
-        print >> sys.stderr, "Could successfully talk to CouchDB: %s -> %3d: %s" % (
-            req, ans.status, ans_s)
-        sys.exit(BAD_SYSTEM_STATE)
+listener = ListenerThread()
+listener.daemon = True
+listener.start()
+
+def init_couch_state():
+    couch = httplib.HTTPConnection("localhost", 5984)
+    #TODO(alexander): this is stupid, what it should really be doing is create
+    #an unique id; unfortunately the dreaded document update conflict needs to
+    #be resolved first
+    for req, allowable in [(("DELETE", "/plugin_test_harness"), range(600)),
+                           (("PUT", "/plugin_test_harness"), range(400))]:
+        couch.request(*req)
+        try:
+            ans = couch.getresponse()
+            ans_s = ans.read()
+        except Exception, msg:
+            print >> sys.stderr, (
+                "Couldn't successfully talk to CouchDB: %s -> %s" % (req, msg))
+            sys.exit(BAD_SYSTEM_STATE)
+        if ans.status not in allowable:
+            print >> sys.stderr, (
+                "Could successfully talk to CouchDB: %s -> %3d: %s" % (
+                req, ans.status, ans_s))
+            sys.exit(BAD_SYSTEM_STATE)
+
+init_couch_state()
 
 statedocname = newname()
 
@@ -139,6 +147,8 @@ harness = os.path.join(harnessdir, 'run_plugin.sh')
 
 pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                               stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+atexit.register(pluginproc.wait) # make sure we don't exit & leave this around!
+
 print
 print "## Initialising plugin with:"
 print "#", json.dumps(init)
@@ -158,7 +168,7 @@ def repl(lines, talkers=talkers):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
 
     channel = None
-    last_state, state = None, WANT_CHANNEL
+    talker_name, msg, state = None, None, WANT_CHANNEL
     exit_code = 0
 
     def ship():
