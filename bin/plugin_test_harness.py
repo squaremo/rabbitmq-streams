@@ -17,7 +17,7 @@ import feedshub as fh
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
-IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n)') # TODO(alexander): cut'n pasted
+IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n?)') # TODO(alexander): cut'n pasted
 
 def json_repr(py_obj):
     # replace None w/ 0 to get indentation
@@ -28,7 +28,7 @@ config = json.loads((len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
 print "<$Configuration: ", json_repr(config)
 print
 
-plugindir = sys.argv[1]
+plugindir = os.path.abspath(sys.argv[1])
 with open(os.path.join(plugindir, 'plugin.js')) as f:
     plugin = json.loads(f.read())
 print "## Plugin descriptor:"
@@ -116,7 +116,7 @@ statedocname = newname()
 init = {
     "harness_type": plugin['harness'], # String from harness in plugin.js
     "plugin_name": os.path.basename(plugindir),  # String from type in nodes in wiring in feed config
-    "plugin_dir": os.path.abspath(plugindir),
+    "plugin_dir": plugindir,
     "feed_id": "test",
     "node_id": "plugin",
     "plugin_type": plugin,
