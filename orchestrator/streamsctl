@@ -1,0 +1,12 @@
+#!/bin/sh
+EBIN_DIR=ebin
+RFC4627_BIN=../build/opt/erlang-rfc4627/ebin
+ERLAMQP_BIN=../build/opt/rabbitmq-erlang-client/ebin
+RABBIT_BIN=../build/opt/rabbitmq/ebin
+IBROWSE_BIN=../build/opt/ibrowse/ebin
+
+ERL_PATH_OPTS="-pa $EBIN_DIR -pa $RFC4627_BIN -pa $ERLAMQP_BIN -pa $RABBIT_BIN -pa $IBROWSE_BIN"
+
+echo $ERL_PATH_OPTS
+erl $ERL_PATH_OPTS -boot start_sasl -sname orchestrator -s orchestrator
+
