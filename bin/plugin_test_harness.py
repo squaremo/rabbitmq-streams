@@ -2,8 +2,9 @@ from __future__ import with_statement
 import atexit
 import httplib
 import os
+import posixpath
 import re
-import sha
+import hashlib
 import subprocess
 import sys
 import threading
@@ -14,89 +15,86 @@ sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
 import amqplib.client_0_8 as amqp
 
-import feedshub as fh
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
 IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n?)') # TODO(alexander): cut'n pasted
 
+# TODO(alexander): remove hardwired config
+RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
+                                password='feedshub_admin', virtual_host='/')
+COUCH_HOST_PORT = ("localhost", 5984)
+HARNESS_BASE_DIR = os.path.join(here, '..', 'harness')
+
 def json_repr(py_obj):
     # replace None w/ 0 to get indentation
     return json.dumps(py_obj, indent=None).replace('\n', '\n\t:')
 
-config = json.loads((len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
-
-print "<$Configuration: ", json_repr(config)
-print
-
-plugindir = os.path.abspath(sys.argv[1])
-with open(os.path.join(plugindir, 'plugin.js')) as f:
-    plugin = json.loads(f.read())
-print "## Plugin descriptor:"
-print "#", json_repr(plugin)
-connection = amqp.Connection(host='localhost:5672',
-                             userid='feedshub_admin',
-                             password='feedshub_admin',
-                             virtual_host='/')
-
-channel = connection.channel()
-
 def newname():
-    return 'test/%s' % sha.new(os.urandom(8)).hexdigest()
+    return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
 
-def declexchange():
-    name = newname()
-    channel.exchange_declare(name, 'fanout')
-    return name
+def make_stdout_msg_outputter(name):
+    def stdout_msg_outputter(msg):
+        line_sep = "\n%s :" % (' ' * len(name))
+        print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
+    return stdout_msg_outputter
 
-def declqueue():
-    name = newname()
-    channel.queue_declare(name)
-    return name
-
-outputspec = plugin['outputs_specification']
-outputs = dict((spec['name'], declexchange()) for spec in outputspec)
-
-inputspec = plugin['inputs_specification']
-inputs = dict((spec['name'], declqueue()) for spec in inputspec)
-
-# Now, we want to *listen* to the outputs, and *talk* to the inputs
-
-def stdout_msg_outputter(msg):
-    line_sep = "\n%s :" % (' ' * len(name))
-    print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
-
-
-def subscribe(name, exchange, key='', msg_outputter=stdout_msg_outputter):
-    queue = declqueue()
-    print "# %s bound to %s" % (name, queue)
-    channel.queue_bind(queue, exchange, routing_key=key)
-    channel.basic_consume(queue, no_ack=True, callback=stdout_msg_outputter)
-
-for (name, exchange) in outputs.items():
-    subscribe(name, exchange)
-
-subscribe("log", "feedshub/log", '#')
-
-def talker(queue):
-    exchange = declexchange()
-    channel.queue_bind(queue, exchange)
-    def say(something):
-        channel.basic_publish(amqp.Message(body=something), exchange)
-    return say
-
-talkers = dict((name, talker(queue)) for (name, queue) in inputs.items())
-
-class ListenerThread(threading.Thread):
+class RepetitiveThread(threading.Thread):
+    def __init__(self, f):
+        self._f = f
+        super(RepetitiveThread, self).__init__()
     def run(self):
-        while True: channel.wait()
+        while True: self._f()
 
-listener = ListenerThread()
-listener.daemon = True
-listener.start()
+class TestWiring(object):
 
-def init_couch_state():
-    couch = httplib.HTTPConnection("localhost", 5984)
+    def __init__(self, amqp_connection, inputspec, outputspec):
+        self.channel = amqp_connection.channel()
+        self.outputs = dict((spec['name'], self.declexchange()) for spec in outputspec)
+        self.inputs = dict((spec['name'], self.declqueue()) for spec in inputspec)
+
+        # Now, we want to *listen* to the outputs, and *talk* to the inputs
+        for (name, exchange) in self.outputs.items():
+            self.subscribe(name, exchange)
+        self.subscribe("log", "feedshub/log", '#')
+
+        self.talkers = dict((name, self.make_talker(queue))
+                            for (name, queue) in self.inputs.items())
+
+        self.listener = RepetitiveThread(self.channel.wait)
+        self.listener.daemon = True
+        self.listener.start()
+
+    def declexchange(self):
+        name = newname()
+        self.channel.exchange_declare(name, 'fanout')
+        return name
+
+    def declqueue(self):
+        name = newname()
+        self.channel.queue_declare(name)
+        return name
+
+    def info(self, msg):
+        print msg
+
+    def subscribe(self, name, exchange, key='', make_outputter=make_stdout_msg_outputter):
+        queue = self.declqueue()
+        self.info("# %s bound to %s" % (name, queue))
+        self.channel.queue_bind(queue, exchange, routing_key=key)
+        self.channel.basic_consume(queue, no_ack=True, callback=make_outputter)
+
+    def make_talker(self, queue):
+        exchange = self.declexchange()
+        self.channel.queue_bind(queue, exchange)
+        def say(something):
+            self.channel.basic_publish(amqp.Message(body=something), exchange)
+        return say
+
+
+
+def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
+    couch = httplib.HTTPConnection(host, port)
     #TODO(alexander): this is stupid, what it should really be doing is create
     #an unique id; unfortunately the dreaded document update conflict needs to
     #be resolved first
@@ -116,58 +114,86 @@ def init_couch_state():
                 req, ans.status, ans_s))
             sys.exit(BAD_SYSTEM_STATE)
 
-init_couch_state()
+def main(plugindir, config_json):
+    instance_config = json.loads(config_json)
 
-statedocname = newname()
+    print "<$PluginInstanceConfiguration: ", json_repr(instance_config)
+    print
 
-# Assemble the plugin init
-init = {
-    "harness_type": plugin['harness'], # String from harness in plugin.js
-    "plugin_name": os.path.basename(plugindir),  # String from type in nodes in wiring in feed config
-    "plugin_dir": plugindir,
-    "feed_id": "test",
-    "node_id": "plugin",
-    "plugin_type": plugin,
-    "global_configuration": {}, # place holder - currently we don't know where the values come from
-    "configuration": config, # this comes from the feeds config, the node in the wiring
-    "messageserver":  {"host": "localhost",
-                       "port": 5672,
-                       "virtual_host": "/",
-                       "username": "feedshub_admin",
-                       "password": "feedshub_admin"
-                       },
-    "inputs":  inputs, # Q name provided by orchestrator
-    "outputs": outputs, # Exchange name provided by orchestrator
-    "state": "http://localhost:5984/plugin_test_harness/%s" % statedocname,
-    "database": "http://localhost:5984/plugin_test_harness"
-}
+    with open(os.path.join(plugindir, 'plugin.js')) as f:
+        plugin_specs = json.loads(f.read())
 
-harnessdir = os.path.join(here, '..', 'harness', plugin['harness'])
-harness = os.path.join(harnessdir, 'run_plugin.sh')
+    print "## Plugin descriptor:"
+    print "#", json_repr(plugin_specs)
 
-pluginproc = subprocess.Popen([harness], cwd=harnessdir,
-                              stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-atexit.register(pluginproc.wait) # make sure we don't exit & leave this around!
+    connection = amqp.Connection(**RABBIT_CONNECTION_PARAMS)
 
-print
-print "## Initialising plugin with:"
-print "#", json.dumps(init)
-pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
+    wiring = TestWiring(amqp_connection=connection,
+                        inputspec=plugin_specs['inputs_specification'],
+                        outputspec=plugin_specs['outputs_specification'])
 
-print
-print """##The input channels are: %s
-# type 'INPUT:message' to inject a message into channel INPUT,
-# type ':more-stuff' to continue the message and
-# type '' (an empty line) to finish it (all newlines but the last are kept).
-# type ^D to abort. You are free to insert whitespace before the ':'.
----
-""" % ' '.join(inputs)
+    init_couch_state()
+
+    spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs, instance_config=instance_config,
+                 inputs=wiring.inputs, outputs=wiring.outputs,
+                 rabbit_params=RABBIT_CONNECTION_PARAMS)
+
+    print
+    print """##The input channels are: %s
+    # type 'INPUT:message' to inject a message into channel INPUT,
+    # type ':more-stuff' to continue the message and
+    # type '' (an empty line) to finish it (all newlines but the last are kept).
+    # type ^D to abort. You are free to insert whitespace before the ':'.
+    ---
+    """ % ' '.join(wiring.inputs)
+
+    sys.exit(repl(iter(sys.stdin.readline, ''), wiring.talkers))
+
+
+
+
+def spawn_plugin(plugindir, plugin_specs, instance_config,
+                 inputs, outputs,
+                 rabbit_params=RABBIT_CONNECTION_PARAMS,
+                 ):
+    plugin_test_doc_url = "http://%s:%d/plugin_test_harness" % tuple(COUCH_HOST_PORT)
+    statedocname = newname()
+    # Assemble the plugin init
+    init = {
+        "harness_type": plugin_specs['harness'],
+        "plugin_name": os.path.basename(plugindir),
+        "plugin_dir": plugindir,
+        "feed_id": "test",
+        "node_id": "plugin",
+        "plugin_type": plugin_specs, # TODO(alexander): this looks *wrong*
+        "global_configuration": {}, # TODO(alexander): excise at some point
+        "configuration": instance_config, # this comes from the feeds config, the node in the wiring
+        "messageserver":  rabbit_params,
+        "inputs":  inputs, # Q name provided by orchestrator
+        "outputs": outputs, # Exchange name provided by orchestrator
+        "state":  posixpath.join(plugin_test_doc_url, statedocname),
+        "database": plugin_test_doc_url
+    }
+
+    harnessdir = os.path.join(HARNESS_BASE_DIR, init['harness_type'])
+    harness = os.path.join(harnessdir, 'run_plugin.sh')
+    pluginproc = subprocess.Popen([harness], cwd=harnessdir,
+                                  stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+    atexit.register(pluginproc.wait) # make sure we don't exit & leave this around!
+
+    print "## Initialising plugin with:"
+    print "#", json.dumps(init)
+    pluginproc.stdin.write(json.dumps(init) + "\n")
+
+    return pluginproc
+
+
+
 
 # TODO: a proper state-machine abstraction might be good here...
-def repl(lines, talkers=talkers):
+def repl(lines, talkers):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
 
-    channel = None
     talker_name, msg, state = None, None, WANT_CHANNEL
     exit_code = 0
 
@@ -229,5 +255,9 @@ def repl(lines, talkers=talkers):
         exit_code |= ship()
     return exit_code
 
-sys.exit(repl(iter(sys.stdin.readline, '')))
 
+
+if __name__ == '__main__':
+    pass
+    main(plugindir=os.path.abspath(sys.argv[1]),
+         config_json=(len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
