@@ -1,31 +1,38 @@
-import sys
+from __future__ import with_statement
+import httplib
 import os
+import re
+import sha
+import subprocess
+import sys
+import threading
 
 here = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, os.path.join(here, '../harness/python'))
 sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
 import amqplib.client_0_8 as amqp
+
 import feedshub as fh
 from feedshub import json
 
-pluginpath = sys.argv[1]
-config = (len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}"
+BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
+IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n)') # TODO(alexander): cut'n pasted
 
-print "Configuration: "
-print config
+def json_repr(pyson):
+    # replace None w/ 0 to get indentation
+    return json.dumps(config, indent=None).replace('\n', '\n\t:')
 
-config = json.loads(config)
+config = json.loads((len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
 
-plugindir = os.path.join(here, '..', pluginpath)
-pluginname = os.path.basename(pluginpath)
-pluginjsfile = open(os.path.join(plugindir, 'plugin.js'))
-plugin = json.loads(pluginjsfile.read())
-pluginjsfile.close()
+print "<$Configuration: ", json_repr(config)
+print
 
-print "Plugin descriptor:"
-print plugin
-
+plugindir = sys.argv[1]
+with open(os.path.join(plugindir, 'plugin.js')) as f:
+    plugin = json.loads(f.read())
+print "## Plugin descriptor:"
+print "#", json_repr(plugin)
 connection = amqp.Connection(host='localhost:5672',
                              userid='feedshub_admin',
                              password='feedshub_admin',
@@ -34,7 +41,6 @@ connection = amqp.Connection(host='localhost:5672',
 channel = connection.channel()
 
 def newname():
-    import sha
     return 'test/%s' % sha.new(os.urandom(8)).hexdigest()
 
 def declexchange():
@@ -55,6 +61,20 @@ inputs = dict((spec['name'], declqueue()) for spec in inputspec)
 
 # Now, we want to *listen* to the outputs, and *talk* to the inputs
 
+def subscribe(name, exchange, key=''):
+    def out(msg):
+        line_sep = "\n%s :" % (' ' * len(name))
+        print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
+    queue = declqueue()
+    print "# %s bound to %s" % (name, queue)
+    channel.queue_bind(queue, exchange, routing_key=key)
+    channel.basic_consume(queue, no_ack=True, callback=out)
+
+for (name, exchange) in outputs.items():
+    subscribe(name, exchange)
+
+subscribe("log", "feedshub/log", '#')
+
 def talker(queue):
     exchange = declexchange()
     channel.queue_bind(queue, exchange)
@@ -64,20 +84,6 @@ def talker(queue):
 
 talkers = dict((name, talker(queue)) for (name, queue) in inputs.items())
 
-def subscribe(name, exchange, key=''):
-    def out(msg):
-        print ("%s: %s" % (name, msg.body))
-    queue = declqueue()
-    print "%s bound to %s" % (name, queue)
-    channel.queue_bind(queue, exchange, routing_key=key)
-    channel.basic_consume(queue, no_ack=True, callback=out)
-
-for (name, exchange) in outputs.items():
-    subscribe(name, exchange)
-
-subscribe("log", "feedshub/log", '#')
-
-import threading
 class ListenerThread(threading.Thread):
     def run(self):
         while True:
@@ -86,15 +92,30 @@ listen = ListenerThread()
 listen.daemon = True
 listen.start()
 
-import httplib
 couch = httplib.HTTPConnection("localhost", 5984)
-couch.request("PUT", "/plugin_test_harness")
+#TODO(alexander): this is stupid, what it should really be doing is create an
+#unique id; unfortunately the dreaded document update conflict needs to be
+#resolved first
+for req, allowable in [(("DELETE", "/plugin_test_harness"), range(600)),
+                       (("PUT", "/plugin_test_harness"), range(400))]:
+    couch.request(*req)
+    try:
+        ans = couch.getresponse()
+        ans_s = ans.read()
+    except Exception, msg:
+        print >> sys.stderr, "Couldn't successfully talk to CouchDB: %s -> %s" % (req, msg)
+        sys.exit(BAD_SYSTEM_STATE)
+    if ans.status not in allowable:
+        print >> sys.stderr, "Could successfully talk to CouchDB: %s -> %3d: %s" % (
+            req, ans.status, ans_s)
+        sys.exit(BAD_SYSTEM_STATE)
+
 statedocname = newname()
 
 # Assemble the plugin init
 init = {
     "harness_type": plugin['harness'], # String from harness in plugin.js
-    "plugin_name": pluginname,  # String from type in nodes in wiring in feed config
+    "plugin_name": os.path.basename(plugindir),  # String from type in nodes in wiring in feed config
     "plugin_dir": os.path.abspath(plugindir),
     "feed_id": "test",
     "node_id": "plugin",
@@ -116,20 +137,87 @@ init = {
 harnessdir = os.path.join(here, '..', 'harness', plugin['harness'])
 harness = os.path.join(harnessdir, 'run_plugin.sh')
 
-import subprocess
-pluginproc = subprocess.Popen([harness], cwd=harnessdir, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-print "Initialising plugin with:"
-print json.dumps(init)
+pluginproc = subprocess.Popen([harness], cwd=harnessdir,
+                              stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+print
+print "## Initialising plugin with:"
+print "#", json.dumps(init)
 pluginproc.stdin.write(json.dumps(init)); pluginproc.stdin.write("\n")
 
 print
-print "Inputs are %s; type '<name>:<message>' to inject a message." % inputs.keys()
-while True:
-    line = sys.stdin.readline()
-    bits = line.split(":")
-    talkername = bits[0]
-    #print talkername
-    if talkername in talkers:
-        talkers[talkername]("".join(bits[1:])[:-1])
-    else:
-        print "No channel for %s" % talkername
+print """##The input channels are: %s
+# type 'INPUT:message' to inject a message into channel INPUT,
+# type ':more-stuff' to continue the message and
+# type '' (an empty line) to finish it (all newlines but the last are kept).
+# type ^D to abort. You are free to insert whitespace before the ':'.
+---
+""" % ' '.join(inputs)
+
+# TODO: a proper state-machine abstraction might be good here...
+def repl(lines, talkers=talkers):
+    WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
+
+    channel = None
+    last_state, state = None, WANT_CHANNEL
+    exit_code = 0
+
+    def ship():
+        try:
+            to_say = msg.rsplit('\n',1)[0]
+            ## print >>sys.stderr, "A'shippin': %r"% to_say
+            talkers[talker_name](to_say)
+            return 0
+        except KeyError:
+            print >>sys.stderr, ("ERROR(BAD_CHANNEL): %r unknown" %
+                                 talker_name)
+            return BAD_CHANNEL
+
+    for line in lines:
+        if line.startswith('#'):
+            pass
+        elif not line.strip():
+            if state == WANT_ANY:
+                exit_code |= ship()
+                talker_name, msg, state = None, None, WANT_CHANNEL
+        else:
+            try:
+                typ, channel, bit = IO_LINE_REX.match(line).groups()
+            except Exception:
+                print >>sys.stderr, (
+                    ">ERROR(MALFORMED_INPUT):"
+                    " Bad input! (neither comment nor message):%r" % line)
+                continue
+            if not channel:
+                if state is WANT_CHANNEL:
+                    print >>sys.stderr, (
+                        ">ERROR(MALFORMED_INPUT):"
+                        " need some channel to send message to!")
+                    exit_code |= MALFORMED_INPUT
+                    continue
+                elif not bit and not typ:
+                    exit_code |= ship()
+                    talker_name, msg, state = None, None, WANT_CHANNEL
+                elif not typ:
+                    msg += bit
+                    state = WANT_ANY
+                else:
+                    print >>sys.stderr, (
+                        ">ERROR(MALFORMED_INPUT):"
+                        "%r on its own is not meaningful" % bit)
+                    exit_code |= MALFORMED_INPUT
+                    continue
+            else:
+                if typ != '>':
+                    if state is WANT_ANY:
+                        exit_code |= ship()
+                    talker_name = channel
+                else:
+                    talker_name = None # FIXME
+                msg = bit
+                state = WANT_ANY
+    if talker_name is not None:
+        exit_code |= ship()
+    return exit_code
+
+sys.exit(repl(iter(sys.stdin.readline, '')))
+
