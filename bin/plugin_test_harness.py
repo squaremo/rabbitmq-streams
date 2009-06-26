@@ -19,9 +19,9 @@ from feedshub import json
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
 IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n)') # TODO(alexander): cut'n pasted
 
-def json_repr(pyson):
+def json_repr(py_obj):
     # replace None w/ 0 to get indentation
-    return json.dumps(config, indent=None).replace('\n', '\n\t:')
+    return json.dumps(py_obj, indent=None).replace('\n', '\n\t:')
 
 config = json.loads((len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
 
