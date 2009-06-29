@@ -5,6 +5,7 @@ import os
 import posixpath
 import re
 import hashlib
+import signal
 import subprocess
 import sys
 import threading
@@ -39,12 +40,15 @@ def make_stdout_msg_outputter(name):
         print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
     return stdout_msg_outputter
 
-class RepetitiveThread(threading.Thread):
-    def __init__(self, f):
-        self._f = f
-        super(RepetitiveThread, self).__init__()
-    def run(self):
-        while True: self._f()
+def continously(f):
+    class RepetitiveThread(threading.Thread):
+        def run(self):
+            while True: f()
+    t = RepetitiveThread()
+    t.daemon = True
+    t.start()
+    return t
+
 
 class TestWiring(object):
 
@@ -61,9 +65,7 @@ class TestWiring(object):
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
 
-        self.listener = RepetitiveThread(self.channel.wait)
-        self.listener.daemon = True
-        self.listener.start()
+        self.listener = continously(self.channel.wait)
 
     def declexchange(self):
         name = newname()
@@ -82,7 +84,7 @@ class TestWiring(object):
         queue = self.declqueue()
         self.info("# %s bound to %s" % (name, queue))
         self.channel.queue_bind(queue, exchange, routing_key=key)
-        self.channel.basic_consume(queue, no_ack=True, callback=make_outputter)
+        self.channel.basic_consume(queue, no_ack=True, callback=make_outputter(name))
 
     def make_talker(self, queue):
         exchange = self.declexchange()
@@ -126,9 +128,7 @@ def main(plugindir, config_json):
     print "## Plugin descriptor:"
     print "#", json_repr(plugin_specs)
 
-    connection = amqp.Connection(**RABBIT_CONNECTION_PARAMS)
-
-    wiring = TestWiring(amqp_connection=connection,
+    wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
                         inputspec=plugin_specs['inputs_specification'],
                         outputspec=plugin_specs['outputs_specification'])
 
@@ -168,7 +168,13 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
         "plugin_type": plugin_specs, # TODO(alexander): this looks *wrong*
         "global_configuration": {}, # TODO(alexander): excise at some point
         "configuration": instance_config, # this comes from the feeds config, the node in the wiring
-        "messageserver":  rabbit_params,
+        # TODO(alexander): is this inconsistent naming necessary?
+        "messageserver":  {'host' : rabbit_params['host'].split(':')[0],
+                           'port' : rabbit_params['host'].split(':')[1],
+                           'username' : rabbit_params['userid'],
+                           'password' : rabbit_params['password'],
+                           'virtual_host' : rabbit_params['virtual_host']
+                           },
         "inputs":  inputs, # Q name provided by orchestrator
         "outputs": outputs, # Exchange name provided by orchestrator
         "state":  posixpath.join(plugin_test_doc_url, statedocname),
@@ -179,12 +185,15 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     harness = os.path.join(harnessdir, 'run_plugin.sh')
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                                   stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-    atexit.register(pluginproc.wait) # make sure we don't exit & leave this around!
-
     print "## Initialising plugin with:"
     print "#", json.dumps(init)
     pluginproc.stdin.write(json.dumps(init) + "\n")
+    # make sure we don't exit & leave this around!
+    # TODO(alexander): haven't found a clean way that won't deadlock
+    # python2.6 has a Popen.kill but for 2.5 we need this:
+    atexit.register(lambda p=pluginproc.pid: os.kill(p, signal.SIGTERM))
 
+    print "## Initialising plugin with:"
     return pluginproc
 
 
