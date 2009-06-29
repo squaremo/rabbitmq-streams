@@ -212,19 +212,16 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
-handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, server_pid = undefined})
-  when P =:= Port ->
+handle_info({Port, {data, {eol, Fragment}}}, State = #state{port = Port, server_pid = undefined}) ->
     {noreply, State #state {server_pid = list_to_integer(Fragment)}};
-handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
+handle_info({Port, {data, X}}, State = #state{port = Port, output_acc = Acc}) ->
     case X of
         {noeol, Fragment} ->
             {noreply, State#state{output_acc = [Fragment | Acc]}};
         {eol, Fragment} ->
             {noreply, State#state{output_acc = [Fragment ++ "\n" | Acc]}}
     end;
-handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
+handle_info({'EXIT', Port, Reason}, State = #state{port = Port, output_acc = Acc}) ->
     error_logger:error_report({?MODULE, server_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State#state{port = undefined}};
 

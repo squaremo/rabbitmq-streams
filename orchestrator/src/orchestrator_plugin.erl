@@ -100,19 +100,16 @@ handle_call(_Message, _From, State) ->
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
-handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, plugin_pid = undefined})
-  when P =:= Port ->
+handle_info({Port, {data, {eol, Fragment}}}, State = #state{port = Port, plugin_pid = undefined}) ->
     {noreply, State #state {plugin_pid = list_to_integer(Fragment)}};
-handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
+handle_info({Port, {data, X}}, State = #state{port = Port, output_acc = Acc}) ->
     case X of
         {noeol, Fragment} ->
             {noreply, State#state{output_acc = [Fragment | Acc]}};
         {eol, Fragment} ->
             {noreply, State#state{output_acc = [Fragment ++ "\n" | Acc]}}
     end;
-handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
+handle_info({'EXIT', Port, Reason}, State = #state{port = Port, output_acc = Acc}) ->
     error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
     {stop, Reason, State#state{port = undefined}};
 handle_info(_Info, State) ->
