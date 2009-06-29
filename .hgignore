@@ -10,8 +10,10 @@
 # target directories are a Maven thing
 ^sites/[^/]*/target/
 ^plugins/[^/]*/target/
-^harness/[^/]*/target/
 ^sites/[^/]*/[^/]*\.timestamp$
+
+^harness/java/[^/]*/target/
+^harness/java/thirdparty/[^/]*/target/
 
 (^|/)erl_crash\.dump$
 
