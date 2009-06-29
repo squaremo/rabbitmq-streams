@@ -2,6 +2,8 @@
 
 -export([start/3, handle_message/2, stop/1]).
 
+-include("orchestrator.hrl").
+
 -record(orchestrator_subprocess_state, {debug_info, port, output_acc, pid}).
 
 start(DebugInfo, Port, ConfigDoc) ->
@@ -15,11 +17,11 @@ start(DebugInfo, Port, ConfigDoc) ->
                                    pid = undefined}.
 
 handle_message({Port, {data, {eol, Fragment}}},
-               State = #orchestrator_subprocess_state{debug_info = DebugInfo,
+               State = #orchestrator_subprocess_state{debug_info = _DebugInfo,
                                                       port = Port,
                                                       pid = undefined}) ->
     Pid = list_to_integer(Fragment),
-    error_logger:info_report({DebugInfo, pid_received, Pid}),
+    ?DEBUGREPORT({_DebugInfo, pid_received, Pid}),
     {ok, State#orchestrator_subprocess_state{pid = Pid}};
 handle_message({Port, {data, {noeol, Fragment}}},
                State = #orchestrator_subprocess_state{port = Port}) ->
@@ -28,16 +30,16 @@ handle_message({Port, {data, {eol, Fragment}}},
                State = #orchestrator_subprocess_state{port = Port}) ->
     {ok, append_fragment(Fragment ++ "\n", State)};
 handle_message({'EXIT', Port, Reason},
-               State = #orchestrator_subprocess_state{debug_info = DebugInfo,
+               State = #orchestrator_subprocess_state{debug_info = _DebugInfo,
                                                       port = Port}) ->
-    error_logger:info_report({DebugInfo, subprocess_terminated, Reason}),
+    ?DEBUGREPORT({_DebugInfo, subprocess_terminated, Reason}),
     {error, Reason, State#orchestrator_subprocess_state{port = undefined}};
 handle_message(Message, State) ->
     {error, {?MODULE, unhandled_message, Message}, State}.
 
-append_fragment(Fragment, State = #orchestrator_subprocess_state{debug_info = DebugInfo,
+append_fragment(Fragment, State = #orchestrator_subprocess_state{debug_info = _DebugInfo,
                                                                  output_acc = Acc}) ->
-    error_logger:info_report({DebugInfo, received_fragment, Fragment}),
+    ?DEBUGREPORT({_DebugInfo, received_fragment, Fragment}),
     State#orchestrator_subprocess_state{output_acc = [Fragment | Acc]}.
 
 stop(#orchestrator_subprocess_state{debug_info = DebugInfo,
