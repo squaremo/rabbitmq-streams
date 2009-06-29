@@ -46,8 +46,7 @@ stop(#orchestrator_subprocess_state{debug_info = DebugInfo,
                                     port = Port,
                                     output_acc = Acc,
                                     pid = Pid}) ->
-    error_logger:info_report({DebugInfo, stop, [{pid, Pid},
-                                                {output, lists:flatten(lists:reverse(Acc))}]}),
+    error_logger:info_msg("~p~n%% Subprocess output follows:~n~s~n", [{DebugInfo, stop, [{pid, Pid}]}, lists:reverse(Acc)]),
     close_port(Port),
     kill_pid(Pid),
     ok.
