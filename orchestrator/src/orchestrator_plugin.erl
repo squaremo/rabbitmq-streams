@@ -54,7 +54,7 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = harness_path(HarnessType, ""),
     process_flag(trap_exit, true),
-    Port = open_port({spawn, "./run_plugin.sh"},
+    Port = open_port({spawn, "./run_plugin.sh -rmqs-name=" ++ PluginName},
                      [{line, 1048576},
                       use_stdio,
                       stderr_to_stdout,
