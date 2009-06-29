@@ -225,20 +225,21 @@ handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
     end;
 handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
   when P =:= Port ->
-    error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
-    {stop, Reason, State};
+    error_logger:error_report({?MODULE, server_exited, lists:flatten(lists:reverse(Acc))}),
+    {stop, Reason, State#state{port = undefined}};
 
 handle_info(_Info, State) ->
     {stop, unhandled_info, State}.
 
 terminate(_Reason, #state{port = Port, output_acc = Acc, server_pid = ServerPid}) ->
     error_logger:info_report({?MODULE, server_terminating, lists:flatten(lists:reverse(Acc))}),
-    true =
-	if Port == undefined -> true;
-	   true -> port_close(Port)
-	end,
-    if undefined =:= ServerPid -> true;
-       true -> os:cmd("kill "++(integer_to_list(ServerPid)))
+    true = case Port of
+               undefined -> true;
+               _ -> port_close(Port)
+           end,
+    case ServerPid of
+        undefined -> nothing_to_kill;
+        _ -> os:cmd("kill "++(integer_to_list(ServerPid)))
     end,
     ok.
 
