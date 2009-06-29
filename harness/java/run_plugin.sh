@@ -1,2 +1,2 @@
 #!/bin/sh
-exec java -jar feedshub_harness.jar $$
+exec java -jar feedshub_harness.jar $$ "$@"
