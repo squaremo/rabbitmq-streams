@@ -95,8 +95,7 @@ def txifyPlugin(channel, method, msg):
     except Exception:
         channel.tx_rollback()
 
-class Component(object):
-
+class PluginBase(object):
     INPUTS = {}
     OUTPUTS = {}
 
@@ -109,14 +108,12 @@ class Component(object):
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
         self.build_logger(config)
         self.info('Starting up...')
-        
-        self.__stateresource = couch.Resource(None, config['state'])
-        ensure_resource(self.__stateresource)
 
         if 'database' in config and config['database'] is not None:
             self.__db = couch.Database(config['database'])
         else:
             self.__db = None
+
         settings = dict((item['name'], item['value'])
                         for item in config['plugin_type']['global_configuration_specification'])
         settings.update(config['configuration'])
@@ -141,13 +138,36 @@ class Component(object):
         self.__channel.tx_rollback()
 
     def build_logger(self, config):
-        feed_id = config['feed_id']
-        node_id = config['node_id']
-        plugin_name = config['plugin_name']
         for level in ['debug', 'info', 'warn', 'error', 'fatal']:
-            rk = level + '.' + feed_id + '.' + plugin_name + '.' + node_id
+            rk = self._build_log_rk(config, level)
             setattr(self, level, publish_to_exchange(self, self.__log, feedshub_log_xname,
                                                      routing_key = rk))
+
+    def privateDatabase(self):
+        return self.__db
+
+    def setting(self, name, defaultValue = None):
+        """Get a configuration setting."""
+        return self.__config.get(name, defaultValue)
+
+    def run(self):
+        while True:
+            self.__channel.wait()
+
+    def start(self):
+        self.run()
+
+class Component(PluginBase):
+    def __init__(self, config):
+        super(Component, self).__init__(config)
+        self.__stateresource = couch.Resource(None, config['state'])
+        ensure_resource(self.__stateresource)
+
+    def _build_log_rk(self, config, level):
+        feed_id = config['feed_id']
+        plugin_name = config['plugin_name']
+        node_id = config['node_id']
+        return level + '.' + feed_id + '.' + plugin_name + '.' + node_id
 
     def putState(self, state):
         """Record the state of the component"""
@@ -163,16 +183,15 @@ class Component(object):
         except couch.ResourceNotFound:
             return defaultState
 
-    def privateDatabase(self):
-        return self.__db
+class Server(PluginBase):
+    def __init__(self, config):
+        super(Server, self).__init__(config)
+        self.__terminalsDb = couch.Database(config['terminals_database'])
 
-    def setting(self, name, defaultValue = None):
-        """Get a configuration setting."""
-        return self.__config.get(name, defaultValue)
+    def _build_log_rk(self, config, level):
+        server_id = config['server_id']
+        plugin_name = config['plugin_name']
+        return level + '.' + server_id + '.' + plugin_name
 
-    def run(self):
-        while True:
-            self.__channel.wait()
-
-    def start(self):
-        self.run()
+    def command(self, msg):
+        self.debug(msg)
