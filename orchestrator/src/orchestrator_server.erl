@@ -81,10 +81,11 @@ init([ServerSupPid, ServerIdBin,
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
-handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
-	     IngressChannel, IngressBroker, EgressChannel, _EgressBroker,
-	     RootPid},
+handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
+                     IngressChannel, IngressBroker, EgressChannel, _EgressBroker,
+                     RootPid},
 	    #state { server_id = ServerId, server_sup_pid = ServerSupPid }) ->
+    error_logger:info_report({?MODULE, starting_server, _Args}),
 
     ServerConfig = get_server_instance_config(ServerId),
     {ok, ServerTypeBin} = rfc4627:get_field(ServerConfig, "server_type"),
