@@ -43,7 +43,7 @@ def main():
             raise "Module %r does not contain a run procedure" % module
         
         waiter = StdInWatcher()
-        waiter.daemon = True
+        waiter.setDaemon(True)
         waiter.start()
         
         module.run(args)
