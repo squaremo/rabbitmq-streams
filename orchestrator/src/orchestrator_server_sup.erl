@@ -22,7 +22,7 @@ init([ServerId,
       IngressChannel, IngressBroker,
       EgressChannel, EgressBroker,
       RootPid]) ->
-    {ok, {{one_for_all, 1, 10},
+    {ok, {{one_for_all, 0, 10},
 	  [{orchestrator_server, {orchestrator_server, start_link, [self(), ServerId,
 								    PipelineChannel, PipelineBroker,
 								    IngressChannel, IngressBroker,
