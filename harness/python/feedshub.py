@@ -6,6 +6,7 @@ import couchdb.client as couch
 import amqplib.client_0_8 as amqp
 import os
 import sys
+import pprint
 
 feedshub_log_xname = 'feedshub/log'
 
@@ -70,32 +71,31 @@ def amqp_connection_from_config(hostspec):
                                  virtual_host=virt)
     return connection
 
-def publish_to_exchange(component, channel, exchange, routing_key=''):
-    def p(msg, **headers):
-        message = amqp.Message(body=msg, children=None, delivery_mode=2, **headers)
-        # TODO: treat application_headers specially, and expect a content type
-        try:
-            channel.basic_publish(message, exchange=exchange, routing_key=routing_key)
-        except:
-            errMsg = str("Exception when trying to publish to exchange " +
-                         exchange + " with routing key " + routing_key)
-            component.error(errMsg)
-    return p
-
-def subscribe_to_queue(channel, queue, method):
-    # no_ack: If this field is set the server does not expect
-    # acknowledgements for messages.
-    channel.basic_consume(queue=queue, no_ack=False, callback=lambda msg: txifyPlugin(channel, method, msg))
-
-def txifyPlugin(channel, method, msg):
-    try:
-        method(msg)
-        channel.basic_ack(msg.delivery_info['delivery_tag'])
-        channel.tx_commit()
-    except Exception:
-        channel.tx_rollback()
+def pp_message(msg):
+    d = {"body": msg.body,
+         "properties": msg.properties}
+    if hasattr(msg, 'delivery_info'):
+        d["message_kind"] = "delivery"
+        # channel.py just pokes the delivery_info attribute straight
+        # onto the Message, rather than defining some subclass or
+        # similar
+        d["delivery_info"] = msg.delivery_info
+    else:
+        d["message_kind"] = "publication"
+    return d
 
 class PluginBase(object):
+    """Base class for plugins -- either pipeline components, or ingress/egress servers.
+
+    Note on __publication_error: Sometimes, amqplib decides to throw
+    in the middle of sending a command (such as basic.publish). If
+    this happens, the server will never see the rest of the command,
+    which puts the channel in an unusable condition. Therefore, we
+    detect when it's *possible* that *some* channel is in an unusable
+    state, and if it's at all possible, we log exceptions to stderr
+    instead of to the AMQP log channel, so that we don't lose
+    important information on exceptions that occur.
+    """
     INPUTS = {}
     OUTPUTS = {}
 
@@ -105,6 +105,7 @@ class PluginBase(object):
         self.__channel = self.__conn.channel()
         self.__channel.tx_select()
 
+        self.__publication_error = False
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
         self.build_logger(config)
         self.info('Starting up...')
@@ -123,13 +124,63 @@ class PluginBase(object):
             if name not in self.OUTPUTS:
                 self.OUTPUTS[name] = name
             setattr(self, self.OUTPUTS[name],
-                    publish_to_exchange(self, self.__channel, exchange))
+                    self._make_exchange_publisher(self.__channel, exchange, ''))
 
         for name, queue in config['inputs'].iteritems():
             if name not in self.INPUTS:
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
-            subscribe_to_queue(self.__channel, queue, method)
+            self._subscribe_to_queue(self.__channel, queue, method)
+
+    def _make_exchange_publisher(self, channel, exchange, routing_key):
+        def p(body, **headers):
+            if self.__publication_error:
+                raise Exception("Publishing after publication error")
+            message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
+            # TODO: treat application_headers specially, and expect a content type
+            try:
+                channel.basic_publish(message, exchange, routing_key)
+            except:
+                self.__publication_error = True
+                raise
+
+        return p
+
+    def _subscribe_to_queue(self, channel, queue, method):
+        def h(msg):
+            try:
+                method(msg)
+                channel.basic_ack(msg.delivery_info['delivery_tag'])
+                channel.tx_commit()
+            except Exception:
+                channel.tx_rollback()
+                self.log_exception("Exception when trying to handle an input from queue " +
+                                   queue + " to method " + str(method) +
+                                   pprint.pformat(pp_message(msg)),
+                                   False)
+
+        # no_ack: If this field is set the server does not expect
+        # acknowledgements for messages.
+        channel.basic_consume(queue=queue, no_ack=False, callback=h)
+
+    def log_exception(self, errMsg, log_to_stderr):
+        import traceback
+        formatted = str(errMsg) + "\n" + traceback.format_exc()
+        if log_to_stderr or self.__publication_error:
+            print >> sys.stderr, formatted
+        else:
+            try:
+                self.error(formatted)
+            except Exception:
+                second_formatted = \
+                    formatted + \
+                    "\n...additionally, an exception in self.error was reported\n" + \
+                    traceback.format_exc()
+                print >> sys.stderr, second_formatted
+        self.terminate()
+
+    def terminate(self):
+        sys.exit(1)
 
     def commit(self):
         self.__channel.tx_commit()
@@ -140,8 +191,8 @@ class PluginBase(object):
     def build_logger(self, config):
         for level in ['debug', 'info', 'warn', 'error', 'fatal']:
             rk = self._build_log_rk(config, level)
-            setattr(self, level, publish_to_exchange(self, self.__log, feedshub_log_xname,
-                                                     routing_key = rk))
+            setattr(self, level,
+                    self._make_exchange_publisher(self.__log, feedshub_log_xname, rk))
 
     def privateDatabase(self):
         return self.__db
@@ -155,7 +206,10 @@ class PluginBase(object):
             self.__channel.wait()
 
     def start(self):
-        self.run()
+        try:
+            self.run()
+        except Exception:
+            self.log_exception("Exception in AMQP connection thread", True)
 
 class Component(PluginBase):
     def __init__(self, config):
@@ -194,4 +248,5 @@ class Server(PluginBase):
         return level + '.' + server_id + '.' + plugin_name
 
     def command(self, msg):
-        self.debug(msg)
+        # (server_id, terminal_id) = msg.delivery_info["routing_key"].rsplit('.', 1)
+        self.debug(pprint.pformat(pp_message(msg)))
