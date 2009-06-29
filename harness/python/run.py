@@ -4,9 +4,9 @@ and name and a pointer to the initialisation document (see [TODO]).
 """
 
 try:
-    import json
-except:
     import simplejson as json
+except:
+    import json
 from threading import Thread
 import sys, os.path
 from imp import find_module, load_module

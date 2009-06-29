@@ -10,9 +10,9 @@ import sys
 feedshub_log_xname = 'feedshub/log'
 
 try:
-    import json
-except:
     import simplejson as json
+except:
+    import json
 
 def ensure_resource(resource):
     try:

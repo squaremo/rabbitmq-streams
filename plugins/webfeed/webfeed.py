@@ -1,7 +1,10 @@
 from feedshub import Component
 import sha
 
-import simplejson as json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 class FeedArchiver(Component):
     INPUTS = {'input': 'accept'}
