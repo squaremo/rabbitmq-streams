@@ -1,11 +1,14 @@
-Summary: Streams orchestrator - message exchange
-Name: Streams
+Summary: RabbitMQ Streams orchestrator - message exchange
+Name: rabbitmq-streams
 Version: 0.1
 Release: 1
 Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
 BuildRequires: erlang 
+Requires: erlang
+Requires: rabbitmq-server
+Requires: couchdb
 Prereq: erlang
 Buildroot: %{_tmppath}/%{name}-%{version} 
 
