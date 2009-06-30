@@ -110,7 +110,6 @@ class PluginBase(object):
         self.__publication_error = False
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
         self.build_logger(config)
-        self.info('Starting up...')
 
         if 'database' in config and config['database'] is not None:
             self.__db = couch.Database(config['database'])
@@ -133,6 +132,9 @@ class PluginBase(object):
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
             self._subscribe_to_queue(self.__channel, queue, method)
+
+        self.info(pformat({"event": "configured",
+                           "args": {"config": settings}}))
 
     def _make_exchange_publisher(self, channel, exchange, routing_key):
         def p(body, **headers):
