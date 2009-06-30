@@ -15,11 +15,6 @@ try:
 except:
     import json
 
-def ensure_resource(resource):
-    try:
-        resource.head()
-    except:
-        resource.put(content={})
 
 def db_name(db):
     """Give the name of the database.
@@ -215,7 +210,6 @@ class Component(PluginBase):
     def __init__(self, config):
         super(Component, self).__init__(config)
         self.__stateresource = couch.Resource(None, config['state'])
-        ensure_resource(self.__stateresource)
 
     def _build_log_rk(self, config, level):
         feed_id = config['feed_id']
