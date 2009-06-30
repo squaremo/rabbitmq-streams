@@ -89,7 +89,7 @@ function special_property(propname) {
 
 function optional(schema) {
     return function(obj) {
-	return (obj === null || obj === undefined) ? false : validate(obj, schema);
+	return (obj === undefined) ? false : validate(obj, schema);
     };
 }
 
