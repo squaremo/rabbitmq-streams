@@ -41,6 +41,7 @@ prepare_libs: prepare
 build_orchestrator: prepare_orchestrator
 	$(MAKE) -C orchestrator EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/orchestrator/ebin all
 	cp orchestrator/include/* ${TARGET_DIR}/lib/erlang/orchestrator/include
+	cp orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
 
 prepare_orchestrator:
 	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/ebin
