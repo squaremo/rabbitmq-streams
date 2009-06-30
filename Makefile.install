@@ -29,6 +29,7 @@ build_libs: prepare_libs \
 	build_couch \
 	build_amqp \
 	build_rabbit
+	cp -rf harness/python/lib/* ${TARGET_DIR}/lib/python
 
 prepare_libs: prepare
 	mkdir -p ${TARGET_DIR}/lib/erlang
@@ -88,7 +89,7 @@ build_plugins: prepare_plugins
 		do mkdir -p ${TARGET_DIR}/plugins/$$j; cp plugins/$$j/plugin.js ${TARGET_DIR}/plugins/$$j; cp -rf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
 	done
 	for p in $(PYTHON_PLUGINS); \
-		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}plugins; \
+		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}/plugins; \
 	done
 
 prepare_plugins: prepare
@@ -118,7 +119,6 @@ prepare_doc:
 install: build prepare_install
 	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
-	#cp -rf ${TARGET_DIR}/config/* ${INSTALL_CONFIG_DIR} 
 	cp -rf ${TARGET_DIR}/sbin/* ${SBIN_TARGET_DIR}
 
 prepare_install:
