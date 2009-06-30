@@ -35,6 +35,7 @@ prepare_libs: prepare
 	mkdir -p ${TARGET_DIR}/lib/erlang
 	mkdir -p ${TARGET_DIR}/lib/java
 	mkdir -p ${TARGET_DIR}/lib/python
+	mkdir -p ${TARGET_DIR}/examples
 
 
 ### Build erlang libraries ###
@@ -107,6 +108,7 @@ prepare_sbin: prepare
 	cp sbin/* ${TARGET_DIR}/sbin
 
 build_examples: prepare_examples
+	cp -rf examples/* ${TARGET_DIR}/examples
 
 prepare_examples:
 	mkdir -p ${TARGET_DIR}/examples

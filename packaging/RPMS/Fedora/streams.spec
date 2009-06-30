@@ -21,7 +21,6 @@ The Streams orchestrator manages gateways and transformations
 
 %prep
 %setup -q
-#sed -i 's|LIB_DIR|%{_sbindir}|' orchestrator.sh
 mkdir -p %{buildroot}
 
 %build
@@ -34,7 +33,7 @@ make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARG
 
 %files
 %defattr(-,root,root)
-/usr/lib/rabbitmq-streams
+#/usr/lib/rabbitmq-streams
 %{_streams_libdir}
 %{_plugin_dir}
 %{_sbindir}
