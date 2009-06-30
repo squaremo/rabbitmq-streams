@@ -6,7 +6,6 @@ import couchdb.client as couch
 import amqplib.client_0_8 as amqp
 import os
 import sys
-import pprint
 
 feedshub_log_xname = 'feedshub/log'
 
@@ -74,10 +73,18 @@ def pp_message(msg):
         # channel.py just pokes the delivery_info attribute straight
         # onto the Message, rather than defining some subclass or
         # similar
-        d["delivery_info"] = msg.delivery_info
+        d["delivery_info"] = dict(msg.delivery_info)
+        del d["delivery_info"]["channel"]
     else:
         d["message_kind"] = "publication"
     return d
+
+def pformat(j):
+    return json.dumps(j, indent = 2)
+
+# def pformat(j):
+#     import pprint
+#     return pprint.pformat(j)
 
 class PluginBase(object):
     """Base class for plugins -- either pipeline components, or ingress/egress servers.
@@ -151,7 +158,7 @@ class PluginBase(object):
                 channel.tx_rollback()
                 self.log_exception("Exception when trying to handle an input from queue " +
                                    queue + " to method " + str(method) +
-                                   pprint.pformat(pp_message(msg)),
+                                   pformat(pp_message(msg)),
                                    False)
 
         # no_ack: If this field is set the server does not expect
@@ -234,6 +241,7 @@ class Component(PluginBase):
 class Server(PluginBase):
     def __init__(self, config):
         super(Server, self).__init__(config)
+        self.__server_id = config['server_id']
         self.__terminalsDb = couch.Database(config['terminals_database'])
 
     def _build_log_rk(self, config, level):
@@ -242,5 +250,23 @@ class Server(PluginBase):
         return level + '.' + server_id + '.' + plugin_name
 
     def command(self, msg):
-        # (server_id, terminal_id) = msg.delivery_info["routing_key"].rsplit('.', 1)
-        self.debug(pprint.pformat(pp_message(msg)))
+        ## self.debug(pformat(pp_message(msg)))
+        (server_id, terminal_id) = msg.delivery_info["routing_key"].rsplit('.', 1)
+        terminal_configs = self._configs_for_terminal(terminal_id)
+        self.terminal_status_change(terminal_id,
+                                    terminal_configs,
+                                    self._terminal_status(terminal_id))
+
+    def _configs_for_terminal(self, terminal_id):
+        terminal_config = self.__terminalsDb[terminal_id]
+        servers = terminal_config["servers"]
+        return [c for c in servers if c["server"] == self.__server_id]
+
+    def _terminal_status(self, terminal_id):
+        return self.__terminalsDb[terminal_id + "_status"]["active"]
+
+    def terminal_status_change(self, terminal_id, terminal_configs, terminal_is_active):
+        self.info(pformat({"event": "terminal_status_change",
+                           "args": {"terminal_id": terminal_id,
+                                    "terminal_configs": terminal_configs,
+                                    "terminal_is_active": terminal_is_active}}))
