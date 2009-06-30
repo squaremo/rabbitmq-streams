@@ -12,7 +12,5 @@
 		       "type": "url"}],
 
     "inputs_specification": [{"name": "input", "label": "Input"}],
-    "outputs_specification": [{"name": "output", "label": "Output"}],
-
-    "database_specification": null
+    "outputs_specification": [{"name": "output", "label": "Output"}]
 }
