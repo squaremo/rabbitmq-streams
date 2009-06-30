@@ -102,10 +102,10 @@ prepare_config: prepare
 	mkdir -p ${TARGET_DIR}/config
 
 build_sbin: prepare_sbin
+	cp sbin/* ${TARGET_DIR}/sbin
 
 prepare_sbin: prepare
 	mkdir -p ${TARGET_DIR}/sbin
-	cp sbin/* ${TARGET_DIR}/sbin
 
 build_examples: prepare_examples
 	cp -rf examples/* ${TARGET_DIR}/examples
