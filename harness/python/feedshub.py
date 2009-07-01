@@ -58,7 +58,7 @@ def db_from_config(config):
 
 def amqp_connection_from_config(hostspec):
     hostname = hostspec['host']
-    port = "5673" #str(hostspec['port'])
+    port = str(hostspec['port'])
     host = ":".join([hostname, port])
     virt = hostspec['virtual_host']
     userid, password = hostspec['username'], hostspec['password']
