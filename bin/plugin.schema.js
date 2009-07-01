@@ -30,27 +30,30 @@ PluginBase = {
 };
 
 ServerPluginBase =
-    object_union(PluginBase, {
-		     "subtype": "server"
-		 });
+    merge(PluginBase, {
+	      "subtype": "server"
+	  });
 
 SourceServerPlugin =
-    object_union(ServerPluginBase, {
-		     "source_specification": array_of(ConfigurationVariableDefinition)
-		 });
+    merge(ServerPluginBase, {
+	      "source_specification": array_of(ConfigurationVariableDefinition)
+	  });
 
 DestinationServerPlugin =
-    object_union(ServerPluginBase, {
-		     "destination_specification": array_of(ConfigurationVariableDefinition)
-		 });
+    merge(ServerPluginBase, {
+	      "destination_specification": array_of(ConfigurationVariableDefinition)
+	  });
+
+SourceDestinationServerPlugin = merge(SourceServerPlugin, DestinationServerPlugin);
 
 ComponentPlugin =
-    object_union(PluginBase, {
-		     "subtype": "pipeline_component",
-		     "inputs_specification": array_of(ConnectorDefinition),
-		     "outputs_specification": array_of(ConnectorDefinition)
-		 });
+    merge(PluginBase, {
+	      "subtype": "pipeline_component",
+	      "inputs_specification": array_of(ConnectorDefinition),
+	      "outputs_specification": array_of(ConnectorDefinition)
+	  });
 
 Plugin = or_dict({"SourceServerPlugin": SourceServerPlugin,
 		  "DestinationServerPlugin": DestinationServerPlugin,
+		  "SourceDestinationServerPlugin": SourceDestinationServerPlugin,
 		  "ComponentPlugin": ComponentPlugin});

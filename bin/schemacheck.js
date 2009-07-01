@@ -93,7 +93,7 @@ function optional(schema) {
     };
 }
 
-function object_union() {
+function merge() {
     var pieces = arguments;
     var result = {};
     for (var i = 0; i < pieces.length; i++) {
