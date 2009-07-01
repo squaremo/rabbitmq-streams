@@ -219,7 +219,7 @@ function anything() {
 }
 
 function email() {
-    return nonempty_string(); // ha ha. Find me a sane regex and I'll put it in ;)
+    return /^\S+@[^.\s]\S*\.[^.\s]{2,}$/;
 }
 
 ///////////////////////////////////////////////////////////////////////////
