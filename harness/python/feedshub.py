@@ -251,6 +251,9 @@ class Server(PluginBase):
         plugin_name = config['plugin_name']
         return level + '.' + server_id + '.' + plugin_name
 
+    def getServerId(self):
+        return self.__server_id
+
     def command(self, msg):
         ## self.debug(pformat(pp_message(msg)))
         (server_id, terminal_id) = msg.delivery_info["routing_key"].rsplit('.', 1)
