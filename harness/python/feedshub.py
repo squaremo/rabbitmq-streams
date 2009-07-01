@@ -2,10 +2,13 @@
 Interfaces for plugin components to use.
 """
 
+from __future__ import with_statement
+
 import couchdb.client as couch
 import amqplib.client_0_8 as amqp
 import os
 import sys
+import threading
 
 feedshub_log_xname = 'feedshub/log'
 
@@ -55,7 +58,7 @@ def db_from_config(config):
 
 def amqp_connection_from_config(hostspec):
     hostname = hostspec['host']
-    port = str(hostspec['port'])
+    port = "5673" #str(hostspec['port'])
     host = ":".join([hostname, port])
     virt = hostspec['virtual_host']
     userid, password = hostspec['username'], hostspec['password']
@@ -102,6 +105,8 @@ class PluginBase(object):
     OUTPUTS = {}
 
     def __init__(self, config):
+        self.__monitor = threading.RLock()
+
         msghostspec = config['messageserver']
         self.__conn = amqp_connection_from_config(msghostspec)
         self.__channel = self.__conn.channel()
@@ -131,43 +136,58 @@ class PluginBase(object):
             if name not in self.INPUTS:
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
-            self._subscribe_to_queue(self.__channel, queue, method)
+            self._subscribe_to_queue(queue, method)
 
         self.info(pformat({"event": "configured",
                            "args": {"config": settings}}))
 
+    def monitor(self):
+        return self.__monitor
+
     def _make_exchange_publisher(self, channel, exchange, routing_key):
-        def p(body, **headers):
+        def p(body, override_routing_key = None, **headers):
             if self.__publication_error:
                 raise Exception("Publishing after publication error")
             message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
             # TODO: treat application_headers specially, and expect a content type
-            try:
-                channel.basic_publish(message, exchange, routing_key)
-            except:
-                self.__publication_error = True
-                raise
+            with self.__monitor:
+                try:
+                    channel.basic_publish(message, exchange, override_routing_key or routing_key)
+                except:
+                    self.__publication_error = True
+                    raise
 
         return p
 
-    def _subscribe_to_queue(self, channel, queue, method):
+    def _subscribe_to_queue(self, queue, method):
         def h(msg):
-            try:
-                method(msg)
-                channel.basic_ack(msg.delivery_info['delivery_tag'])
-                channel.tx_commit()
-            except Exception:
-                channel.tx_rollback()
-                self.log_exception("Exception when trying to handle an input from queue " +
-                                   queue + " to method " + str(method) +
-                                   pformat(pp_message(msg)),
-                                   False)
+            with self.__monitor:
+                try:
+                    method(msg)
+                    self.__channel.basic_ack(msg.delivery_info['delivery_tag'])
+                    self.__channel.tx_commit()
+                except Exception:
+                    self.__channel.tx_rollback()
+                    self.log_exception("Exception when trying to handle an input from queue " +
+                                       queue + " to method " + str(method) + "\n" +
+                                       pformat(pp_message(msg)))
+                    self.terminate()
 
         # no_ack: If this field is set the server does not expect
         # acknowledgements for messages.
-        channel.basic_consume(queue=queue, no_ack=False, callback=h)
+        self.__channel.basic_consume(queue=queue, no_ack=False, callback=h)
 
-    def log_exception(self, errMsg, log_to_stderr):
+    def run_input_handler(self, func):
+        with self.__monitor:
+            try:
+                result = func()
+                self.__channel.tx_commit()
+                return result
+            except:
+                self.__channel.tx_rollback()
+                raise
+
+    def log_exception(self, errMsg, log_to_stderr = False):
         import traceback
         formatted = str(errMsg) + "\n" + traceback.format_exc()
         if log_to_stderr or self.__publication_error:
@@ -181,16 +201,17 @@ class PluginBase(object):
                     "\n...additionally, an exception in self.error was reported\n" + \
                     traceback.format_exc()
                 print >> sys.stderr, second_formatted
-        self.terminate()
 
     def terminate(self):
         sys.exit(1)
 
     def commit(self):
-        self.__channel.tx_commit()
+        with self.__monitor:
+            self.__channel.tx_commit()
 
     def rollback(self):
-        self.__channel.tx_rollback()
+        with self.__monitor:
+            self.__channel.tx_rollback()
 
     def build_logger(self, config):
         for level in ['debug', 'info', 'warn', 'error', 'fatal']:
@@ -214,6 +235,7 @@ class PluginBase(object):
             self.run()
         except Exception:
             self.log_exception("Exception in AMQP connection thread", True)
+            self.terminate()
 
 class Component(PluginBase):
     def __init__(self, config):
