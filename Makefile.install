@@ -35,12 +35,15 @@ prepare_libs: prepare
 	mkdir -p ${TARGET_DIR}/lib/erlang
 	mkdir -p ${TARGET_DIR}/lib/java
 	mkdir -p ${TARGET_DIR}/lib/python
+	mkdir -p ${TARGET_DIR}/examples
 
 
 ### Build erlang libraries ###
 
 build_orchestrator: prepare_orchestrator
 	$(MAKE) -C orchestrator EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/orchestrator/ebin all
+	cp orchestrator/ebin/* ${TARGET_DIR}/lib/erlang/orchestrator/ebin
+	cp -r orchestrator/priv ${TARGET_DIR}/lib/erlang/orchestrator
 	cp orchestrator/include/* ${TARGET_DIR}/lib/erlang/orchestrator/include
 	cp orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
 
@@ -68,6 +71,7 @@ prepare_couch:
 	mkdir -p ${TARGET_DIR}/lib/erlang/couch/ebin
 
 build_amqp: prepare_amqp
+	cp -r build/opt/rabbitmq-erlang-client/ebin/* ${TARGET_DIR}/lib/erlang/amqp/ebin
 
 prepare_amqp:
 	mkdir -p ${TARGET_DIR}/lib/erlang/amqp/ebin
@@ -101,12 +105,13 @@ prepare_config: prepare
 	mkdir -p ${TARGET_DIR}/config
 
 build_sbin: prepare_sbin
+	cp sbin/* ${TARGET_DIR}/sbin
 
 prepare_sbin: prepare
 	mkdir -p ${TARGET_DIR}/sbin
-	cp sbin/* ${TARGET_DIR}/sbin
 
 build_examples: prepare_examples
+	cp -rf examples/* ${TARGET_DIR}/examples
 
 prepare_examples:
 	mkdir -p ${TARGET_DIR}/examples
@@ -119,10 +124,12 @@ prepare_doc:
 install: build prepare_install
 	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/sbin/* ${SBIN_TARGET_DIR}
+	cp -rf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
+	cp -rf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
 
 prepare_install:
 	mkdir -p ${LIB_TARGET_DIR}
+	mkdir -p ${LIB_TARGET_DIR}/scripts
 	mkdir -p ${SBIN_TARGET_DIR}
 	mkdir -p ${INSTALL_CONFIG_DIR}
 	mkdir -p ${PLUGIN_TARGET_DIR}

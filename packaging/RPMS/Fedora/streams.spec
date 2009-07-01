@@ -21,7 +21,6 @@ The Streams orchestrator manages gateways and transformations
 
 %prep
 %setup -q
-#sed -i 's|LIB_DIR|%{_sbindir}|' orchestrator.sh
 mkdir -p %{buildroot}
 
 %build
@@ -29,12 +28,13 @@ mkdir -p %{buildroot}
 %install
 make create-var-dirs build/opt/erlang-rfc4627 build/opt/ibrowse build/opt/rabbitmq build/opt/rabbitmq-erlang-client build/opt/couchdb-0.9.0 all
 make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} PLUGIN_TARGET_DIR=%{buildroot}%{_plugin_dir} install 
+sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/scripts/*.py
+sed -i -e "s:../build/opt/erlang-rfc4627:../rfc4627:" -e "s:../build/opt/rabbitmq-erlang-client:../amqp:" -e "s:../build/opt/rabbitmq:../rabbit:" -e "s:../build/opt/ibrowse:../ibrowse:" %{buildroot}%{_streams_libdir}/erlang/orchestrator/streamsctl
 
 %clean
 
 %files
 %defattr(-,root,root)
-/usr/lib/rabbitmq-streams
 %{_streams_libdir}
 %{_plugin_dir}
 %{_sbindir}
