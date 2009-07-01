@@ -70,6 +70,7 @@ prepare_couch:
 	mkdir -p ${TARGET_DIR}/lib/erlang/couch/ebin
 
 build_amqp: prepare_amqp
+	cp -r build/opt/rabbitmq-erlang-client/ebin/* ${TARGET_DIR}/lib/erlang/amqp/ebin
 
 prepare_amqp:
 	mkdir -p ${TARGET_DIR}/lib/erlang/amqp/ebin
