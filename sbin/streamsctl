@@ -1,1 +1,2 @@
-cd usr/lib/rabbitmq-streams/erlang/orchestrator; streamsctl
+cd /usr/lib/rabbitmq-streams/erlang/orchestrator
+streamsctl
