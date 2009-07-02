@@ -1,8 +1,8 @@
-from feedshub import Plugin
-import simplejson as json
+from feedshub import Component
+from feedshub import json
 import re
 
-class RegexpReplacer(Plugin):
+class RegexpReplacer(Component):
 
     def __init__(self, config):
         super(RegexpReplacer, self).__init__(config)

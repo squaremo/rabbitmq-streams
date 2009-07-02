@@ -163,7 +163,7 @@ unlisten-orchestrator:
 		kill "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`"; rm -f $(ORCHESTRATOR_LISTENER_PIDFILE); \
 	fi
 
-listen-orchestrator-nox:
+listen-orchestrator-nox: create-var-dirs
 	$(SCREEN) -X screen -t orchestrator_listener sh -c "$(LISTEN_ORCHESTRATOR)"
 
 
@@ -188,7 +188,7 @@ unlisten-couch:
 	- if [ -e $(COUCH_LISTENER_PIDFILE) ]; then \
 		kill "`cat $(COUCH_LISTENER_PIDFILE)`"; rm -f $(COUCH_LISTENER_PIDFILE); \
 	fi
-listen-couch-nox:
+listen-couch-nox: create-var-dirs
 	$(SCREEN) -X screen -t couch_listener sh -c "$(LISTEN_COUCH)"
 
 
@@ -214,7 +214,7 @@ unlisten-rabbit:
 		kill "`cat $(RABBIT_LISTENER_PIDFILE)`"; rm -f $(RABBIT_LISTENER_PIDFILE); \
 	fi
 
-listen-rabbit-nox:
+listen-rabbit-nox: create-var-dirs
 	$(SCREEN) -X screen -t rabbit_listener sh -c "$(LISTEN_RABBIT)"
 
 

@@ -15,69 +15,81 @@ import javax.xml.transform.stream.StreamSource;
 
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
 public class xslt extends PipelineComponent {
 
-    public InputReader input;
+  public InputReader input;
 
-    public PipelinePublisher output;
+  public PipelinePublisher output;
 
-    private final ErrorListener xsltErrorLogger = new ErrorListener() {
+  private final ErrorListener xsltErrorLogger = new ErrorListener() {
 
-        public void error(TransformerException exception)
-                throws TransformerException {
-            xslt.this.log.error(exception);
-        }
-
-        public void fatalError(TransformerException exception)
-                throws TransformerException {
-            xslt.this.log.fatal(exception);
-        }
-
-        public void warning(TransformerException exception)
-                throws TransformerException {
-            xslt.this.log.warn(exception);
-        }
-    };
-
-    public xslt(final JSONObject config) throws IOException  {
-        super(config);
-        String xsltSrc = staticConfiguration.getString("stylesheet_url");
-        URLConnection xsltConn = new URL(xsltSrc).openConnection();
-        xsltConn.connect();
-        InputStream xsltFileContent = (InputStream) xsltConn.getContent();
-        StreamSource xsltSource = new StreamSource(xsltFileContent);
-
-        TransformerFactory transFact = TransformerFactory.newInstance();
-        transFact.setErrorListener(xsltErrorLogger);
-        Transformer transTmp;
-        try {
-            transTmp = transFact.newTransformer(xsltSource);
-        } catch (TransformerConfigurationException e) {
-            log.fatal(e);
-            transTmp = null;
-            System.exit(1);
-        }
-        final Transformer trans = transTmp;
-        trans.setErrorListener(xsltErrorLogger);
-
-        input = new InputReader() {
-
-            @Override
-            public void handleBodyAndConfig(byte[] body, JSONObject object) throws Exception,
-                    InterruptedException {
-                StreamSource xmlSource = new StreamSource(
-                        new ByteArrayInputStream(body));
-                ByteArrayOutputStream output = new ByteArrayOutputStream();
-                StreamResult result = new StreamResult(output);
-
-                trans.transform(xmlSource, result);
-                String outputString = output.toString();
-                xslt.this.output.publish(outputString.getBytes());
-            }
-
-        };
-        postConstructorInit();
+    public void error(TransformerException exception)
+      throws TransformerException {
+      xslt.this.log.error(exception);
     }
+
+    public void fatalError(TransformerException exception)
+      throws TransformerException {
+      xslt.this.log.fatal(exception);
+    }
+
+    public void warning(TransformerException exception)
+      throws TransformerException {
+      xslt.this.log.warn(exception);
+    }
+  };
+
+  public xslt(final JSONObject config) throws IOException {
+    super(config);
+    String xsltSrc = config.getString("stylesheet_url");
+    URLConnection xsltConn = new URL(xsltSrc).openConnection();
+    xsltConn.connect();
+    InputStream xsltFileContent = (InputStream) xsltConn.getContent();
+    StreamSource xsltSource = new StreamSource(xsltFileContent);
+
+    TransformerFactory transFact = TransformerFactory.newInstance();
+    transFact.setErrorListener(xsltErrorLogger);
+    Transformer transTmp;
+    try {
+      transTmp = transFact.newTransformer(xsltSource);
+    }
+    catch (TransformerConfigurationException e) {
+      log.fatal(e);
+      transTmp = null;
+      System.exit(1);
+    }
+    final Transformer trans = transTmp;
+    trans.setErrorListener(xsltErrorLogger);
+
+    input = new InputReader() {
+        
+        @Override
+        public void handleBodyAndConfig(byte[] body, JSONObject object) throws PluginException {
+          StreamSource xmlSource =
+            new StreamSource(new ByteArrayInputStream(body));
+          ByteArrayOutputStream output = new ByteArrayOutputStream();
+          StreamResult result = new StreamResult(output);
+          
+          try {
+            trans.transform(xmlSource, result);
+          }
+          catch (TransformerException e) {
+            throw new PluginException(e);
+          }
+          String outputString = output.toString();
+          try {
+            xslt.this.output.publish(outputString.getBytes());
+          }
+          catch (IOException e) {
+            throw new PluginException(e);
+          }
+        }
+        
+      };
+
+    postConstructorInit();
+  }
 }
