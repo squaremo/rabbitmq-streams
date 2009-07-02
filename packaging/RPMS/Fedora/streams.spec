@@ -10,6 +10,7 @@ Requires: erlang
 Requires: rabbitmq-server
 Requires: couchdb
 Requires: python-simplejson
+Requires: java
 Prereq: erlang
 Buildroot: %{_tmppath}/%{name}-%{version} 
 
