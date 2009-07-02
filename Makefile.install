@@ -115,7 +115,7 @@ prepare-config: prepare
 	mkdir -p ${TARGET_DIR}/config
 
 build-sbin: prepare-sbin
-	cp sbin/streasmsctl ${TARGET_DIR}/sbin
+	cp sbin/streamsctl ${TARGET_DIR}/sbin
 
 prepare-sbin: prepare
 	mkdir -p ${TARGET_DIR}/sbin
@@ -135,6 +135,7 @@ install: build prepare-install
 	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
+	cp -rf ${TARGET_DIR}/sbin/streamsctl ${SBIN_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/harness ${LIB_TARGET_DIR}
 	cd ${LIB_TARGET_DIR}/erlang; ln -s ../harness; ln -s ../plugins
