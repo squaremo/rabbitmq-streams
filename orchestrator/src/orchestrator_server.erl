@@ -41,7 +41,7 @@ find_servers_for_terminal(TermId) when is_binary(TermId) ->
 	    not_found
     end.
 
--record(state, {port, output_acc, server_pid, server_id, server_sup_pid, shovel_in_pid, pipeline_channel }).
+-record(state, {subproc, server_id, server_sup_pid, shovel_in_pid, pipeline_channel}).
 
 get_server_instance_config(ServerId) when is_list(ServerId) ->
     {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
@@ -69,9 +69,7 @@ init([ServerSupPid, ServerIdBin,
 			     RootPid}),
 
     ServerId = binary_to_list(ServerIdBin),
-    {ok, #state{port = undefined,
-                output_acc = [],
-		server_pid = undefined,
+    {ok, #state{subproc = undefined,
 		server_id = ServerId,
 		server_sup_pid = ServerSupPid,
 		shovel_in_pid = undefined,
@@ -81,10 +79,11 @@ init([ServerSupPid, ServerIdBin,
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
 
-handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
-	     IngressChannel, IngressBroker, EgressChannel, _EgressBroker,
-	     RootPid},
+handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
+                     IngressChannel, IngressBroker, EgressChannel, _EgressBroker,
+                     RootPid},
 	    #state { server_id = ServerId, server_sup_pid = ServerSupPid }) ->
+    error_logger:info_report({?MODULE, starting_server, _Args}),
 
     ServerConfig = get_server_instance_config(ServerId),
     {ok, ServerTypeBin} = rfc4627:get_field(ServerConfig, "server_type"),
@@ -164,7 +163,7 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = orchestrator_plugin:harness_path(HarnessType, ""),
     process_flag(trap_exit, true),
-    Port = open_port({spawn, "./run_plugin.sh"},
+    Port = open_port({spawn, "./run_plugin.sh -rmqsname=" ++ ServerType},
                      [{line, 1048576},
                       use_stdio,
                       stderr_to_stdout,
@@ -195,15 +194,13 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
                   {"database", list_to_binary(couchapi:expand("server_" ++ ServerId ++ "_state"))},
                   {"terminals_database", list_to_binary(couchapi:expand(?FEEDSHUB_STATUS_DBNAME))}
 		 ]},
-    error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
-    port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
+    Subproc = orchestrator_subprocess:start({?MODULE, ServerType, ServerId},
+                                            Port,
+                                            ConfigDoc),
 
     orchestrator_root:server_started_callback(RootPid),
 
-    {noreply, #state{port = Port,
-		     output_acc = [],
-		     server_pid = undefined,
-		     server_id = ServerId,
+    {noreply, #state{subproc = Subproc,
 		     server_sup_pid = ServerSupPid,
 		     shovel_in_pid = ShovelInPid,
 		     pipeline_channel = PipelineChannel
@@ -212,35 +209,14 @@ handle_cast({start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
-handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, server_pid = undefined})
-  when P =:= Port ->
-    {noreply, State #state {server_pid = list_to_integer(Fragment)}};
-handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
-    case X of
-        {noeol, Fragment} ->
-            {noreply, State#state{output_acc = [Fragment | Acc]}};
-        {eol, Fragment} ->
-            {noreply, State#state{output_acc = [Fragment ++ "\n" | Acc]}}
-    end;
-handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
-    error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
-    {stop, Reason, State};
+handle_info(Message, State = #state{subproc = S}) ->
+    case orchestrator_subprocess:handle_message(Message, S) of
+        {ok, S1} -> {noreply, State#state{subproc = S1}};
+        {error, Reason, S1} -> {stop, Reason, State#state{subproc = S1}}
+    end.
 
-handle_info(_Info, State) ->
-    {stop, unhandled_info, State}.
-
-terminate(_Reason, #state{port = Port, output_acc = Acc, server_pid = ServerPid}) ->
-    error_logger:info_report({?MODULE, server_terminating, lists:flatten(lists:reverse(Acc))}),
-    true =
-	if Port == undefined -> true;
-	   true -> port_close(Port)
-	end,
-    if undefined =:= ServerPid -> true;
-       true -> os:cmd("kill "++(integer_to_list(ServerPid)))
-    end,
-    ok.
+terminate(_Reason, #state{subproc = S}) ->
+    ok = orchestrator_subprocess:stop(S).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.

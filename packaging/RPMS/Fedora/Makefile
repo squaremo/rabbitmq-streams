@@ -6,7 +6,7 @@ all: clean rpms
 prepare:
 	mkdir -p BUILD SOURCES SPECS SRPMS RPMS tmp
 	cp streams.spec SPECS/
-	cp $(SOURCE_TARBALL_DIR)/Streams-0.1.tar.gz SOURCES
+	cp $(SOURCE_TARBALL_DIR)/rabbitmq-streams-0.1.tar.gz SOURCES
 
 rpms: prepare
 	rpmbuild -ba --nodeps SPECS/streams.spec \

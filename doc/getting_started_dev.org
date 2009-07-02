@@ -94,42 +94,30 @@ sure you follow the instructions exactly):
 #+HTML: <font color="#004000"><b>CouchDB</b></font> </font>,
 #+HTML: <font color="#000040"><b>Orchestrator</b></font>)
 #+BEGIN_SRC sh
-make listen_all
+make listen-all
 #+END_SRC
    [Note: If you can't spawn xterms for some reason, e.g. because you're connected
-    via a remote terminal, you can also use =make listen_all_nox= which will
+    via a remote terminal, you can also use =make listen-all-nox= which will
     run the 3 listeners in a single (GNU) =screen= session, but this is really only
     recommended in that specific case or for =screen= aficionados.]
 
-2. Stop all the components (=stop_all_nox=; this doesn't hurt if
-   they're not already running); clean the CouchDB and RabbitMQ broker
-   (=cleandb=) and set them back up (=start_core_nox=), then
-   re-initialize the user/admin accounts (=create_fresh_accounts=),
-   install the test configuration (=sbin/import_config.py
-   examples/test=) and get everthing up and running with the new
-   config (=start_orchestrator_nox=):
+2. Start all the core components, rabbitmq and couchdb (=start-core-nox=; this
+   will also get close any existing instances), clean the CouchDB and RabbitMQ
+   broker (=cleandb=), re-initialize the user/admin accounts
+   (=create-fresh-accounts=), then start the orchestrator
+   (=start-orchestrator-nox=) and install the test configuration
+   (=sbin/import_config.py examples/test=) and get everthing up and running
+   with the new config (=start-orchestrator-nox=):
 
 #+BEGIN_SRC sh
-make all \
-&& make stop_all_nox \
-&& make cleandb \
-&& make start_core_nox && sleep 2 \
-&& make create_fresh_accounts && sleep 1 \
-&& make start_orchestrator_nox && sleep 5 \
-&& python sbin/import_config.py examples/test \
-&& make start_orchestrator_nox
+make start-core-nox cleandb create-fresh-accounts start-orchestrator-nox
+python sbin/import_config.py examples/test
+make start-orchestrator-nox
 #+END_SRC
 
-=make full_reset_core_nox= and =make full_reset_core= will do all the
-above up to and including =create_fresh_accounts=, so you can also use
+   The first line may also be replaced by the equivalent
+   =make full-reset-core_nox start-orchestrator-nox=.
 
-#+BEGIN_SRC sh
-make all full_reset_core_nox start_orchestrator_nox\
-&& sleep 5 \
-&& python sbin/import_config.py examples/test \
-&& make start_orchestrator_nox
-#+END_SRC
-[[http://www.heise.de]]
 * TODO FIXME change Makefile so =start_orchestrator_nox= is only needed once
    Note that if you already got a system install of couchDB or RabbitMQ etc.
    you should make sure that they are either currently not running or using
@@ -162,8 +150,6 @@ ground running:
 *** TODO add more links here
 
 *** TODO Plugins
-Note: You might want to have a look at e.g.
-
 Writing a plugin (say =acme_frotz=) in Java or Python involves creating a
 subdirectory =plugins/acme_frotz= and (at a minimum) two files in it:
 
@@ -177,6 +163,12 @@ other languages, e.g. =acme_frotz.java= would have all the =.jar= files in
 =lib/= added to its =CLASSPATH=). In other words future Harnesses for other
 languages are expected to follow an analogous convention and in general
 per-plugin library code should go into =lib/=.
+
+The harness also provides the plugin with an abstract facility to store state
+that should persists between restarts of the same instance (=Plugin.getState=,
+=Plugin.setState=); for more involved needs a plugin specification can also
+request a full-blown private database but the details are still being hashed
+out (XXX).
 
 (*NB:* You might find it useful to have a look at [[../plugins/regexp_replace/]]
 (if you're a pythonista) or [[../plugins/regexp_split/]] (if you're Javanese) to
@@ -193,7 +185,9 @@ File plugin.js =
   "harness": "java", // or "python" or "ruby"
   "subtype": "pipeline_component", // or  "server" // FIXME this will change to "plugin_type"
   "global_configuration_specification": [], // FIXME get rid of this
-  /* the /schema/ of the configuration that must be provided per plugin instance */
+  /* the /schema/ of the configuration that must be provided per plugin
+    instance, i.e. the plugin-configuration variable names and types.
+   */
   "configuration_specification":  [ { "name": "port", "label": "Port", "type": "Nat" }
                                     // ...
                                   ],
@@ -214,9 +208,12 @@ File plugin.js =
   "outputs_specification": [ { "name": "output" }
                            //...
                            ],
-   /* FIXME: not used as of yet, but will provide couchdb view/design-doc info
-    if the plugin requires that*/
-  "database_specification": null // or {}  initial values for the per instance db
+   /* Slightly experimental and not much (at all?) used yet, but this is
+    intended for plugins which need proper database functionality (in addition
+    to persistent plugin state, as per Plugin.getState Plugin.setState). If
+    your plugin doesn't neeed a database, just use null.
+   */
+  "database_specification": null // or {} ; initial values for the per instance db
 }
 #+End_SRC
 ***** TODO Some Guidelines applying to all types of Plugins
@@ -232,7 +229,21 @@ the following functionality:
 
 Note: since the Harness uses =stdin= and =stdout= for its own purposes (see
 [[*lifecycle%20of%20a%20plugin][lifecycle of a plugin]]) your plugin shouldn't try to use these internally.
-
+***** storing data
+******* simple persistent state
+Plugins can store a simple json-serialized data that persists between instance
+restarts. This is useful in case the plugin must remember it's state even in
+case of crashes or failure, e.g. [[../plugins/data_timeout]] detects if a channel
+hasn't been written to for a certain amount of time and sends an alert. To
+make sure that this happens even if the plugin instance has died in-between,
+it stores the time it should send the next alert persistently and checks it on
+waking up -- if it is in the past, it fires of an alert immediately.
+********* TODO verify above spec is what's intended
+******* TODO per-plugin private database
+The =database= argument is intended for plugins whose needs aren't satsified by
+the simple persistent state explained above, but remains experimental at this
+stage.
+*********** TODO hash out database arg for plugin
 ***** TODO Writing Sinks/Sources (=Servers=)
 ***** TODO Writing =PipelineComponents=
 ***** TODO The lifecycle of a Plugin (*FIXME* nuke?)
@@ -405,14 +416,12 @@ in its normal course of operation as transactional, then this does not
 force notification messages to also become transactional.
 
 ***** State
-
 A plugin instance gets a document in which to store its running
 state. This state will persist over restarts, and will be visible to
 management interfaces. It should be exposed as read-write.
 
 TODO Avoiding conflicts -- maybe the state is the argument and result
 of any callback (and these are serialised)?
-
 ***** Storage
 
 The plugin descriptor can also specify a storage database private to
@@ -420,7 +429,6 @@ each instance. The orchestrator provides the name of this database in
 the initialisation configuration.
 
 TODO safe ways of exposing this to the plugin developer.
-
 *** TODO The Feedshub Architecture in more detail
 #+CAPTION: Information flow (the almost full picture)
 #+LABEL:   fig:flow

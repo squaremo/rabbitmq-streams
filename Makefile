@@ -165,7 +165,7 @@ create-fresh-accounts:
 	$(RABBITMQCTL) add_user $(RABBITMQ_USER) $(RABBITMQ_PASSWORD)
 	$(RABBITMQCTL) set_permissions $(RABBITMQ_USER) '.*' '.*' '.*'
 
-listen-orchestrator:
+listen-orchestrator: create-var-dirs
 	if ! ( test -e $(ORCHESTRATOR_LISTENER_PIDFILE)  &&  kill -0 "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T orchestrator_listener -g 80x24-0+0700 -fg white -bg '#000040' -e "$(LISTEN_ORCHESTRATOR)" & \
 		echo $$! > $(ORCHESTRATOR_LISTENER_PIDFILE); \
@@ -176,7 +176,7 @@ unlisten-orchestrator:
 		kill "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`"; rm -f $(ORCHESTRATOR_LISTENER_PIDFILE); \
 	fi
 
-listen-orchestrator-nox:
+listen-orchestrator-nox: create-var-dirs
 	$(SCREEN) -X screen -t orchestrator_listener sh -c "$(LISTEN_ORCHESTRATOR)"
 
 
@@ -192,7 +192,7 @@ start-orchestrator-nox: stop-orchestrator-nox
 
 run-orchestrator: listen-orchestrator start-orchestrator-nox
 
-listen-couch:
+listen-couch: create-var-dirs
 	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T couch_listener -g 80x24-0+0000 -fg white -bg '#400000' -e "$(LISTEN_COUCH)" &\
 		echo $$! > $(COUCH_LISTENER_PIDFILE); \
@@ -201,7 +201,7 @@ unlisten-couch:
 	- if [ -e $(COUCH_LISTENER_PIDFILE) ]; then \
 		kill "`cat $(COUCH_LISTENER_PIDFILE)`"; rm -f $(COUCH_LISTENER_PIDFILE); \
 	fi
-listen-couch-nox:
+listen-couch-nox: create-var-dirs
 	$(SCREEN) -X screen -t couch_listener sh -c "$(LISTEN_COUCH)"
 
 
@@ -216,7 +216,7 @@ start-couch-nox: stop-couch-nox
 
 run-couch: listen-couch start-couch-nox
 
-listen-rabbit:
+listen-rabbit: create-var-dirs
 	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
 		xterm -T rabbit_listener -g 80x24-0+0350 -fg white -bg '#004000' -e "$(LISTEN_RABBIT)" & \
 		echo $$! > $(RABBIT_LISTENER_PIDFILE); \
@@ -227,7 +227,7 @@ unlisten-rabbit:
 		kill "`cat $(RABBIT_LISTENER_PIDFILE)`"; rm -f $(RABBIT_LISTENER_PIDFILE); \
 	fi
 
-listen-rabbit-nox:
+listen-rabbit-nox: create-var-dirs
 	$(SCREEN) -X screen -t rabbit_listener sh -c "$(LISTEN_RABBIT)"
 
 

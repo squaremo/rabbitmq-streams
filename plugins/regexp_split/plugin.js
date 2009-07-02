@@ -29,7 +29,5 @@
     "inputs_specification": [{"name": "input", "label": "Input"}],
     "outputs_specification": [{"name": "positive", "label": "Positive"},
 			      {"name": "negative", "label": "Negative"}
-			     ],
-
-    "database_specification": null
+			     ]
 }

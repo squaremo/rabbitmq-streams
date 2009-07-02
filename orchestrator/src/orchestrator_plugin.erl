@@ -39,7 +39,7 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
--record(state, {port, output_acc, plugin_pid}).
+-record(state, {subproc}).
 
 %%---------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
     HarnessType = binary_to_list(HarnessTypeBin),
     HarnessDir = harness_path(HarnessType, ""),
     process_flag(trap_exit, true),
-    Port = open_port({spawn, "./run_plugin.sh"},
+    Port = open_port({spawn, "./run_plugin.sh -rmqs-name=" ++ PluginName},
                      [{line, 1048576},
                       use_stdio,
                       stderr_to_stdout,
@@ -87,12 +87,9 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
 				   Url -> list_to_binary(Url)
 			       end}
 		 ]},
-    error_logger:info_report({?MODULE, config_doc, ConfigDoc}),
-    port_command(Port, rfc4627:encode(ConfigDoc) ++ "\n"),
-    {ok, #state{port = Port,
-                output_acc = [],
-		plugin_pid = undefined
-	       }}.
+    {ok, #state{subproc = orchestrator_subprocess:start({?MODULE, PluginName, FeedId, NodeId},
+                                                        Port,
+                                                        ConfigDoc)}}.
 
 handle_call(_Message, _From, State) ->
     {stop, unhandled_call, State}.
@@ -100,31 +97,14 @@ handle_call(_Message, _From, State) ->
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
 
-handle_info({P, {data, {eol, Fragment}}}, State = #state{port = Port, plugin_pid = undefined})
-  when P =:= Port ->
-    {noreply, State #state {plugin_pid = list_to_integer(Fragment)}};
-handle_info({P, {data, X}}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
-    case X of
-        {noeol, Fragment} ->
-            {noreply, State#state{output_acc = [Fragment | Acc]}};
-        {eol, Fragment} ->
-            {noreply, State#state{output_acc = [Fragment ++ "\n" | Acc]}}
-    end;
-handle_info({'EXIT', P, Reason}, State = #state{port = Port, output_acc = Acc})
-  when P =:= Port ->
-    error_logger:error_report({?MODULE, plugin_exited, lists:flatten(lists:reverse(Acc))}),
-    {stop, Reason, State};
-handle_info(_Info, State) ->
-    {stop, unhandled_info, State}.
+handle_info(Message, State = #state{subproc = S}) ->
+    case orchestrator_subprocess:handle_message(Message, S) of
+        {ok, S1} -> {noreply, State#state{subproc = S1}};
+        {error, Reason, S1} -> {stop, Reason, State#state{subproc = S1}}
+    end.
 
-terminate(_Reason, #state{port = Port, output_acc = Acc, plugin_pid = PluginPid}) ->
-    error_logger:info_report({?MODULE, plugin_terminating, lists:flatten(lists:reverse(Acc))}),
-    true = port_close(Port),
-    if undefined =:= PluginPid -> true;
-       true -> os:cmd("kill "++(integer_to_list(PluginPid)))
-    end,
-    ok.
+terminate(_Reason, #state{subproc = S}) ->
+    ok = orchestrator_subprocess:stop(S).
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.

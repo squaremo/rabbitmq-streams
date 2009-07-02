@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.rabbitmq.streams.plugins</groupId>
+  <artifactId>streams-plugins</artifactId>
+  <packaging>pom</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>Streams Plugins</name>
+  <url>http://www.rabbitmq.com/</url>
+
+  <repositories>
+    <repository>
+      <id>streams</id>
+      <name>RabbitMQ Streams</name>
+      <url>http://maven.feedshub.lshift.net</url>
+    </repository>
+  </repositories>
+
+  <modules>
+    <module>websubscriber</module>
+    <module>regexp_split</module>
+    <module>socket_source</module>
+    <module>relay</module>
+    <module>xslt</module>
+    <module>xmpppubsub</module>
+    <module>archive</module>
+    <module>socket_destination</module>
+    <module>logger</module>
+    <module>notification</module>
+  </modules>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

@@ -11,4 +11,4 @@ start_link() ->
     supervisor:start_link(?MODULE, []).
 
 init([]) ->
-    {ok, {{one_for_one, 10, 10}, []}}.
+    {ok, {{one_for_one, 0, 10}, []}}.

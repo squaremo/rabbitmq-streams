@@ -6,9 +6,9 @@ path = path + "../harness/python/lib"
 sys.path.insert(0, path)
 
 try:
-    import json
-except ImportError:
     import simplejson as json
+except ImportError:
+    import json
 
 import amqplib.client_0_8 as amqp
 import couchdb.client as couch

@@ -8,9 +8,9 @@ sys.path.insert(0, path)
 import amqplib.client_0_8 as amqp
 import glob
 try:
-    import json
-except ImportError:
     import simplejson as json
+except ImportError:
+    import json
 
 connection = amqp.Connection(host="localhost:5672", userid="feedshub_admin", password="feedshub_admin")
 channel = connection.channel()
