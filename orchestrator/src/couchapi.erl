@@ -14,10 +14,8 @@
 expand({raw, AbsUrl}) ->
     AbsUrl;
 expand(RelUrl) ->
-    case application:get_env(couch_base_url) of
-        {ok, CouchBaseUrl} -> CouchBaseUrl ++ RelUrl;
-        undefined -> "http://localhost:5984/" ++ RelUrl
-    end.
+    {ok, CouchBaseUrl} = application:get_env(couch_base_url),
+    CouchBaseUrl ++ RelUrl.
 
 get(Url) ->
     get1(Url).
