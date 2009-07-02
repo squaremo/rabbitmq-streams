@@ -10,7 +10,8 @@ INSTALL_CONFIG_DIR=${TMP_DIR}/config
 PLUGIN_TARGET_DIR=${TMP_DIR}/plugins
 INSTALL_INC_DIR=${TMP_DIR}/include
 
-all: build
+all: package
+	${MAKE} -C packaging/RPMS/Fedora clean rpms
 
 prepare:
 	mkdir -p ${TARGET_DIR}
