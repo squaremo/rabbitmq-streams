@@ -93,10 +93,6 @@ install_view(DbName, ViewDir) ->
 	 end,
     {ok, _} = couchapi:put(Path, Doc2).
 
-
-
-    ok.
-
 read_root_config() ->
     {ok, RootConfig} = couchapi:get(?ROOT_STATUS_DOCID),
     case rfc4627:get_field(RootConfig, "feedshub_version") of
@@ -121,16 +117,12 @@ startup_couch_scan() ->
                                                   rfc4627:get_field(CouchInfo, "version")},
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME) of
         {ok, _DbInfo} ->
-            case couchapi:get(?ROOT_STATUS_DOCID) of
-                {error, 404, _} ->
-                    ok = setup_root_config(),
-                    ok = install_views();
-                {ok, _} ->
-                    ok
-            end;
+            ok;
         {error, 404, _} ->
-            ok = setup_core_couch()
+            exit({no_status_db, "You need to create " ++ ?FEEDSHUB_STATUS_DBNAME ++
+                  "before running the orchestrator"})
     end,
+    install_views(),
     {ok, #root_config{}} = read_root_config().
 
 activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
