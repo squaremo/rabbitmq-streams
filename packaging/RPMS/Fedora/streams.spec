@@ -39,3 +39,11 @@ sed -i -e "s:../build/opt/erlang-rfc4627:../rfc4627:" -e "s:../build/opt/rabbitm
 %{_streams_libdir}
 %{_plugin_dir}
 %{_sbindir}
+
+%post
+/usr/sbin/rabbitmq-server &
+sleep 3
+/usr/sbin/rabbitmqctl delete_user guest
+/usr/sbin/rabbitmqctl delete_user feedshub_admin
+/usr/sbin/rabbitmqctl add_user feedshub_admin feedshub_admin
+/usr/sbin/rabbitmqctl map_user_vhost feedshub_admin /
