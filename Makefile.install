@@ -39,7 +39,7 @@ prepare-libs: prepare
 
 build-harness: prepare-harness
 	cd harness/java; mvn clean package
-	cp harness/java/plugin/target/plugin-1.0-SNAPSHOT.jar ${TARGET_DIR}/harness/java
+	cp harness/java/plugin/target/plugin-1.0-SNAPSHOT.jar ${TARGET_DIR}/harness/java/feedshub_harness.jar
 	cp harness/java/run_plugin.sh ${TARGET_DIR}/harness/java
 	cp -r harness/python/* ${TARGET_DIR}/harness/python
 
