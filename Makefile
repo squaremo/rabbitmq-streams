@@ -1,5 +1,16 @@
 SHELL=/bin/bash
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
+RABBITSTREAMS_CONF=etc/rabbitstreams.conf
+
+CONFIG_DOC=$$(cat $(RABBITSTREAMS_CONF) | bin/json --raw get config_doc)
+COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
+
+# !!!: this needs to evaluated *after* couchdb is installed and setup up
+RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
+RABBITMQ_HOST=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq host)
+RABBITMQ_PASSWORD=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq password)
+
+
 
 SCREEN_SESSION=feedshub
 # FIXME: would be nice to have different bg colors for rabbit, couch etc.
@@ -145,12 +156,14 @@ unlisten-core: unlisten-couch unlisten-rabbit
 
 
 create-fresh-accounts:
-	@echo 'Re-initializing RabbitMQ with fresh `guest` and `feedshub_admin` accounts'
+	@echo 'Re-initializing RabbitMQ and CouchDB'
+	@echo 'importing root_config into couchDB...'
+	python sbin/import_config.py $(COUCH_SERVER) examples/basic_config
+	@echo '(Re-)initializing RabbitMQ `guest` and `$(RABBITMQ_USER)` accounts'
 	-$(RABBITMQCTL) delete_user guest
-	-$(RABBITMQCTL) delete_user feedshub_admin
-	$(RABBITMQCTL) add_user feedshub_admin feedshub_admin
-	$(RABBITMQCTL) set_permissions feedshub_admin '.*' '.*' '.*'
-
+	-$(RABBITMQCTL) delete_user $(RABBITMQ_USER)
+	$(RABBITMQCTL) add_user $(RABBITMQ_USER) $(RABBITMQ_PASSWORD)
+	$(RABBITMQCTL) set_permissions $(RABBITMQ_USER) '.*' '.*' '.*'
 
 listen-orchestrator:
 	if ! ( test -e $(ORCHESTRATOR_LISTENER_PIDFILE)  &&  kill -0 "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -421,12 +434,12 @@ build/opt/rabbitmq-erlang-client:
 
 demo-test: listen-all full-reset-core-nox start-orchestrator-nox
 	sleep 5
-	python sbin/import_config.py examples/test
+	python sbin/import_config.py $(COUCH_SERVER) examples/test
 	$(MAKE) start-orchestrator-nox
 
 demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-nox
 	@echo 'Running show and tell demo'
-	python sbin/import_config.py examples/showandtell_demo
+	python sbin/import_config.py $(COUCH_SERVER) examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
 	sleep 1
