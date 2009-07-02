@@ -94,21 +94,7 @@ install_view(DbName, ViewDir) ->
     {ok, _} = couchapi:put(Path, Doc2).
 
 
-setup_root_config() ->
-    {ok, _} = couchapi:put(?ROOT_STATUS_DOCID,
-                           {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
-                                  {"rabbitmq", {obj, [{"host", <<"localhost">>},
-                                                      {"user", <<"feedshub_admin">>},
-                                                      {"password", <<"feedshub_admin">>}]}}
-                                 ]}),
-    ok.
 
-
-
-setup_core_couch() ->
-    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
-    ok = setup_root_config(),
-    ok = install_views(),
     ok.
 
 read_root_config() ->
