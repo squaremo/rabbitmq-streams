@@ -20,67 +20,76 @@ clean:
 	rm -rf ${TMP_DIR}
 	rm -rf ${PACKAGE_FILE}
 
-build: build_libs build_plugins build_config build_sbin build_doc build_examples
+build: build-libs build-harness build-plugins build-config build-sbin build-doc build-examples
 
-build_libs: prepare_libs \
-	build_orchestrator \
-	build_rfc4627 \
-	build_ibrowse \
-	build_couch \
-	build_amqp \
-	build_rabbit
+build-libs: prepare-libs \
+	build-orchestrator \
+	build-rfc4627 \
+	build-ibrowse \
+	build-couch \
+	build-amqp \
+	build-rabbit
 	cp -rf harness/python/lib/* ${TARGET_DIR}/lib/python
 
-prepare_libs: prepare
+prepare-libs: prepare
 	mkdir -p ${TARGET_DIR}/lib/erlang
 	mkdir -p ${TARGET_DIR}/lib/java
 	mkdir -p ${TARGET_DIR}/lib/python
 	mkdir -p ${TARGET_DIR}/examples
 
+build-harness: prepare-harness
+	cd harness/java; mvn clean package
+	cp harness/java/plugin/target/plugin-1.0-SNAPSHOT.jar ${TARGET_DIR}/harness/java
+	cp harness/java/run_plugin.sh ${TARGET_DIR}/harness/java
+	cp -r harness/python/* ${TARGET_DIR}/harness/python
+
+prepare-harness: prepare
+	mkdir -p ${TARGET_DIR}/harness/java
+	mkdir -p ${TARGET_DIR}/harness/python
 
 ### Build erlang libraries ###
 
-build_orchestrator: prepare_orchestrator
+build-orchestrator: prepare-orchestrator
 	$(MAKE) -C orchestrator EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/orchestrator/ebin all
 	cp orchestrator/ebin/* ${TARGET_DIR}/lib/erlang/orchestrator/ebin
 	cp -r orchestrator/priv ${TARGET_DIR}/lib/erlang/orchestrator
 	cp orchestrator/include/* ${TARGET_DIR}/lib/erlang/orchestrator/include
 	cp orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
 
-prepare_orchestrator:
+prepare-orchestrator:
 	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/ebin
 	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/include
 
-build_rfc4627: prepare_rfc4627
+build-rfc4627: prepare-rfc4627
 	$(MAKE) -C build/src/erlang-rfc4627 EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/rfc4627/ebin all
 
-prepare_rfc4627:
+prepare-rfc4627:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rfc4627
 
-build_ibrowse: prepare_ibrowse
+build-ibrowse: prepare-ibrowse
 	$(MAKE) -C build/src/jungerl/lib/ibrowse/src
 	cp -r build/src/jungerl/lib/ibrowse/ebin ${CURDIR}/${TARGET_DIR}/lib/erlang/ibrowse
 
-prepare_ibrowse:
+prepare-ibrowse:
 	mkdir -p ${TARGET_DIR}/lib/erlang/ibrowse/ebin
 
-build_couch: prepare_couch
+build-couch: prepare-couch
 	cp -r build/opt/couchdb-0.9.0/lib/couchdb/erlang/lib/couch-0.9.0/ebin/* ${TARGET_DIR}/lib/erlang/couch/ebin
 
-prepare_couch:
+prepare-couch:
 	mkdir -p ${TARGET_DIR}/lib/erlang/couch/ebin
 
-build_amqp: prepare_amqp
+build-amqp: prepare-amqp
 	cp -r build/opt/rabbitmq-erlang-client/ebin/* ${TARGET_DIR}/lib/erlang/amqp/ebin
 
-prepare_amqp:
+prepare-amqp:
 	mkdir -p ${TARGET_DIR}/lib/erlang/amqp/ebin
 
-build_rabbit: prepare_rabbit
+build-rabbit: prepare-rabbit
 	cp -r build/opt/rabbitmq/ebin/* ${TARGET_DIR}/lib/erlang/rabbit/ebin
 	cp -r build/opt/rabbitmq/include/* ${TARGET_DIR}/lib/erlang/rabbit/include
 
-prepare_rabbit:
+prepare-rabbit:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/include
 
@@ -88,7 +97,7 @@ prepare_rabbit:
 JAVA_PLUGINS := regexp_split socket_source relay xslt socket_destination logger
 PYTHON_PLUGINS := regexp_replace webfeed rsspoll
 
-build_plugins: prepare_plugins
+build-plugins: prepare-plugins
 	for j in $(JAVA_PLUGINS); \
 		do mkdir -p ${TARGET_DIR}/plugins/$$j; cp plugins/$$j/plugin.js ${TARGET_DIR}/plugins/$$j; cp -rf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
 	done
@@ -96,40 +105,42 @@ build_plugins: prepare_plugins
 		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}/plugins; \
 	done
 
-prepare_plugins: prepare
+prepare-plugins: prepare
 	mkdir -p ${TARGET_DIR}/plugins
 
-build_config: prepare_config
+build-config: prepare-config
 
-prepare_config: prepare
+prepare-config: prepare
 	mkdir -p ${TARGET_DIR}/config
 
-build_sbin: prepare_sbin
+build-sbin: prepare-sbin
 	cp sbin/* ${TARGET_DIR}/sbin
 
-prepare_sbin: prepare
+prepare-sbin: prepare
 	mkdir -p ${TARGET_DIR}/sbin
 
-build_examples: prepare_examples
+build-examples: prepare-examples
 	cp -rf examples/* ${TARGET_DIR}/examples
 
-prepare_examples:
+prepare-examples:
 	mkdir -p ${TARGET_DIR}/examples
 
-build_doc: prepare_doc
+build-doc: prepare-doc
 
-prepare_doc:
+prepare-doc:
 	mkdir -p ${TARGET_DIR}/doc
 
-install: build prepare_install
+install: build prepare-install
 	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
 	cp -rf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
 	cp -rf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
+	cp -rf ${TARGET_DIR}/harness ${LIB_TARGET_DIR}
 
-prepare_install:
+prepare-install:
 	mkdir -p ${LIB_TARGET_DIR}
 	mkdir -p ${LIB_TARGET_DIR}/scripts
+	mkdir -p ${LIB_TARGET_DIR}/harness
 	mkdir -p ${SBIN_TARGET_DIR}
 	mkdir -p ${INSTALL_CONFIG_DIR}
 	mkdir -p ${PLUGIN_TARGET_DIR}
