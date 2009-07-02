@@ -1,4 +1,5 @@
 SHELL=/bin/bash
+PYTHON=python -Wignore::DeprecationWarning
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
 RABBITSTREAMS_CONF=etc/rabbitstreams.conf
 
@@ -158,7 +159,7 @@ unlisten-core: unlisten-couch unlisten-rabbit
 create-fresh-accounts:
 	@echo 'Re-initializing RabbitMQ and CouchDB'
 	@echo 'importing root_config into couchDB...'
-	python sbin/import_config.py $(COUCH_SERVER) examples/basic_config
+	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/basic_config
 	@echo '(Re-)initializing RabbitMQ `guest` and `$(RABBITMQ_USER)` accounts'
 	-$(RABBITMQCTL) delete_user guest
 	-$(RABBITMQCTL) delete_user $(RABBITMQ_USER)
@@ -434,12 +435,12 @@ build/opt/rabbitmq-erlang-client:
 
 demo-test: listen-all full-reset-core-nox start-orchestrator-nox
 	sleep 5
-	python sbin/import_config.py $(COUCH_SERVER) examples/test
+	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/test
 	$(MAKE) start-orchestrator-nox
 
 demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-nox
 	@echo 'Running show and tell demo'
-	python sbin/import_config.py $(COUCH_SERVER) examples/showandtell_demo
+	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
 	sleep 1
