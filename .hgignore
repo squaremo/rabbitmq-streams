@@ -4,8 +4,9 @@
 (^|/)erl_crash\.dump$
 \.pyc$
 ~$
-^couchdb.std(err|out)$
-^couchlogtail.pid$
+^#.*#$
+^.#
+^var/
 \.class$
 ^harness/java/feedshub_harness\.jar$
 # target directories are a Maven thing
@@ -14,7 +15,7 @@
 ^harness/.*/target/
 ^sites/.*/.*\.timestamp$
 # ONLY Mavenised plugins get things in lib/ through Maven
-^plugins/(archive|websubscriber|regexp_split)/lib/
+^plugins/(archive|websubscriber|regexp_split|logger|xslt|xmpppubsub|relay|socket_destination|socket_source)/(lib|dist)/
 (^|/)nb-configuration\.xml$
 ^orch_log$
 ^doc/.*html$
@@ -31,5 +32,3 @@
 ^packaging/RPMS/Fedora/SRPMS/
 ^packaging/RPMS/Fedora/tmp/
 ^tmp/
-
-

@@ -6,7 +6,7 @@ import net.liftweb.sitemap._
 import net.liftweb.sitemap.Loc._
 import Helpers._
 
-import net.lshift.feedshub.feedserver.view.OutputFeed
+import com.rabbitmq.streams.feedserver.view.OutputFeed
  
 /**
   * A class that's instantiated early and run.  It allows the application
@@ -15,7 +15,7 @@ import net.lshift.feedshub.feedserver.view.OutputFeed
 class Boot {
   def boot {
     // where to search snippet
-    LiftRules.addToPackages("net.lshift.feedshub.feedserver")
+    LiftRules.addToPackages("com.rabbitmq.streams.feedserver")
 
     // Build SiteMap
     val entries = Menu(Loc("home", List("index"), "Home")) :: Nil

@@ -1,5 +1,16 @@
 SHELL=/bin/bash
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
+RABBITSTREAMS_CONF=etc/rabbitstreams.conf
+
+CONFIG_DOC=$$(cat $(RABBITSTREAMS_CONF) | bin/json --raw get config_doc)
+COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
+
+# !!!: this needs to evaluated *after* couchdb is installed and setup up
+RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
+RABBITMQ_HOST=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq host)
+RABBITMQ_PASSWORD=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq password)
+
+
 
 SCREEN_SESSION=feedshub
 # FIXME: would be nice to have different bg colors for rabbit, couch etc.
@@ -10,37 +21,75 @@ SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
 
 
-LISTEN_ORCH_PORT := 7565
-LISTEN_RABBIT_PORT := 7566
-LISTEN_COUCH_PORT := 7567
+LISTEN_ORCHESTRATOR_PORT=7565
+LISTEN_RABBIT_PORT=7566
+LISTEN_COUCH_PORT=7567
 
-LISTEN_ORCHESTRATOR=while true; do sleep 1 && nc -l $(LISTEN_ORCH_PORT); done | tee -a orch_log
-LISTEN_RABBIT=while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done
-LISTEN_COUCH=while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done
+ORCHESTRATOR_LOG=var/log/orchestrator.log
+COUCH_LOG=var/log/couch.log
+RABBIT_LOG=var/log/rabbit.log
 
-ORCH_FIFO := build/scratch/orch_fifo
-RABBIT_FIFO := build/scratch/rabbit_fifo
-COUCH_FIFO := build/scratch/couch_fifo
-PLUGIN_MAKEFILES := $(shell find plugins -maxdepth 2 -type f -name Makefile)
+COUCH_LISTENER_PIDFILE=var/run/couch-listener.pid
+RABBIT_LISTENER_PIDFILE=var/run/rabbit-listener.pid
+ORCHESTRATOR_LISTENER_PIDFILE=var/run/orchestrator-listener.pid
+SHOWANDTELL_PIDSFILE=var/run/showandtell.pids
 
-DEB_DEPENDENCIES := automake autoconf libtool help2man netcat-openbsd \
+LISTEN_ORCHESTRATOR=while true; do sleep 1 && nc -l $(LISTEN_ORCHESTRATOR_PORT); done | tee -a $(ORCHESTRATOR_LOG)
+LISTEN_RABBIT=while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done | tee -a $(RABBIT_LOG)
+LISTEN_COUCH=while true; do sleep 1 && nc -l $(LISTEN_COUCH_PORT); done | tee -a $(COUCH_LOG)
+
+ORCHESTRATOR_FIFO=build/scratch/orchestrator_fifo
+RABBIT_FIFO=build/scratch/rabbit_fifo
+COUCH_FIFO=build/scratch/couch_fifo
+PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
+
+DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
 	build-essential erlang libicu38 libicu-dev \
 	libmozjs-dev libcurl4-openssl-dev mercurial subversion \
 	elinks python-simplejson cvs zip default-jdk \
 	ant maven2 screen
 
 
-default_target:
+
+
+default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
 setup: \
 	install-debs \
 	install-dev-debs \
-	create-build-logs-dir \
+	create-var-dirs \
 	install-couchdb \
 	install-erlang-rfc4627 \
 	install-ibrowse \
 	install-rabbitmq
+
+###########################################################################
+
+install-debs:
+	: # none at the minute.
+
+install-dev-debs:
+	: # if everything is already installed, don't require sudo'ing
+	- [ -n `dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) | grep -vq 'install ok installed'` ] || \
+	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
+
+###########################################################################
+
+install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
+	mkdir -p tmp/FeedsHub-0.1/erlang-rfc4627
+	mkdir -p tmp/FeedsHub-0.1/ibrowse
+	mkdir -p tmp/FeedsHub-0.1/rabbitmq
+	mkdir -p tmp/FeedsHub-0.1/rabbitmq-erlang-client
+	mkdir -p tmp/FeedsHub-0.1/orchestrator
+	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627
+	cp -rf build/opt/ibrowse/ebin tmp/FeedsHub-0.1/ibrowse
+	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
+	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
+	cp -rf orchestrator/ebin tmp/FeedsHub-0.1/orchestrator
+	cp dist/orchestrator.sh tmp/FeedsHub-0.1
+	cp dist/Makefile tmp/FeedsHub-0.1
+	cd tmp; tar zcvf ../dist/FeedsHub-0.1.tar.gz FeedsHub-0.1
 
 update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
@@ -50,6 +99,9 @@ all:
 	for p in $(PLUGIN_MAKEFILES); \
 		do $(MAKE) -C $$(dirname $$p) all; \
 	done
+
+
+
 
 docs:
 	$(MAKE) -C doc
@@ -63,132 +115,188 @@ clean:
 	done
 	rm -f couchdb.stderr couchdb.stdout
 
+clean-dist:
+	rm -rf tmp
+
 cleandb:
 	rm -rf $(OPT_COUCH)/var/lib/couchdb/*
 	rm -rf $(OPT_COUCH)/var/log/couchdb/*
 	rm -rf build/db/rabbitmq/*
 
 veryclean: clean
+	rm -rf var/log/* var/run/*
 	rm -rf build/opt
 	rm -rf build/scratch
 	-[ -d $(SRC_COUCH) ] && $(MAKE) -C $(SRC_COUCH) clean
 	-[ -d build/src/rabbitmq-server ] && $(MAKE) -C build/src/rabbitmq-server clean
 	-[ -d build/src/rabbitmq-erlang-client ] && $(MAKE) -C build/src/rabbitmq-erlang-client clean
 
-absurdlyclean:
+absurdlyclean: veryclean clean-dist cleandb
 	rm -rf build
+	rm -rf var
 
-run: run_core
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(MAKE) -C orchestrator run" &
-
-run_core:
-	$(OPT_COUCH)/bin/couchdb -b
-	(xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "sleep 3; tail -f couchdb.std* $(OPT_COUCH)/var/log/couchdb/*" & (echo $$! > couchlogtail.pid))
-	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "./start-feedshub-rabbit.sh" &
-	sleep 3
-
-stop_core:
-	-$(OPT_COUCH)/bin/couchdb -d
-	-kill `cat couchlogtail.pid`; rm couchlogtail.pid
-	-build/opt/rabbitmq/sbin/rabbitmqctl stop
-	sleep 3
-
-full_reset_core:
-	$(MAKE) stop_core cleandb run_core create_fresh_accounts
-
-create-build-logs-dir:
+create-var-dirs:
 	mkdir -p build/logs
-
-create_fresh_accounts:
-	@echo 'Re-initializing RabbitMQ with fresh `guest` and `feedshub_admin` accounts'
-	-@$(RABBITMQCTL) delete_user guest
-	-@$(RABBITMQCTL) delete_user feedshub_admin
-	@$(RABBITMQCTL) add_user feedshub_admin feedshub_admin
-	@$(RABBITMQCTL) set_permissions feedshub_admin '.*' '.*' '.*'
-
+	mkdir -p var/log
+	mkdir -p var/run
 
 ###########################################################################
-# Run alternatives which don't create xterms unless you want them to
+#
 
-listen_orchestrator:
-	xterm -g 80x24-0+0700 -fg white -bg '#000040' -e "$(LISTEN_ORCHESTRATOR)" &
 
-listen_orchestrator_nox:
+run: run-core run-orchestrator
+
+run-core: run-couch run-rabbit
+
+stop-core-nox: stop-couch-nox stop-rabbit-nox
+
+stop-core: stop-core-nox unlisten-core
+
+unlisten-core: unlisten-couch unlisten-rabbit
+
+
+create-fresh-accounts:
+	@echo 'Re-initializing RabbitMQ and CouchDB'
+	@echo 'importing root_config into couchDB...'
+	python sbin/import_config.py $(COUCH_SERVER) examples/basic_config
+	@echo '(Re-)initializing RabbitMQ `guest` and `$(RABBITMQ_USER)` accounts'
+	-$(RABBITMQCTL) delete_user guest
+	-$(RABBITMQCTL) delete_user $(RABBITMQ_USER)
+	$(RABBITMQCTL) add_user $(RABBITMQ_USER) $(RABBITMQ_PASSWORD)
+	$(RABBITMQCTL) set_permissions $(RABBITMQ_USER) '.*' '.*' '.*'
+
+listen-orchestrator:
+	if ! ( test -e $(ORCHESTRATOR_LISTENER_PIDFILE)  &&  kill -0 "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`" )2>/dev/null; then \
+		xterm -T orchestrator_listener -g 80x24-0+0700 -fg white -bg '#000040' -e "$(LISTEN_ORCHESTRATOR)" & \
+		echo $$! > $(ORCHESTRATOR_LISTENER_PIDFILE); \
+	fi
+
+unlisten-orchestrator:
+	- if [ -e $(ORCHESTRATOR_LISTENER_PIDFILE) ]; then \
+		kill "`cat $(ORCHESTRATOR_LISTENER_PIDFILE)`"; rm -f $(ORCHESTRATOR_LISTENER_PIDFILE); \
+	fi
+
+listen-orchestrator-nox:
 	$(SCREEN) -X screen -t orchestrator_listener sh -c "$(LISTEN_ORCHESTRATOR)"
 
-start_orchestrator_nox: stop_orchestrator_nox
-	mkfifo $(ORCH_FIFO)
-	( cat $(ORCH_FIFO) | \
+
+
+start-orchestrator-nox: stop-orchestrator-nox
+	mkfifo $(ORCHESTRATOR_FIFO)
+	( cat $(ORCHESTRATOR_FIFO) | \
 	  ( $(MAKE) -C orchestrator run ; \
 	    echo "Orchestrator died" ; \
-	    pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)" ) 2>&1 | \
-	  nc localhost $(LISTEN_ORCH_PORT) > $(ORCH_FIFO) 2>&1 ; rm -f $(ORCH_FIFO) ) 2>/dev/null &
+	    pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)" ) 2>&1 | \
+	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
+	sleep 6
 
-listen_couch:
-	xterm -g 80x24-0+0000 -fg white -bg '#400000' -e "$(LISTEN_COUCH)" &
-listen_couch_nox:
+run-orchestrator: listen-orchestrator start-orchestrator-nox
+
+listen-couch:
+	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
+		xterm -T couch_listener -g 80x24-0+0000 -fg white -bg '#400000' -e "$(LISTEN_COUCH)" &\
+		echo $$! > $(COUCH_LISTENER_PIDFILE); \
+	fi
+unlisten-couch:
+	- if [ -e $(COUCH_LISTENER_PIDFILE) ]; then \
+		kill "`cat $(COUCH_LISTENER_PIDFILE)`"; rm -f $(COUCH_LISTENER_PIDFILE); \
+	fi
+listen-couch-nox:
 	$(SCREEN) -X screen -t couch_listener sh -c "$(LISTEN_COUCH)"
 
 
-
-start_couch_nox: stop_couch_nox
+start-couch-nox: stop-couch-nox
 	mkfifo $(COUCH_FIFO)
 	( cat $(COUCH_FIFO) | \
 	  ( $(OPT_COUCH)/bin/couchdb -i ; \
 	    echo "CouchDb died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
+	sleep 3
 
-listen_rabbit:
-	xterm -g 80x24-0+0350 -fg white -bg '#004000' -e "$(LISTEN_RABBIT)" &
-listen_rabbit_nox:
+run-couch: listen-couch start-couch-nox
+
+listen-rabbit:
+	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
+		xterm -T rabbit_listener -g 80x24-0+0350 -fg white -bg '#004000' -e "$(LISTEN_RABBIT)" & \
+		echo $$! > $(RABBIT_LISTENER_PIDFILE); \
+	fi
+
+unlisten-rabbit:
+	- if [ -e $(RABBIT_LISTENER_PIDFILE) ]; then \
+		kill "`cat $(RABBIT_LISTENER_PIDFILE)`"; rm -f $(RABBIT_LISTENER_PIDFILE); \
+	fi
+
+listen-rabbit-nox:
 	$(SCREEN) -X screen -t rabbit_listener sh -c "$(LISTEN_RABBIT)"
 
 
-start_rabbit_nox: stop_rabbit_nox
+start-rabbit-nox: stop-rabbit-nox
 	mkfifo $(RABBIT_FIFO)
 	( cat $(RABBIT_FIFO) | \
 	  ( ./start-feedshub-rabbit.sh ; \
 	    echo "Myxomatosis" ; \
 	    pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
+	sleep 3
 
-listen_all: listen_orchestrator listen_couch listen_rabbit
+run-rabbit: listen-rabbit start-rabbit-nox
 
-dummy_screen:
+listen-core: listen-couch listen-rabbit
+
+listen-all: listen-orchestrator listen-core
+
+unlisten-all: unlisten-orchestrator unlisten-couch unlisten-rabbit
+
+unlisten-all-nox:
+	FIXME
+
+dummy-screen:
 	@echo "starting up a screen session with 1-window per listener"
 	$(SCREEN) -md -t dummy
 
-listen_all_nox: dummy_screen listen_orchestrator_nox listen_couch_nox listen_rabbit_nox
+listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rabbit-nox
 	@echo '=================================================================='
 	@echo 'Type ``screen -r`` to connect to a screen session w/ listeners for'
 	@echo '1.  orchestrator'
 	@echo '2.  couchDB'
 	@echo '3.  rabbitMQ'
 
-start_core_nox: start_couch_nox start_rabbit_nox
+start-core-nox: start-couch-nox start-rabbit-nox
+	sleep 3
 
-start_all_nox: start_core_nox sleeper start_orchestrator_nox
+start-all-nox: start-core-nox start-orchestrator-nox
+	sleep 3
+
+
+log-wipe-orchestrator:
+	echo -n '' > $(ORCHESTRATOR_LOG)
+log-wipe-couch:
+	echo -n '' > $(COUCH_LOG)
+log-wipe-rabbit:
+	echo -n '' > $(RABBIT_LOG)
+log-wipe-all: log-wipe-orchestrator log-wipe-couch log-wipe-rabbit
+
 
 sleeper:
 	sleep 2
 
-stop_orchestrator_nox:
-	echo -e "\nok.\nq()." >> $(ORCH_FIFO) && sleep 3
-	- pkill -x -f "nc localhost $(LISTEN_ORCH_PORT)"
-	rm -f $(ORCH_FIFO)
+stop-orchestrator-nox:
+	echo -e "\nok.\nq()." >> $(ORCHESTRATOR_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
+	- pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)"
+	rm -f $(ORCHESTRATOR_FIFO)
 
-stop_couch_nox:
-	echo -e "\nok.\nq()." >> $(COUCH_FIFO) && sleep 3
+stop-couch-nox:
+	echo -e "\nok.\nq()." >> $(COUCH_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
 	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
 	rm -f $(COUCH_FIFO)
 
-stop_rabbit_nox:
-	echo -e "\nok.\nq()." >> $(RABBIT_FIFO) && sleep 3
+stop-rabbit-nox:
+	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
 	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
 	rm -f $(RABBIT_FIFO)
 
-stop_core_nox:
+stop-core-nox:
 	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)
 	echo -e "\nok.\nq()." >> $(COUCH_FIFO)
 	sleep 3
@@ -197,10 +305,9 @@ stop_core_nox:
 	rm -f $(RABBIT_FIFO)
 	rm -f $(COUCH_FIFO)
 
-stop_all_nox: stop_orchestrator_nox stop_core_nox
+stop-all-nox: stop-orchestrator-nox stop-core-nox
 
-full_reset_core_nox:
-	$(MAKE) stop_core_nox cleandb start_core_nox sleeper create_fresh_accounts
+full-reset-core-nox: stop-core-nox cleandb start-core-nox create-fresh-accounts
 
 ###########################################################################
 # CouchDB
@@ -255,7 +362,7 @@ update-ibrowse: build/src/jungerl
 build/src/jungerl:
 	@echo checking out jungerl
 	(mkdir -p build/src && cd build/src && \
-	 cvs -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
+	 cvs -d:pserver:anonymous:@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
 	 cvs -z3 -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl co -P jungerl) \
 		> build/logs/clone-jungerl.txt 2>&1
 
@@ -323,31 +430,25 @@ build/opt/rabbitmq-erlang-client:
 		>> build/logs/build-rabbitmq-erlang-client.txt 2>&1
 
 ###########################################################################
+# Demos
 
-install-debs:
-	: # none at the minute.
+demo-test: listen-all full-reset-core-nox start-orchestrator-nox
+	sleep 5
+	python sbin/import_config.py $(COUCH_SERVER) examples/test
+	$(MAKE) start-orchestrator-nox
 
-install-dev-debs:
-	: # if everything is already installed, don't require sudo'ing
-	- [ -n `dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) | grep -vq 'install ok installed'` ] || \
-	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
+demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-nox
+	@echo 'Running show and tell demo'
+	python sbin/import_config.py $(COUCH_SERVER) examples/showandtell_demo
+	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
+		echo $$! > $(SHOWANDTELL_PIDSFILE)
+	sleep 1
+	make start-orchestrator-nox
+	xterm -T 'Show&tell Producer' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
+		echo $$! >> $(SHOWANDTELL_PIDSFILE)
 
-###########################################################################
+demo-showandtell-stop: stop-orchestrator-nox
+	-kill `cat $(SHOWANDTELL_PIDSFILE)`
+	-rm -f $(SHOWANDTELL_PIDSFILE)
 
-install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
-	mkdir -p tmp/FeedsHub-0.1/erlang-rfc4627
-	mkdir -p tmp/FeedsHub-0.1/ibrowse
-	mkdir -p tmp/FeedsHub-0.1/rabbitmq
-	mkdir -p tmp/FeedsHub-0.1/rabbitmq-erlang-client
-	mkdir -p tmp/FeedsHub-0.1/orchestrator
-	cp -rf build/opt/erlang-rfc4627/ebin tmp/FeedsHub-0.1/erlang-rfc4627
-	cp -rf build/opt/ibrowse/ebin tmp/FeedsHub-0.1/ibrowse
-	cp -rf build/opt/rabbitmq/ebin tmp/FeedsHub-0.1/rabbitmq
-	cp -rf build/opt/rabbitmq-erlang-client/ebin tmp/FeedsHub-0.1/rabbitmq-erlang-client
-	cp -rf orchestrator/ebin tmp/FeedsHub-0.1/orchestrator
-	cp dist/orchestrator.sh tmp/FeedsHub-0.1
-	cp dist/Makefile tmp/FeedsHub-0.1
-	cd tmp; tar zcvf ../dist/FeedsHub-0.1.tar.gz FeedsHub-0.1
 
-clean-dist:
-	rm -rf tmp

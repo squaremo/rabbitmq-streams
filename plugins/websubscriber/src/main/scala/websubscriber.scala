@@ -3,11 +3,11 @@
  *
  */
 
-import net.lshift.feedshub.harness._
+import com.rabbitmq.streams.harness._
 import com.fourspaces.couchdb.Document
 import com.rabbitmq.client.QueueingConsumer.Delivery
 import net.sf.json._
-import net.lshift.feedshub.plugin.websubscriber._
+import com.rabbitmq.streams.plugin.websubscriber._
 
 import com.fourspaces.couchdb._
 import scala.collection.jcl.Conversions._

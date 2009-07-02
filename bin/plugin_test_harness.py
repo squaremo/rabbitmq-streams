@@ -9,7 +9,7 @@ import amqplib.client_0_8 as amqp
 import feedshub as fh
 from feedshub import json
 
-pluginname = sys.argv[1]
+pluginpath = sys.argv[1]
 config = (len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}"
 
 print "Configuration: "
@@ -17,7 +17,8 @@ print config
 
 config = json.loads(config)
 
-plugindir = os.path.join(here, '..', 'plugins', pluginname)
+plugindir = os.path.join(here, '..', pluginpath)
+pluginname = os.path.basename(pluginpath)
 pluginjsfile = open(os.path.join(plugindir, 'plugin.js'))
 plugin = json.loads(pluginjsfile.read())
 pluginjsfile.close()

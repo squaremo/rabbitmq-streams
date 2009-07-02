@@ -8,7 +8,7 @@ import Helpers._
 
 import net.liftweb.widgets.tablesorter.TableSorter
 
-import net.lshift.feedshub.management.controller._
+import com.rabbitmq.streams.management.controller._
 
 /**
  * A class that's instantiated early and run.  It allows the application
@@ -17,7 +17,7 @@ import net.lshift.feedshub.management.controller._
 class Boot {
   def boot {
     // where to search snippet
-    LiftRules.addToPackages("net.lshift.feedshub.management")
+    LiftRules.addToPackages("com.rabbitmq.streams.management")
     TableSorter.init
 
     // Build SiteMap

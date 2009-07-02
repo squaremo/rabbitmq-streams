@@ -6,14 +6,14 @@
  */
 
 import net.sf.json.JSONObject
-import net.lshift.feedshub.harness.{Server,InputReader}
+import com.rabbitmq.streams.harness.{Server,InputReader}
 import com.rabbitmq.client.QueueingConsumer.Delivery
 import org.jivesoftware.smackx.pubsub.PubSubManager
 import org.jivesoftware.smack.{XMPPConnection, ConnectionConfiguration}
 
 import scala.collection.jcl.Conversions._
 
-import net.lshift.feedshub.xmpppubsub.{Dispatcher,Entry,DestinationStatusChange}
+import com.rabbitmq.streams.xmpppubsub.{Dispatcher,Entry,DestinationStatusChange}
 
 class xmpppubsub(config : JSONObject) extends Server(config) {
 
