@@ -23,6 +23,9 @@ couch_url, dirs_to_import = sys.argv[1], sys.argv[2:]
 server = couchdb.Server(couch_url)
 
 for dir_to_import in dirs_to_import:
+    if not os.path.exists(dir_to_import):
+        print >> sys.stderr, "No such dir:", dir_to_import
+        sys.exit(44)
     print 'Processing', dir_to_import
     for dbdir in glob.glob(os.path.join(dir_to_import, "*")):
         dbname = os.path.split(dbdir)[1]
