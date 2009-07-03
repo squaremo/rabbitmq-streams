@@ -38,7 +38,7 @@ public class httppost extends Server implements RequestHandler {
                     httpd.serve();
                 } catch (IOException ioe) {
                     log.error(ioe);
-                    System.exit(2); // FIXME: should be clean API for shutdown
+                    dieHorribly();
                 }
             }
         });
@@ -94,8 +94,26 @@ public class httppost extends Server implements RequestHandler {
     }
 
     public void handleRequest(HttpRequest req) {
-        req.setResponse(200, "OK");
-        req.getResponse().setHeader("Content-type", "text/plain; charset=utf-8");
-        req.getResponse().setBody(utf8Encode("Hello world"));
+        if (paths.containsKey(req.getRawPath())) {
+            String terminalId = paths.get(req.getRawPath());
+            if ("GET".equals(req.getMethod())) {
+                req.setResponse(200, "OK");
+                req.getResponse().setHeader("Content-type", "text/plain; charset=utf-8");
+                req.getResponse().setBody(utf8Encode("Terminal " + terminalId));
+            } else if ("POST".equals(req.getMethod())) {
+                try {
+                    publishToDestination(req.getBody(), terminalId);
+                } catch (IOException ioe) {
+                    req.setResponse(500, "Internal error publishing message");
+                    log.error(ioe);
+                    dieHorribly();
+                }
+                req.setResponse(204, "Message delivered");
+            } else {
+                req.setResponse(405, "Invalid HTTP method");
+            }
+        } else {
+            req.setResponse(404, "No such terminal");
+        }
     }
 }
