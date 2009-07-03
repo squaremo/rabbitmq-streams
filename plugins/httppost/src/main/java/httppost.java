@@ -2,10 +2,13 @@
 import com.rabbitmq.streams.harness.Server;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.reversehttp.HttpQuery;
 import net.reversehttp.HttpRequest;
 import net.reversehttp.HttpServer;
 import net.reversehttp.NormalHttpServer;
@@ -93,22 +96,58 @@ public class httppost extends Server implements RequestHandler {
         }
     }
 
+    private void unsupportedHubMode(HttpRequest req, String hubMode) {
+        req.setResponse(400, "Unsupported hub.mode " + hubMode);
+    }
+
     public void handleRequest(HttpRequest req) {
-        if (paths.containsKey(req.getRawPath())) {
-            String terminalId = paths.get(req.getRawPath());
+        try {
+            handleRequestInner(req);
+        } catch (RuntimeException e) {
+            log.error(e);
+            throw e;
+        }
+    }
+
+    public void handleRequestInner(HttpRequest req) {
+        URI u;
+        try {
+            u = new URI(req.getRawPath());
+        } catch (URISyntaxException sx) {
+            req.setResponse(400, "Invalid path");
+            return;
+        }
+
+        String path = u.getPath();
+        if (paths.containsKey(path)) {
+            String terminalId = paths.get(path);
+            System.err.println(u.toString());
+            Map<String, String> params = HttpQuery.parse(u.getQuery());
+            String hubMode = params.get("hub.mode");
+
             if ("GET".equals(req.getMethod())) {
-                req.setResponse(200, "OK");
-                req.getResponse().setHeader("Content-type", "text/plain; charset=utf-8");
-                req.getResponse().setBody(utf8Encode("Terminal " + terminalId));
-            } else if ("POST".equals(req.getMethod())) {
-                try {
-                    publishToDestination(req.getBody(), terminalId);
-                } catch (IOException ioe) {
-                    req.setResponse(500, "Internal error publishing message");
-                    log.error(ioe);
-                    dieHorribly();
+                if ("subscribe".equals(hubMode) || "unsubscribe".equals(hubMode)) {
+                    req.setResponse(204, "Verified");
+                } else if (hubMode == null) {
+                    req.setResponse(200, "OK");
+                    req.getResponse().setHeader("Content-type", "text/plain; charset=utf-8");
+                    req.getResponse().setBody(utf8Encode("Terminal " + terminalId));
+                } else {
+                    unsupportedHubMode(req, hubMode);
                 }
-                req.setResponse(204, "Message delivered");
+            } else if ("POST".equals(req.getMethod())) {
+                if (hubMode == null) {
+                    try {
+                        publishToDestination(req.getBody(), terminalId);
+                    } catch (IOException ioe) {
+                        req.setResponse(500, "Internal error publishing message");
+                        log.error(ioe);
+                        dieHorribly();
+                    }
+                    req.setResponse(204, "Message delivered");
+                } else {
+                    unsupportedHubMode(req, hubMode);
+                }
             } else {
                 req.setResponse(405, "Invalid HTTP method");
             }
