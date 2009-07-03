@@ -11,8 +11,6 @@
 
 -define(SERVER, ?MODULE).
 
--define(ROOT_STATUS_DOCID, ?FEEDSHUB_STATUS_DBNAME "root_config").
-
 -include("orchestrator.hrl").
 -include("rabbit.hrl").
 -include("rabbit_framing.hrl").
@@ -94,7 +92,9 @@ install_view(DbName, ViewDir) ->
     {ok, _} = couchapi:put(Path, Doc2).
 
 read_root_config() ->
-    {ok, RootConfig} = couchapi:get(?ROOT_STATUS_DOCID),
+    %% TODO(alexander): this seems wrong -- why do I need to tell get_env it's orchestrator?
+    {ok, RootConfigUrl} = application:get_env(orchestrator, root_config_url),
+    {ok, RootConfig} = couchapi:get({raw, RootConfigUrl}),
     case rfc4627:get_field(RootConfig, "feedshub_version") of
         {ok, ?FEEDSHUB_VERSION} ->
             {ok, RMQ} = rfc4627:get_field(RootConfig, "rabbitmq"),

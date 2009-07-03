@@ -160,7 +160,7 @@ create-fresh-accounts:
 	@echo 'Re-initializing RabbitMQ and CouchDB'
 	@echo 'importing root_config into couchDB...'
 	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/basic_config
-	@echo '(Re-)initializing RabbitMQ `guest` and `$(RABBITMQ_USER)` accounts'
+	@echo "(Re-)initializing RabbitMQ 'guest' and '$(shell echo $(RABBITMQ_USER))' accounts"
 	-$(RABBITMQCTL) delete_user guest
 	-$(RABBITMQCTL) delete_user $(RABBITMQ_USER)
 	$(RABBITMQCTL) add_user $(RABBITMQ_USER) $(RABBITMQ_PASSWORD)
@@ -185,7 +185,7 @@ listen-orchestrator-nox: create-var-dirs
 start-orchestrator-nox: stop-orchestrator-nox
 	mkfifo $(ORCHESTRATOR_FIFO)
 	( cat $(ORCHESTRATOR_FIFO) | \
-	  ( $(MAKE) -C orchestrator run ; \
+	  ( $(MAKE) COUCH_SERVER=$(COUCH_SERVER) CONFIG_DOC=$(CONFIG_DOC) -C orchestrator run ; \
 	    echo "Orchestrator died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
@@ -444,7 +444,7 @@ demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-n
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
 	sleep 1
-	make start-orchestrator-nox
+	$(MAKE) start-orchestrator-nox
 	xterm -T 'Show&tell Producer' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
 		echo $$! >> $(SHOWANDTELL_PIDSFILE)
 
