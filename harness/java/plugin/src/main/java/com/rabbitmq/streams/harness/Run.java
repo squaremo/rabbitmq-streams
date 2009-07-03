@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.net.*;
 import java.util.ArrayList;
-import java.lang.reflect.InvocationTargetException;
 
 import net.sf.json.JSONObject;
 
