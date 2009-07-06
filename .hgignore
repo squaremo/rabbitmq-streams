@@ -20,15 +20,16 @@
 
 # ONLY Mavenised plugins get things in lib/ through Maven
 ^plugins/archive/(lib|dist)/
-^plugins/websubscriber/(lib|dist)/
-^plugins/regexp_split/(lib|dist)/
+^plugins/httppost/(lib|dist)/
 ^plugins/logger/(lib|dist)/
-^plugins/xslt/(lib|dist)/
-^plugins/xmpppubsub/(lib|dist)/
+^plugins/regexp_split/(lib|dist)/
 ^plugins/relay/(lib|dist)/
 ^plugins/socket_destination/(lib|dist)/
 ^plugins/socket_source/(lib|dist)/
 ^plugins/javascript/(lib|dist)/
+^plugins/websubscriber/(lib|dist)/
+^plugins/xmpppubsub/(lib|dist)/
+^plugins/xslt/(lib|dist)/
 
 (^|/)nb-configuration\.xml$
 

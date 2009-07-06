@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.net.*;
 import java.util.ArrayList;
-import java.lang.reflect.InvocationTargetException;
 
 import net.sf.json.JSONObject;
 
@@ -51,31 +50,9 @@ public class Run {
       @SuppressWarnings({"unchecked"}) Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
       plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArguments);
     }
-    catch(MalformedURLException ex) {
-      System.err.println("Malformed URL when loading classes");
+    catch(Exception ex) {
+      System.err.println("Exception thrown while loading & constructing Java plugin");
       ex.printStackTrace(System.err);
-    }
-    catch(IOException ex) {
-      System.err.println("IOException thrown when reading configuration from standard input");
-      ex.printStackTrace(System.err);
-    }
-    catch (URISyntaxException ex) {
-      System.err.println("URISyntaxException was thrown whilst calling plugin. Plugin directory was: " + pluginDirectory);
-    }
-    catch (ClassNotFoundException ex) {
-      System.err.println("Class not found whilst running plugin. Classname looked for was: " + pluginName);
-    }
-    catch (NoSuchMethodException ex) {
-      System.err.println("No such method exception thrown whilst constructing JSONObject with arguments: " + jsonArguments);
-    }
-    catch (InstantiationException ex) {
-      System.err.println("Instantiotion exception thrown whilst constructing JSONObject with arguments: " + jsonArguments);
-    }
-    catch (IllegalAccessException ex) {
-      System.err.println("Illegal access exception thrown whilst constructing JSONObject with arguments: " + jsonArguments);
-    }
-    catch (InvocationTargetException ex) {
-      System.err.println("Invocation target exception thrown whilst constructing JSONObject with arguments: " + jsonArguments);
     }
     return plugin;
   }

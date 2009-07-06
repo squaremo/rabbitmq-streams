@@ -27,6 +27,7 @@
     <module>socket_destination</module>
     <module>logger</module>
     <module>notification</module>
+    <module>httppost</module>
   </modules>
 
   <build>

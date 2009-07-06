@@ -128,7 +128,8 @@ class PluginBase(object):
         return self.__monitor
 
     def _make_exchange_publisher(self, channel, exchange, routing_key):
-        def p(body, override_routing_key = None, **headers):
+        def p(body, **headers):
+            override_routing_key = "override_routing_key" in headers and headers["override_routing_key"] or None
             if self.__publication_error:
                 raise Exception("Publishing after publication error")
             message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
@@ -197,10 +198,15 @@ class PluginBase(object):
             self.__channel.tx_rollback()
 
     def build_logger(self, config):
-        for level in ['debug', 'info', 'warn', 'error', 'fatal']:
+        def logger(level):
             rk = self._build_log_rk(config, level)
-            setattr(self, level,
-                    self._make_exchange_publisher(self.__log, feedshub_log_xname, rk))
+            publisher = self._make_exchange_publisher(self.__log, feedshub_log_xname, rk)
+            def log(body, label=None):
+                headers = label and {"com.rabbitmq.streams.logging.label":label} or {}
+                publisher(body, **headers)
+            return log
+        for level in ['debug', 'info', 'warn', 'error', 'fatal']:
+     	    setattr(self, level, logger(level))
 
     def privateDatabase(self):
         return self.__db

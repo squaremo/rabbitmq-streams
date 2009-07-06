@@ -9,6 +9,13 @@
   <name>Streams Java harness</name>
   <url>http://www.rabbitmq.com/</url>
 
+  <repositories>
+    <repository>
+      <id>feedshub</id>
+      <url>http://maven.feedshub.lshift.net/</url>
+    </repository>
+  </repositories>
+
   <modules>
     <module>common</module>
     <module>management</module>

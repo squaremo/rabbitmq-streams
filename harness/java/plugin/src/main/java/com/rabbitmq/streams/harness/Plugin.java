@@ -68,7 +68,9 @@ public abstract class Plugin implements Runnable {
     String logRoutingKey = logRoutingKey(config);
 
     log = new Logger(logChannel, logRoutingKey);
-    new Thread(log).start();
+    Thread logThread = new Thread(log);
+    logThread.setDaemon(true);
+    logThread.start();
     log.info("Starting up...");
 
     Database privDb = null;
