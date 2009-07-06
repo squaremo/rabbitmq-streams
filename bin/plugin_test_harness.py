@@ -19,25 +19,28 @@ import amqplib.client_0_8 as amqp
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
-IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n?)') # TODO(alexander): cut'n pasted
-
+SEP=":"
+#IO_LINE_REX=re.compile(r'^([<>]?)|\.{3})?(\w*)\s*'+SEP+'(.*\n?)')
+IO_LINE_REX=re.compile(r'^([<>]?)([^'+SEP+']*?)\s*'+SEP+'(.*\n?)')
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
                                 password='feedshub_admin', virtual_host='/')
 COUCH_HOST_PORT = ("localhost", 5984)
 HARNESS_BASE_DIR = os.path.join(here, '..', 'harness')
 
+
+
 def json_repr(py_obj):
     # replace None w/ 0 to get indentation
-    return json.dumps(py_obj, indent=None).replace('\n', '\n\t:')
+    return json.dumps(py_obj, indent=None).replace('\n', '\n' + SEP)
 
 def newname():
     return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
 
 def make_stdout_msg_outputter(name):
     def stdout_msg_outputter(msg):
-        line_sep = "\n%s :" % (' ' * len(name))
-        print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
+        line_sep = "\n%s%s" % (' ' * len(name), SEP)
+        print (">%s%s%s" % (name, SEP, line_sep.join(msg.body.split('\n')+[])))
     return stdout_msg_outputter
 
 def continously(f):
@@ -119,7 +122,7 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
 def main(plugindir, config_json):
     instance_config = json.loads(config_json)
 
-    print "<$PluginInstanceConfiguration: ", json_repr(instance_config)
+    print "<$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config))
     print
 
     with open(os.path.join(plugindir, 'plugin.js')) as f:
@@ -140,8 +143,8 @@ def main(plugindir, config_json):
 
     print
     print """##The input channels are: %s
-    # type 'INPUT:message' to inject a message into channel INPUT,
-    # type ':more-stuff' to continue the message and
+    # type 'INPUT<tab>MESSAGE' to inject a message into channel INPUT,
+    # type 'more-stuff' to continue the message and
     # type '' (an empty line) to finish it (all newlines but the last are kept).
     # type ^D to abort. You are free to insert whitespace before the ':'.
     ---
@@ -213,8 +216,8 @@ def repl(lines, talkers):
             talkers[talker_name](to_say)
             return 0
         except KeyError:
-            print >>sys.stderr, ("ERROR(BAD_CHANNEL): %r unknown" %
-                                 talker_name)
+            print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
+                                 (SEP, talker_name))
             return BAD_CHANNEL
 
     for line in lines:
@@ -229,14 +232,14 @@ def repl(lines, talkers):
                 typ, channel, bit = IO_LINE_REX.match(line).groups()
             except Exception:
                 print >>sys.stderr, (
-                    ">ERROR(MALFORMED_INPUT):"
-                    " Bad input! (neither comment nor message):%r" % line)
+                    ">ERROR(MALFORMED_INPUT)%s"
+                    " Bad input! (neither comment nor message):%r" % (SEP, line))
                 continue
             if not channel:
                 if state is WANT_CHANNEL:
                     print >>sys.stderr, (
-                        ">ERROR(MALFORMED_INPUT):"
-                        " need some channel to send message to!")
+                        ">ERROR(MALFORMED_INPUT)%s"
+                        " need some channel to send message to!" % (SEP,))
                     exit_code |= MALFORMED_INPUT
                     continue
                 elif not bit and not typ:
@@ -247,8 +250,8 @@ def repl(lines, talkers):
                     state = WANT_ANY
                 else:
                     print >>sys.stderr, (
-                        ">ERROR(MALFORMED_INPUT):"
-                        "%r on its own is not meaningful" % bit)
+                        ">ERROR(MALFORMED_INPUT)%s"
+                        "%r on its own is not meaningful" % (SEP, bit))
                     exit_code |= MALFORMED_INPUT
                     continue
             else:
