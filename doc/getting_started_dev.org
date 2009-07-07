@@ -111,7 +111,7 @@ make listen-all
 
 #+BEGIN_SRC sh
 make start-core-nox cleandb create-fresh-accounts start-orchestrator-nox
-python sbin/import_config.py examples/test
+python sbin/import_config.py http://127.0.0.1:5984  examples/test
 make start-orchestrator-nox
 #+END_SRC
 
@@ -269,10 +269,10 @@ channels by writing to stdout. Here is an example:
 
 #+BEGIN_SRC sh
 make start-all-nox # make sure everying is up
-echo -E '{"regexp": "(.){3}", "replacement": "(3 x \\1)",
-          "multiline": false, "dotall": false, "caseinsensitive": false }' \
-         > /tmp/plugin-config
-python  bin/plugin_test_harness.py plugins/regexp_replace /tmp/plugin-config
+
+python bin/plugin_test_harness.py plugins/regexp_replace <(echo -E '
+ {"regexp": "(.\\1\\1)", "replacement": "[3 x \"\\1\"]",
+  "multiline": false, "dotall": false, "caseinsensitive": false }' )
 #+END_SRC
 *** Writing Harnesses to add Plugin support for new languages
 Each environment (e.g., Java, Python) in which plugins run needs a
