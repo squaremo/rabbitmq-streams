@@ -20,7 +20,6 @@
     <module>common</module>
     <module>management</module>
     <module>plugin</module>
-    <module>thirdparty</module>
   </modules>
 
   <build>
