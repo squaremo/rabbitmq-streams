@@ -1,14 +1,13 @@
 package com.rabbitmq.streams.xmpppubsub
 
 import net.sf.json.JSONObject
-import com.rabbitmq.streams.harness.{Server,InputReader}
+import com.rabbitmq.streams.harness.{Server, InputReader}
 import com.rabbitmq.client.QueueingConsumer.Delivery
+import org.jivesoftware.smack.proxy.ProxyInfo
 import org.jivesoftware.smackx.pubsub.PubSubManager
 import org.jivesoftware.smack.{XMPPConnection, ConnectionConfiguration}
 
 import scala.collection.jcl.Conversions._
-
-import com.rabbitmq.streams.xmpppubsub.{Entry,DestinationStatusChange}
 
 class XmppPubSubServer(config: JSONObject) extends Server(config) {
   val settings = config.getJSONObject("configuration")
@@ -23,9 +22,8 @@ class XmppPubSubServer(config: JSONObject) extends Server(config) {
   }
 
   private def connectionFromConfig(settings: JSONObject): XMPPConnection = {
-    val options = new ConnectionConfiguration(settings.getString("host"),
-      settings.getInt("port"))
-    // see SmackTestCase for more config we may want to fill out
+    val options = configFromJson(settings)
+
     val conn = new XMPPConnection(options)
     conn.connect
     conn.login(settings.getString("username"),
@@ -33,6 +31,24 @@ class XmppPubSubServer(config: JSONObject) extends Server(config) {
       settings.optString("resource", "feedshub-" + config.getString("server_id")))
     conn
   }
+
+  private def configFromJson(settings: JSONObject): ConnectionConfiguration = {
+    // see SmackTestCase for more config we may want to fill out
+    val config = settings.containsKey("proxytype") match {
+      case true => new ConnectionConfiguration(settings.getString("host"), settings.getInt("port"), proxyInfo(settings))
+      case _ => new ConnectionConfiguration(settings.getString("host"), settings.getInt("port"))
+    }
+    config
+  }
+
+  private def proxyInfo(settings: JSONObject): ProxyInfo = settings.getString("proxytype") match {
+    case "http" => ProxyInfo.forHttpProxy(settings.getString("proxyserver"), settings.getInt("proxyport"), settings.getString("proxyuser"), settings.getString("proxypassword"))
+    case "socks4" => ProxyInfo.forHttpProxy(settings.getString("proxyserver"), settings.getInt("proxyport"), settings.getString("proxyuser"), settings.getString("proxypassword"))
+    case "socks5" => ProxyInfo.forHttpProxy(settings.getString("proxyserver"), settings.getInt("proxyport"), settings.getString("proxyuser"), settings.getString("proxypassword"))
+    case _ => ProxyInfo.forDefaultProxy
+  }
+
+
 
   object input extends InputReader {
     override def handleDelivery(pkg: Delivery) {
