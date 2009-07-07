@@ -1,5 +1,6 @@
 from __future__ import with_statement
 import atexit
+from functools import partial
 import httplib
 import os
 import posixpath
@@ -19,15 +20,19 @@ import amqplib.client_0_8 as amqp
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
-SEP=":"
+SEP="\t"
 #IO_LINE_REX=re.compile(r'^([<>]?)|\.{3})?(\w*)\s*'+SEP+'(.*\n?)')
-IO_LINE_REX=re.compile(r'^([<>]?)([^'+SEP+']*?)\s*'+SEP+'(.*\n?)')
+IO_LINE_REX=re.compile(r'^(?:\.{3}|([<>]?)([^'+SEP+']*?))\s*'+SEP+'(.*\n?)')
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
                                 password='feedshub_admin', virtual_host='/')
 COUCH_HOST_PORT = ("localhost", 5984)
 HARNESS_BASE_DIR = os.path.join(here, '..', 'harness')
 
+def info(*args):
+    for arg in args:
+        print arg,
+    print
 
 
 def json_repr(py_obj):
@@ -37,11 +42,40 @@ def json_repr(py_obj):
 def newname():
     return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
 
-def make_stdout_msg_outputter(name):
-    def stdout_msg_outputter(msg):
-        line_sep = "\n%s%s" % (' ' * len(name), SEP)
-        print (">%s%s%s" % (name, SEP, line_sep.join(msg.body.split('\n')+[])))
-    return stdout_msg_outputter
+def format_output(channel_name, msg):
+    line_sep = "\n%s%s" % (' ' * len(channel_name), SEP)
+    print ">%s%s%s" % (
+        channel_name, SEP, line_sep.join(msg.body.split('\n')+[]))
+
+
+class StdoutOutputter(object):
+    def __init__(self, channel_names):
+        self.channel_names = channel_names
+
+    def make_output_callback(self, channel_name):
+        assert channel_name in self.channel_names
+        return partial(format_output, channel_name)
+
+    def flush(self): pass
+
+class BatchedOutputter(object):
+
+    def __init__(self, channel_names, format_output=format_output):
+        self.channel_names = channel_names
+        self.outputs = {}
+        self.format_output = format_output
+
+    def make_output_callback(self, channel_name):
+        assert channel_name in self.channel_names
+        res = self.outputs[channel_name] = []
+        def output_concer(msg):
+            res.append(msg.body)
+        return output_concer
+
+    def flush(self):
+        for c in sorted(self.outputs):
+            while self.outputs[c]:
+                self.format_output(c, self.outputs[c].pop(0))
 
 def continously(f):
     class RepetitiveThread(threading.Thread):
@@ -55,15 +89,17 @@ def continously(f):
 
 class TestWiring(object):
 
-    def __init__(self, amqp_connection, inputspec, outputspec):
+    def __init__(self, amqp_connection, inputspec, outputspec,
+                 Outputter=StdoutOutputter):
         self.channel = amqp_connection.channel()
         self.outputs = dict((spec['name'], self.declexchange()) for spec in outputspec)
         self.inputs = dict((spec['name'], self.declqueue()) for spec in inputspec)
+        self.outputter = Outputter([spec['name'] for spec in outputspec] + ["log"])
 
         # Now, we want to *listen* to the outputs, and *talk* to the inputs
         for (name, exchange) in self.outputs.items():
-            self.subscribe(name, exchange)
-        self.subscribe("log", "feedshub/log", '#')
+            self.subscribe(name, exchange, )
+        self.subscribe(name="log", exchange="feedshub/log", key='#')
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -80,14 +116,13 @@ class TestWiring(object):
         self.channel.queue_declare(name)
         return name
 
-    def info(self, msg):
-        print msg
-
-    def subscribe(self, name, exchange, key='', make_outputter=make_stdout_msg_outputter):
+    def subscribe(self, name, exchange, key=''):
         queue = self.declqueue()
-        self.info("# %s bound to %s" % (name, queue))
+        info("# %s bound to %s" % (name, queue))
         self.channel.queue_bind(queue, exchange, routing_key=key)
-        self.channel.basic_consume(queue, no_ack=True, callback=make_outputter(name))
+        self.channel.basic_consume(
+            queue, no_ack=True,
+            callback=self.outputter.make_output_callback(name))
 
     def make_talker(self, queue):
         exchange = self.declexchange()
@@ -95,6 +130,16 @@ class TestWiring(object):
         def say(something):
             self.channel.basic_publish(amqp.Message(body=something), exchange)
         return say
+
+    def send(self, **kwargs):
+        assert set(kwargs) == set(self.inputs) # XXX
+        for in_name, to_say in kwargs.items():
+            if isinstance(to_say, basestring):
+                to_say = [to_say]
+            for blahblah in to_say:
+                self.talkers[in_name](blahblah)
+        self.outputter.flush()
+
 
 
 
@@ -119,21 +164,22 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
                 req, ans.status, ans_s))
             sys.exit(BAD_SYSTEM_STATE)
 
-def main(plugindir, config_json):
+def main(plugindir, config_json, use_repl=True):
     instance_config = json.loads(config_json)
 
-    print "<$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config))
-    print
+    info("<$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config)))
+    info()
 
     with open(os.path.join(plugindir, 'plugin.js')) as f:
         plugin_specs = json.loads(f.read())
 
-    print "## Plugin descriptor:"
-    print "#", json_repr(plugin_specs)
+    info("## Plugin descriptor:")
+    info("#", json_repr(plugin_specs))
 
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
                         inputspec=plugin_specs['inputs_specification'],
-                        outputspec=plugin_specs['outputs_specification'])
+                        outputspec=plugin_specs['outputs_specification'],
+                        Outputter=StdoutOutputter if use_repl else BatchedOutputter)
 
     init_couch_state()
 
@@ -141,16 +187,20 @@ def main(plugindir, config_json):
                  inputs=wiring.inputs, outputs=wiring.outputs,
                  rabbit_params=RABBIT_CONNECTION_PARAMS)
 
-    print
-    print """##The input channels are: %s
+    info()
+    info("""##The input channels are: %s
     # type 'INPUT<tab>MESSAGE' to inject a message into channel INPUT,
     # type 'more-stuff' to continue the message and
     # type '' (an empty line) to finish it (all newlines but the last are kept).
     # type ^D to abort. You are free to insert whitespace before the ':'.
     ---
-    """ % ' '.join(wiring.inputs)
-
-    sys.exit(repl(iter(sys.stdin.readline, ''), wiring.talkers))
+    """ % ' '.join(wiring.inputs))
+    if use_repl:
+        sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
+    else:
+        global send
+        send = wiring.send
+        return wiring
 
 
 
@@ -188,22 +238,20 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     harness = os.path.join(harnessdir, 'run_plugin.sh')
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                                   stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-    print "## Initialising plugin with:"
-    print "#", json.dumps(init)
+    info("## Initialising plugin with:")
+    info("#", json.dumps(init))
     pluginproc.stdin.write(json.dumps(init) + "\n")
     # make sure we don't exit & leave this around!
     # TODO(alexander): haven't found a clean way that won't deadlock
     # python2.6 has a Popen.kill but for 2.5 we need this:
     atexit.register(lambda p=pluginproc.pid: os.kill(p, signal.SIGTERM))
 
-    print "## Initialising plugin with:"
+    info("## Initialising plugin with:")
     return pluginproc
 
 
-
-
 # TODO: a proper state-machine abstraction might be good here...
-def repl(lines, talkers):
+def repl(lines, send):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
 
     talker_name, msg, state = None, None, WANT_CHANNEL
@@ -213,7 +261,7 @@ def repl(lines, talkers):
         try:
             to_say = msg.rsplit('\n',1)[0]
             ## print >>sys.stderr, "A'shippin': %r"% to_say
-            talkers[talker_name](to_say)
+            send(**{talker_name :to_say})
             return 0
         except KeyError:
             print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
