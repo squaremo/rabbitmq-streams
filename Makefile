@@ -33,7 +33,7 @@ COUCH_FIFO=build/scratch/couch_fifo
 PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
-	build-essential erlang libicu38 libicu-dev \
+	build-essential erlang erlang-src libicu38 libicu-dev \
 	libmozjs-dev libcurl4-openssl-dev mercurial subversion \
 	elinks python-simplejson cvs zip default-jdk \
 	ant maven2 screen
@@ -60,7 +60,7 @@ install-debs:
 
 install-dev-debs:
 	: # if everything is already installed, don't require sudo'ing
-	- [ -n `dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) | grep -vq 'install ok installed'` ] || \
+	- [ -z "`dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) 2>&1 | grep -v 'install ok installed'`" ] || \
 	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
 
 ###########################################################################
