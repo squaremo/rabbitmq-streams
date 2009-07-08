@@ -2,6 +2,7 @@ from __future__ import with_statement
 import atexit
 from functools import partial
 import httplib
+from optparse import OptionParser, make_option as opt
 import os
 import posixpath
 import re
@@ -46,6 +47,7 @@ def format_output(channel_name, msg):
     line_sep = "\n%s%s" % (' ' * len(channel_name), SEP)
     print ">%s%s%s" % (
         channel_name, SEP, line_sep.join(msg.body.split('\n')+[]))
+    sys.stdout.flush()
 
 
 class StdoutOutputter(object):
@@ -69,13 +71,16 @@ class BatchedOutputter(object):
         assert channel_name in self.channel_names
         res = self.outputs[channel_name] = []
         def output_concer(msg):
-            res.append(msg.body)
+            res.append(msg)
         return output_concer
 
     def flush(self):
         for c in sorted(self.outputs):
+            ## print '#DEBUG c:', c
             while self.outputs[c]:
+                ## print '#DEBUG o[c]:', self.outputs[c]
                 self.format_output(c, self.outputs[c].pop(0))
+        ## print '#DEBUG flushed!', self.outputs
 
 def continously(f):
     class RepetitiveThread(threading.Thread):
@@ -94,12 +99,13 @@ class TestWiring(object):
         self.channel = amqp_connection.channel()
         self.outputs = dict((spec['name'], self.declexchange()) for spec in outputspec)
         self.inputs = dict((spec['name'], self.declqueue()) for spec in inputspec)
-        self.outputter = Outputter([spec['name'] for spec in outputspec] + ["log"])
+        self.outputter = Outputter([spec['name'] for spec in outputspec])
 
         # Now, we want to *listen* to the outputs, and *talk* to the inputs
         for (name, exchange) in self.outputs.items():
             self.subscribe(name, exchange, )
-        self.subscribe(name="log", exchange="feedshub/log", key='#')
+        self.subscribe(name="log", exchange="feedshub/log", key='#',
+                       mk_callback=partial(format_output, ">log"))
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -116,13 +122,13 @@ class TestWiring(object):
         self.channel.queue_declare(name)
         return name
 
-    def subscribe(self, name, exchange, key=''):
+    def subscribe(self, name, exchange, key='', mk_callback=None):
         queue = self.declqueue()
         info("# %s bound to %s" % (name, queue))
         self.channel.queue_bind(queue, exchange, routing_key=key)
         self.channel.basic_consume(
             queue, no_ack=True,
-            callback=self.outputter.make_output_callback(name))
+            callback=mk_callback or self.outputter.make_output_callback(name))
 
     def make_talker(self, queue):
         exchange = self.declexchange()
@@ -164,7 +170,7 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
                 req, ans.status, ans_s))
             sys.exit(BAD_SYSTEM_STATE)
 
-def main(plugindir, config_json, use_repl=True):
+def setup_everything(plugindir, config_json, Outputter):
     instance_config = json.loads(config_json)
 
     info("<$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config)))
@@ -179,7 +185,7 @@ def main(plugindir, config_json, use_repl=True):
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
                         inputspec=plugin_specs['inputs_specification'],
                         outputspec=plugin_specs['outputs_specification'],
-                        Outputter=StdoutOutputter if use_repl else BatchedOutputter)
+                        Outputter=Outputter)
 
     init_couch_state()
 
@@ -195,13 +201,7 @@ def main(plugindir, config_json, use_repl=True):
     # type ^D to abort. You are free to insert whitespace before the ':'.
     ---
     """ % ' '.join(wiring.inputs))
-    if use_repl:
-        sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
-    else:
-        global send
-        send = wiring.send
-        return wiring
-
+    return wiring
 
 
 
@@ -317,7 +317,31 @@ def repl(lines, send):
 
 
 
+
+
+
 if __name__ == '__main__':
-    pass
-    main(plugindir=os.path.abspath(sys.argv[1]),
-         config_json=(len(sys.argv) > 2) and open(sys.argv[2]).read() or "{}")
+    opts, args = OptionParser("""%prog [OPTIONS] PLUGINPATH [PLUGIN_CONFIG]
+
+    Test a plugin by sending input and observing its output.
+    """,
+                              [opt(None, "--py", action="store_true",
+                                   help="If true, leave control to python, else start I/O repl")
+                               ]).parse_args()
+    if not args or len(args) > 2:
+        print >> sys.stderr, "Illegal number of arguments (%d)" % len(args), "try",\
+              sys.argv[0], "--help"
+        sys.exit(os.EX_USAGE)
+    print args, opts.py
+    setup_args = dict(plugindir  = os.path.abspath(args.pop(0)),
+                      config_json = open(args.pop(0)).read() if args else '{}',
+                      Outputter = BatchedOutputter if opts.py else StdoutOutputter)
+
+    wiring = setup_everything(**setup_args)
+    send = wiring.send
+
+    if not opts.py:
+        sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
+
+
+
