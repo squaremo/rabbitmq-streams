@@ -1,5 +1,5 @@
-sources:=$(shell find src -type f -name "*.java") pom.xml
-jarfile=xslt-1.0-SNAPSHOT.jar
+sources:=$(shell find src -type f -name "*.scala") pom.xml
+jarfile=javascript-1.0-SNAPSHOT.jar
 harness_jar=../../harness/java/feedshub_harness.jar
 
 all: lib/$(jarfile)

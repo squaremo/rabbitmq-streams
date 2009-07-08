@@ -16,7 +16,6 @@
 ^harness/java/thirdparty/[^/]*/target/
 
 (^|/)erl_crash\.dump$
-
 ^harness/java/feedshub_harness\.jar$
 
 # ONLY Mavenised plugins get things in lib/ through Maven
@@ -27,6 +26,7 @@
 ^plugins/relay/(lib|dist)/
 ^plugins/socket_destination/(lib|dist)/
 ^plugins/socket_source/(lib|dist)/
+^plugins/javascript/(lib|dist)/
 ^plugins/websubscriber/(lib|dist)/
 ^plugins/xmpppubsub/(lib|dist)/
 ^plugins/xslt/(lib|dist)/

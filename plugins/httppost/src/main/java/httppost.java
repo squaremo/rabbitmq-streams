@@ -28,7 +28,7 @@ public class httppost extends Server implements RequestHandler {
 
         //FIXME: make use of host
         //String host = (String) configuration.get("http_server_host");
-        Object portObj = configuration.get("http_server_port");
+        Object portObj = staticConfiguration.get("http_server_port");
         if ((portObj == null || !(portObj instanceof Integer))) {
             throw new IllegalArgumentException("Invalid http_server_port configuration value");
         }

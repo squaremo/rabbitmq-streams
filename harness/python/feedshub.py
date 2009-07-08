@@ -11,50 +11,12 @@ import sys
 import threading
 
 feedshub_log_xname = 'feedshub/log'
+plugin_config_header = 'x-streams-plugin-config'
 
 try:
     import simplejson as json
 except:
     import json
-
-
-def db_name(db):
-    """Give the name of the database.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontest'))
-    >>> db_name(db)
-    "pythontests"
-    """
-    return db._name
-
-def db_server(db):
-    """Give the server part of a database.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontest'))
-    >>> db_server(db)
-    "http://localhost:5984"
-    """
-    return db.resource.uri[:-len(db._name)]
-
-def config_of_db(db):
-    """Give the configuration stanza of a store
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontests'))
-    >>> config = config_of_db(db)
-    >>> config['server']
-    "http://localhost:5984"
-    >>> config['database']
-    "pythontests"
-    """
-    return dict(database=db_name(db), server=db_server(db))
-
-def db_from_config(config):
-    """Make a store given a config.
-    >>> db = db_from_config(dict(server='http://localhost:5984', database='pythontests'))
-    >>> db_name(db)
-    "pythontests"
-    >>> db_server(db)
-    "http://localhost:5984"
-    """
-    server = couch.Server(config['server'])
-    return server[config['database']]
 
 def amqp_connection_from_config(hostspec):
     hostname = hostspec['host']
@@ -124,7 +86,7 @@ class PluginBase(object):
         settings = dict((item['name'], item['value'])
                         for item in config['plugin_type']['global_configuration_specification'])
         settings.update(config['configuration'])
-        self.__config = settings
+        self._static_config = settings
 
         for name, exchange in config['outputs'].iteritems():
             if name not in self.OUTPUTS:
@@ -132,11 +94,32 @@ class PluginBase(object):
             setattr(self, self.OUTPUTS[name],
                     self._make_exchange_publisher(self.__channel, exchange, ''))
 
+        def handler(fun):
+            def handle(msg):
+                if 'application_headers' in msg.properties:
+                    headers = msg.properties['application_headers']
+                    if headers and plugin_config_header in headers:
+                        config = headers[plugin_config_header]
+                        self.debug("Plugin config found: " + config)
+                        dynamic = {}
+                        dynamic.update(self._static_config)
+                        try:
+                            headerConfig = json.loads(config)
+                            if not isinstance(headerConfig, dict):
+                                raise "Not a dict"
+                        except:
+                            self.error("Could not use config: " + config + "; ignoring message")
+                            return
+                        dynamic.update(headerConfig)
+                        return fun(msg, dynamic)
+                return fun(msg, self._static_config)
+            return handle
+
         for name, queue in config['inputs'].iteritems():
             if name not in self.INPUTS:
                 self.INPUTS[name] = name
             method = getattr(self, self.INPUTS[name])
-            self._subscribe_to_queue(queue, method)
+            self._subscribe_to_queue(queue, handler(method))
 
         self.info(pformat({"event": "configured",
                            "args": {"config": settings}}))

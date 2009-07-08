@@ -1,4 +1,3 @@
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.PluginException;
@@ -19,28 +18,28 @@ public class socket_destination extends Server {
 
   private final Map<String, List<SocketDestination>> terminalMap = new HashMap<String, List<SocketDestination>>();
 
-  public final InputReader input = new InputReader() {
+  public final InputReader input = new Server.ServerInputReader() {
 
-    public void handleDelivery(Delivery message) throws PluginException {
-      String terminalId = message.getEnvelope().getRoutingKey();
-      List<SocketDestination> dests = terminalMap.get(terminalId);
-      if (null != dests && 0 != dests.size()) {
-        for (SocketDestination dest : dests) {
-          dest.send(message.getBody());
+      @Override
+      public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
+        List<SocketDestination> dests = terminalMap.get(key);
+        if (null != dests) {
+          for (SocketDestination dest : dests) {
+            dest.send(body);
+          }
+        }
+        try {
+          socket_destination.this.ack(tag);
+        }
+        catch (IOException e) {
+          throw new PluginException(e);
         }
       }
-      try {
-        socket_destination.this.ack(message);
-      }
-      catch (IOException e) {
-        throw new PluginException(e);
-      }
-    }
-  };
+    };
 
   protected void terminalStatusChange(String terminalId,
-    List<JSONObject> terminalConfigs,
-    boolean active) {
+                                      List<JSONObject> terminalConfigs,
+                                      boolean active) {
     if (active) {
       List<SocketDestination> dests = terminalMap.get(terminalId);
       if (null == dests || 0 == dests.size()) {
@@ -71,7 +70,6 @@ public class socket_destination extends Server {
 
   public socket_destination(JSONObject config) throws IOException {
     super(config);
-
     postConstructorInit();
   }
 

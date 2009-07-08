@@ -1,5 +1,13 @@
-all: 
-	mvn install
+sources:=$(shell find src -type f -name "*.java") pom.xml
+jarfile=logger-1.0.jar
+harness_jar=../../harness/java/feedshub_harness.jar
+
+all: lib/$(jarfile)
+
+target/$(jarfile): $(sources) $(harness_jar)
+	mvn package
+
+lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib
 	cp target/*.jar lib
 

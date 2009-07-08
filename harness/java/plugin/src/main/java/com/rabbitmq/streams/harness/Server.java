@@ -16,7 +16,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 /**
- * A superclass for terminal servers (ho ho). These have predefined inputs and
+ * A superclass for gateways (ho ho). These have predefined inputs and
  * outputs, rather than having them specified, and don't enforce transactions.
  */
 public abstract class Server extends Plugin {
@@ -45,7 +45,8 @@ public abstract class Server extends Plugin {
     terminalsDatabase = couchSession.getDatabase(terminalsDbName);
   }
 
-  protected final Runnable inputReaderRunnable(final Plugin.Getter getter, final QueueingConsumer consumer) {
+  protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
+                                               final QueueingConsumer consumer) {
     return new Runnable() {
       public void run() {
         // Subclasses must do their own acking and transactions
@@ -53,19 +54,25 @@ public abstract class Server extends Plugin {
           try {
             Delivery delivery = consumer.nextDelivery();
             try {
-              InputReader pluginConsumer = getter.get();
+              InputHandler pluginConsumer = getter.get();
               if (null != pluginConsumer) {
-                pluginConsumer.handleDelivery(delivery);
+                JSONObject conf = null;
+                try {
+                  conf = configForDelivery(delivery);
+                }
+                catch (Exception e) {
+                  log.error("Cannot use config; ignoring message");
+                  return;
+                }
+                pluginConsumer.handleDelivery(delivery, conf);
+              } else {
+                Server.this.log
+                  .warn("No non-null input reader field ");
               }
-              else {
-                Server.this.log.warn("No non-null input reader field ");
-              }
-            }
-            catch (PluginException e) {
+            } catch (Exception e) {
               Server.this.log.error(e);
             }
-          }
-          catch (InterruptedException _) {
+          } catch (InterruptedException _) {
             // just continue around and try fetching again
           }
         }
@@ -74,7 +81,11 @@ public abstract class Server extends Plugin {
   }
 
   protected final void ack(Delivery delivery) throws IOException {
-    this.messageServerChannel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+    this.ack(delivery.getEnvelope().getDeliveryTag());
+  }
+
+  protected final void ack(long tag) throws IOException {
+    messageServerChannel.basicAck(tag, false);
   }
 
   protected final Publisher publisher(final String name, final String exchange) {
@@ -123,37 +134,61 @@ public abstract class Server extends Plugin {
     }
   }
 
+  public static abstract class ServerInputReader extends InputReader {
+    
+    @Override
+    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
+      handleBodyForTerminal(delivery.getBody(),
+                            delivery.getEnvelope().getRoutingKey(),
+                            delivery.getEnvelope().getDeliveryTag());
+    }
+    
+    public void handleBodyForTerminal(byte[] body, String key, long tagToAck) throws PluginException {
+      // Allow override of either handleDelivery or handleBodyForTerminal
+    }
+  }
+  
   public final InputReader command = new InputReader() {
+      
+    @Override
+    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
+        
+        String serverIdterminalId = delivery.getEnvelope().getRoutingKey();
+        int loc = serverIdterminalId.lastIndexOf('.');
+        String serverIds = serverIdterminalId.substring(0, loc);
+        String terminalId = serverIdterminalId.substring(loc + 1);
+        
+        try {
+          List<JSONObject> terminalConfigs = Server.this.terminalConfigs(terminalId);
+          Document terminalStatus = Server.this.terminalStatus(terminalId);
 
-    public void handleDelivery(Delivery message) throws PluginException {
+          if (!serverIds.contains(Server.this.serverId)) {
+            Server.this.log.error(
+                    "Received a terminal status change " +
+                    "message which was not routed for us: " +
+                    serverIds);
+            return;
+          }
 
-      String serverIdterminalId = message.getEnvelope().getRoutingKey();
-      int loc = serverIdterminalId.lastIndexOf('.');
-      String serverIds = serverIdterminalId.substring(0, loc);
-      String terminalId = serverIdterminalId.substring(loc + 1);
+          if (terminalConfigs.size() == 0) {
+            Server.this.log.error(
+                    "Received a terminal status change "
+                     + "message for a terminal which isn't "
+                     + "configured for us: " + terminalConfigs);
+            return;
+          }
 
-      try {
-        List<JSONObject> terminalConfigs = Server.this.terminalConfigs(terminalId);
-        Document terminalStatus = Server.this.terminalStatus(terminalId);
-
-        if (!serverIds.contains(Server.this.serverId)) {
-          Server.this.log.error("Received a terminal status change message which was not routed for us: " + serverIds);
-          return;
+          Server.this.log.info(
+                  "Received terminal status change for " + terminalId);
+          
+          Server.this.terminalStatusChange(terminalId,
+                                           terminalConfigs,
+                                           terminalStatus.getBoolean("active"));
+          Server.this.ack(delivery);
         }
-
-        if (terminalConfigs.size() == 0) {
-          Server.this.log.error("Received a terminal status change message for a terminal which isn't configured for us: " + terminalConfigs);
-          return;
+        catch (IOException ex) {
+          throw new PluginException("Unable to handle delivery.", ex);
         }
-
-        Server.this.log.info("Received terminal status change for " + terminalId);
-
-        Server.this.terminalStatusChange(terminalId, terminalConfigs, terminalStatus.getBoolean("active"));
-        Server.this.ack(message);
-      }
-      catch(IOException ex) {
-        throw new PluginException("Unable to handle delivery.", ex);
-      }
     }
   };
 
@@ -163,9 +198,11 @@ public abstract class Server extends Plugin {
    * QUESTION - wouldn't this be named better as changeTerminalStatus?
    *
    * @param terminalId the identifier for this terminal.
-   * @param configs    the new configurations for the server (?).
+   * @param configs    the new configurations for the terminal.
    * @param active     the status of the terminal.
    */
-  protected abstract void terminalStatusChange(String terminalId, List<JSONObject> configs, boolean active);
 
+  protected abstract void terminalStatusChange(String terminalId,
+                                               List<JSONObject> configs,
+                                               boolean active);
 }

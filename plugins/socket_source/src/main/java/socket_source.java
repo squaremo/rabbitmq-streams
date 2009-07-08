@@ -8,13 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.Server;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import com.fourspaces.couchdb.Document;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 public class socket_source extends Server {
 

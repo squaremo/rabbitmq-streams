@@ -2,6 +2,7 @@ package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Map;
 
 import net.sf.json.JSONObject;
 
@@ -45,8 +46,7 @@ public abstract class PipelineComponent extends Plugin {
   protected final void constructOutputs(JSONObject outputs) {
     try {
       messageServerChannel.txSelect();
-    }
-    catch (IOException ioe) {
+    } catch (IOException ioe) {
       log.fatal("Cannot switch channel to transactional mode");
       dieHorribly();
     }
@@ -54,79 +54,89 @@ public abstract class PipelineComponent extends Plugin {
   }
 
   protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
-    final QueueingConsumer consumer) {
+                                               final QueueingConsumer consumer) {
     return new Runnable() {
       public void run() {
         while (PipelineComponent.this.messageServerChannel.isOpen()) {
           try {
-            // We may have many input queues, so to avoid interleaving transactions,
-            // we have to choose either to have a channel for each, or serialise the
-            // message handing. Since there are a maximum of 15 channels, we choose
-            // to serialise message handling by way of this mutex.
+            // We may have many input queues, so to avoid
+            // interleaving transactions,
+            // we have to choose either to have a channel for each,
+            // or serialise the
+            // message handing.
+            // Since there are a maximum of 15 channels, we choose
+            // to serialise
+            // message handling by way of this mutex.
             // Note: Transactions are only on outgoing messages, so
-            // it doesn't matter that two or more threads could receive
-            // messages before one acquires the lock; the transaction will be complete
-            // or abandoned before another consumer can start sending anything.
+            // it doesn't
+            // matter that two or more threads could receive
+            // messages before one
+            // acquires the lock; the transaction will be complete
+            // or abandoned
+            // before another consumer can start sending anything.
             Delivery delivery = consumer.nextDelivery();
             synchronized (privateLock) {
               try {
-                InputReader pluginConsumer = getter.get();
+                InputHandler pluginConsumer = getter.get();
                 if (null != pluginConsumer) {
-                  pluginConsumer.handleDelivery(delivery);
-                  PipelineComponent.this.messageServerChannel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-                  PipelineComponent.this.messageServerChannel.txCommit();
-                }
-                else {
+                  JSONObject conf = null;
+                  try {
+                    conf = configForDelivery(delivery);
+                  }
+                  catch (Exception e) {
+                    log.error("Cannot use config; ignoring message");
+                    return;
+                  }
+                  pluginConsumer.handleDelivery(delivery, conf);
+                  PipelineComponent.this.messageServerChannel
+                    .basicAck(delivery.getEnvelope()
+                              .getDeliveryTag(), false);
+                  PipelineComponent.this.messageServerChannel
+                    .txCommit();
+                } else {
                   PipelineComponent.this.log.warn("No non-null input reader field ");
                 }
-              }
-              catch (PluginException ex) {
-                rollbackOnException(ex);
-              }
-              catch(IOException ex) {
-                rollbackOnException(ex);
+              } catch (Exception e) {
+                try {
+                  PipelineComponent.this.log.error(e);
+                  PipelineComponent.this.messageServerChannel
+                    .txRollback();
+                } catch (IOException e1) {
+                  PipelineComponent.this.log.error(e1);
+                }
               }
             }
-          }
-          catch (InterruptedException ignored) {
-            // If interrupted try again!
+          } catch (InterruptedException _) {
           }
         }
       }
-
+      
     };
   }
-
-  private void rollbackOnException(Exception e) {
-    try {
-      this.log.error(e);
-      this.messageServerChannel.txRollback();
+  
+    protected Document getState() throws IOException {
+      return stateDb.getDocument(stateDocName);
     }
-    catch (IOException e1) {
-      this.log.error(e1);
-    }
-  }
-
-  protected Document getState() throws IOException {
-    return stateDb.getDocument(stateDocName);
-  }
-
+  
   protected void setState(Document state) throws IOException {
     stateDb.saveDocument(state, stateDocName);
   }
-
+  
   public static final class PipelinePublisher implements Publisher {
     private String exchange;
     private Channel channel;
-
+    
     public PipelinePublisher(String exchangeName, Channel out) {
       exchange = exchangeName;
       channel = out;
     }
-
+    
     public void publish(byte[] body) throws IOException {
       channel.basicPublish(exchange, "", basicPropsPersistent, body);
     }
+    
+    public void publish(byte[] body, Map<String, Object> headers) throws IOException {
+      channel.basicPublish(exchange, "", propertiesWithHeaders(headers), body);
+    }
   }
-
 }

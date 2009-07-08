@@ -19,7 +19,9 @@ import amqplib.client_0_8 as amqp
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
-IO_LINE_REX=re.compile(r'^([<>]?)(\w*)\s*:(.*\n?)') # TODO(alexander): cut'n pasted
+#                         |1 i/o|2 ch|  4 rk  |   6 config       |7 data|
+IO_LINE_REX=re.compile(r'^([<>]?)(\w*)(/(\w*))?(\(([^\)]*)\))?\s*:(.*\n?)') # TODO(alexander): cut'n pasted
+#talkerRe = re.compile("([a-zA-Z0-9]*)(/([a-zA-Z0-9]*))?(\(([^\)]*)\))?:(.*)")
 
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
@@ -32,7 +34,7 @@ def json_repr(py_obj):
     return json.dumps(py_obj, indent=None).replace('\n', '\n\t:')
 
 def newname():
-    return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
+    return 'test-%s' % hashlib.sha1(os.urandom(8)).hexdigest()
 
 def make_stdout_msg_outputter(name):
     def stdout_msg_outputter(msg):
@@ -48,7 +50,6 @@ def continously(f):
     t.daemon = True
     t.start()
     return t
-
 
 class TestWiring(object):
 
@@ -89,10 +90,18 @@ class TestWiring(object):
     def make_talker(self, queue):
         exchange = self.declexchange()
         self.channel.queue_bind(queue, exchange)
-        def say(something):
-            self.channel.basic_publish(amqp.Message(body=something), exchange)
+        def say(something, rk='', config=None):
+            if config is not None:
+                headers = {'x-streams-plugin-config': config}
+                self.channel.basic_publish(amqp.Message(body=something,
+                                                   application_headers=headers),
+                                      exchange,
+                                      routing_key=rk)
+            else:
+                self.channel.basic_publish(amqp.Message(body=something),
+                                      exchange,
+                                      routing_key=rk)
         return say
-
 
 
 def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
@@ -150,8 +159,6 @@ def main(plugindir, config_json):
     sys.exit(repl(iter(sys.stdin.readline, ''), wiring.talkers))
 
 
-
-
 def spawn_plugin(plugindir, plugin_specs, instance_config,
                  inputs, outputs,
                  rabbit_params=RABBIT_CONNECTION_PARAMS,
@@ -196,9 +203,17 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     print "## Initialising plugin with:"
     return pluginproc
 
-
-
-
+def parseInput(line):
+    m = IO_LINE_REX.match(line)
+    if m is None:
+        raise "Does not match"
+    else:
+        (io, channel, _1, rk, _2, conf, msg) = m.groups()
+        if conf is not None:
+            # let the exception bubble up
+            json.loads(conf)
+        return (io, channel, rk or '', conf, msg)
+            
 # TODO: a proper state-machine abstraction might be good here...
 def repl(lines, talkers):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
@@ -226,7 +241,7 @@ def repl(lines, talkers):
                 talker_name, msg, state = None, None, WANT_CHANNEL
         else:
             try:
-                typ, channel, bit = IO_LINE_REX.match(line).groups()
+                typ, channel, rk, config, bit = parseInput(line)
             except Exception:
                 print >>sys.stderr, (
                     ">ERROR(MALFORMED_INPUT):"
@@ -263,8 +278,6 @@ def repl(lines, talkers):
     if talker_name is not None:
         exit_code |= ship()
     return exit_code
-
-
 
 if __name__ == '__main__':
     pass

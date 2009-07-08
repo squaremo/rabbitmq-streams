@@ -6,6 +6,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.Map;
 
 import net.sf.json.JSONArray;
 import net.sf.json.JSONNull;
@@ -15,6 +16,7 @@ import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.impl.ChannelN;
@@ -22,17 +24,26 @@ import com.rabbitmq.client.impl.ChannelN;
 public abstract class Plugin implements Runnable {
 
   public static final String newline = System.getProperty("line.separator");
-  static final BasicProperties basicPropsPersistent = new BasicProperties();
 
+  public static final String PLUGIN_CONFIG_HEADER = "x-streams-plugin-config";
+  
+  static final BasicProperties basicPropsPersistent = new BasicProperties();
   static {
     basicPropsPersistent.deliveryMode = 2;
+  }
+
+  static final BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
+    BasicProperties props = new BasicProperties();
+    props.deliveryMode = 2;
+    props.headers.putAll(headers);
+    return props;
   }
 
   final protected Connection messageServerConnection;
   final protected ChannelN messageServerChannel;
   final protected JSONObject pluginType;
   final protected JSONObject config;
-  final protected JSONObject configuration;
+  final protected JSONObject staticConfiguration;
   final protected Database privateDb;
   final protected Logger log;
 
@@ -47,7 +58,7 @@ public abstract class Plugin implements Runnable {
     }
     JSONObject userConfig = config.getJSONObject("configuration");
     mergedConfig.putAll(userConfig);
-    this.configuration = mergedConfig;
+    this.staticConfiguration = mergedConfig;
 
     JSONObject messageServerSpec = config.getJSONObject("messageserver");
     messageServerConnection = AMQPConnection.amqConnectionFromConfig(messageServerSpec);
@@ -83,7 +94,6 @@ public abstract class Plugin implements Runnable {
     if (config.containsKey("server_id")) {
       return "." + config.getString("server_id") + "." + config.getString("plugin_name");
     }
-
     return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
   }
 
@@ -106,21 +116,18 @@ public abstract class Plugin implements Runnable {
     dieHorribly();
   }
 
-  @SuppressWarnings("unchecked")
-  protected void constructOutputs(JSONObject outputs) {
-    for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt.hasNext();) {
-      String name = outKeysIt.next();
-      String exchange = outputs.getString(name);
-      try {
-        Field outputField = Plugin.this.getClass().getField(name);
-        outputField.set(Plugin.this, publisher(name, exchange));
-      }
-      catch (IllegalAccessException iac) {
-        illegalAccess(name);
-      }
-      catch (NoSuchFieldException nsfe) {
-        noSuchField(name);
-      }
+  protected final JSONObject configForDelivery(Delivery delivery) throws Exception {
+    Map<String, Object> headers = delivery.getProperties().headers;
+    if (headers != null && headers.containsKey(PLUGIN_CONFIG_HEADER)) {
+      String confStr = headers.get(PLUGIN_CONFIG_HEADER).toString();
+      log.debug("Plugin config found: " + confStr);
+      JSONObject headerConf = (JSONObject) JSONObject.fromObject(confStr);
+      JSONObject dynamicConf = JSONObject.fromObject(this.staticConfiguration);
+      dynamicConf.putAll(headerConf);
+      return dynamicConf;
+    }
+    else {
+      return this.staticConfiguration;
     }
   }
 
@@ -139,9 +146,29 @@ public abstract class Plugin implements Runnable {
       }
     }
   }
-
+  
+  @SuppressWarnings("unchecked")
+  protected void constructOutputs(JSONObject outputs) {
+    for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt
+           .hasNext();) {
+      String name = (String) outKeysIt.next();
+      String exchange = outputs.getString(name);
+      try {
+        Publisher p = publisher(name, exchange);
+        Setter setter = this.outputSetter(name, p);
+        setter.set(p);
+      } catch (IllegalAccessException iac) {
+        illegalAccess(name);
+      }
+    }
+  }
+  
   static interface Getter {
-    InputReader get();
+    InputReader get() throws IllegalAccessException;
+  }
+
+  static interface Setter {
+    void set(Publisher pub) throws IllegalAccessException;
   }
 
   protected final Getter inputGetter(String name) {
@@ -203,6 +230,57 @@ public abstract class Plugin implements Runnable {
     }
   }
 
+  protected final Setter outputSetter(String name, Publisher p) {
+    try {
+      final Field pluginQueueField = getClass().getField(name);
+      return new Setter() {
+        public void set(Publisher pub) {
+          try {
+            pluginQueueField.set(Plugin.this, pub);
+          } catch (IllegalArgumentException e) {
+            Plugin.this.log.fatal(e);
+            dieHorribly();
+            return;
+          } catch (IllegalAccessException e) {
+            Plugin.this.log.fatal(e);
+            dieHorribly();
+            return;
+          }
+        }
+      };
+    } catch (NoSuchFieldException nsfe) {
+      try {
+        final Method pluginQueueMethod = getClass().getMethod(name, p.getClass());
+        return new Setter() {
+          public void set(Publisher pub) {
+            try {
+              pluginQueueMethod.invoke(Plugin.this, new Object[] {pub});
+            } catch (IllegalArgumentException e) {
+              Plugin.this.log.fatal(e);
+              dieHorribly();
+              return;
+            } catch (IllegalAccessException e) {
+              Plugin.this.log.fatal(e);
+              dieHorribly();
+              return;
+            } catch (InvocationTargetException e) {
+              Plugin.this.log.fatal(e);
+              dieHorribly();
+              return;
+            }
+          }
+        };
+      } catch (NoSuchMethodException nsme) {
+        noSuchField(name);
+        return null;
+      }
+    } catch (SecurityException se) {
+      log.fatal(se);
+      dieHorribly();
+      return null; // .. but die will have exited
+    }
+  }
+  
   protected void postConstructorInit() throws IllegalArgumentException, SecurityException {
 
     // set up outputs FIRST, so we don't start processing messages

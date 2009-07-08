@@ -18,8 +18,6 @@ import com.rabbitmq.streams.harness.PipelineComponent;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
-import com.rabbitmq.client.QueueingConsumer.Delivery;
-
 public class xslt extends PipelineComponent {
 
   public InputReader input;
@@ -46,7 +44,7 @@ public class xslt extends PipelineComponent {
 
   public xslt(final JSONObject config) throws IOException {
     super(config);
-    String xsltSrc = configuration.getString("stylesheet_url");
+    String xsltSrc = config.getString("stylesheet_url");
     URLConnection xsltConn = new URL(xsltSrc).openConnection();
     xsltConn.connect();
     InputStream xsltFileContent = (InputStream) xsltConn.getContent();
@@ -67,28 +65,31 @@ public class xslt extends PipelineComponent {
     trans.setErrorListener(xsltErrorLogger);
 
     input = new InputReader() {
+        
+        @Override
+        public void handleBodyAndConfig(byte[] body, JSONObject object) throws PluginException {
+          StreamSource xmlSource =
+            new StreamSource(new ByteArrayInputStream(body));
+          ByteArrayOutputStream output = new ByteArrayOutputStream();
+          StreamResult result = new StreamResult(output);
+          
+          try {
+            trans.transform(xmlSource, result);
+          }
+          catch (TransformerException e) {
+            throw new PluginException(e);
+          }
+          String outputString = output.toString();
+          try {
+            xslt.this.output.publish(outputString.getBytes());
+          }
+          catch (IOException e) {
+            throw new PluginException(e);
+          }
+        }
+        
+      };
 
-      public void handleDelivery(Delivery message) throws PluginException {
-        StreamSource xmlSource = new StreamSource(new ByteArrayInputStream(message.getBody()));
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        StreamResult result = new StreamResult(output);
-
-        try {
-          trans.transform(xmlSource, result);
-        }
-        catch (TransformerException e) {
-          throw new PluginException(e);
-        }
-        String outputString = output.toString();
-        try {
-          xslt.this.output.publish(outputString.getBytes());
-        }
-        catch (IOException e) {
-          throw new PluginException(e);
-        }
-      }
-
-    };
     postConstructorInit();
   }
 }
