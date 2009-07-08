@@ -9,5 +9,9 @@
 	   ]},
   {applications,[kernel,stdlib]},
   {mod, {orchestrator, []}},
-  {env, [{couch_base_url, "http://localhost:5984/"}]}
+  %% pass these in with ``erl [...] -orcestrator couch_base_url http://...``
+  {env, [{couch_base_url, "YOU WILL HAVE TO SUPPLY SOMETHING LIKE THIS ON THE \
+ COMMANDLINE:  http://localhost:5984/"},
+         {root_config_url, "YOU WILL HAVE TO SUPPLY SOMETHING LIKE THIS ON THE \
+ COMMANDLINE: http://localhost:5984/feedshub_status/root_config"}]}
  ]}.
