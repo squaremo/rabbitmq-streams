@@ -34,7 +34,7 @@ PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
 	build-essential erlang erlang-src libicu38 libicu-dev \
-	libmozjs-dev libcurl4-openssl-dev mercurial subversion \
+	libmozjs-dev libcurl4-openssl-dev mercurial subversion git\
 	elinks python-simplejson cvs zip default-jdk \
 	ant maven2 screen
 
@@ -339,25 +339,22 @@ build/opt/erlang-rfc4627:
 ###########################################################################
 # iBrowse
 
-install-ibrowse: build/src/jungerl build/opt/ibrowse
+install-ibrowse: build/src/ibrowse build/opt/ibrowse
 
-update-ibrowse: build/src/jungerl
+update-ibrowse: build/src/ibrowse
 	rm -rf build/opt/ibrowse
-	(cd build/src/jungerl && cvs update -Pd)
+	(cd build/src/ibrowse && git fetch; git rebase origin)
 	$(MAKE) build/opt/ibrowse
 
-build/src/jungerl:
-	@echo checking out jungerl
+build/src/ibrowse:
+	@echo checking out ibrowse
 	(mkdir -p build/src && cd build/src && \
-	 cvs -d:pserver:anonymous:@jungerl.cvs.sourceforge.net:/cvsroot/jungerl login && \
-	 cvs -z3 -d:pserver:anonymous@jungerl.cvs.sourceforge.net:/cvsroot/jungerl co -P jungerl) \
-		> build/logs/clone-jungerl.txt 2>&1
+	 git clone git://github.com/cmullaparthi/ibrowse.git) > build/logs/clone-ibrowse.txt 2>&1
 
 build/opt/ibrowse:
-	(cd build/src/jungerl/lib/ibrowse/src && $(MAKE)) \
-		> build/logs/build-ibrowse.txt 2>&1
+	(cd build/src/ibrowse/ && $(MAKE)) > build/logs/build-ibrowse.txt 2>&1
 	(mkdir -p build/opt/ibrowse && \
-		cp -r build/src/jungerl/lib/ibrowse/ebin build/opt/ibrowse) \
+		cp -r build/src/ibrowse/ebin build/opt/ibrowse/ebin) \
 		>> build/logs/build-ibrowse.txt 2>&1
 
 ###########################################################################
