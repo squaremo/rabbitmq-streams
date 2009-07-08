@@ -26,7 +26,9 @@ public abstract class Plugin implements Runnable {
   public static final String newline = System.getProperty("line.separator");
 
   public static final String PLUGIN_CONFIG_HEADER = "x-streams-plugin-config";
-  
+
+  // FIXME: when we can clone properties, it'd be good to use the constants
+  // in MessageProperties here and below.
   static final BasicProperties basicPropsPersistent = new BasicProperties();
   static {
     basicPropsPersistent.deliveryMode = 2;
@@ -35,7 +37,7 @@ public abstract class Plugin implements Runnable {
   static final BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
     BasicProperties props = new BasicProperties();
     props.deliveryMode = 2;
-    props.headers.putAll(headers);
+    props.headers = headers;
     return props;
   }
 
