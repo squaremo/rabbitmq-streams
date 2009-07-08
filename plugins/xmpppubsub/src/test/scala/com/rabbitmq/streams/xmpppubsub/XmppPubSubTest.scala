@@ -10,7 +10,7 @@ class XmppPubSubTest extends Specification with JUnit {
       {
       val server = new XmppPubSubServer(hostAndPort)
       ()
-      } must throwAn[java.net.ConnectException]
+      } must throwAn[net.sf.json.JSONException]
     }
     "read proxy configuration from json" in {
       "x".size must_== 1
