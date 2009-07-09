@@ -21,9 +21,11 @@
       "edges": [
 	{"from": {"node": "the_input1"},
 	 "to":   {"node": "onevaluecache", "channel": "input"}},
-	{"from": {"node": "the_input1"},
+	{"from": {"node": "the_cache_input"},
 	 "to":   {"node": "onevaluecache", "channel": "cache"}},
 	{"from": {"node": "onevaluecache", "channel": "output"},
+	 "to":   {"node": "headeroutput", "channel": "input"}},
+	{"from": {"node": "headeroutput", "channel": "output"},
 	 "to":   {"node": "the_output1"}}
       ]
     }

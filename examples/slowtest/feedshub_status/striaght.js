@@ -14,8 +14,6 @@
       },
       "edges": [
 	{"from": {"node": "the_input1"},
-	 "to":   {"node": "slowtestplugin", "channel": "input"}},
-	{"from": {"node": "the_input1"},
 	 "to":   {"node": "slowtestplugin", "channel": "cache"}},
 	{"from": {"node": "slowtestplugin", "channel": "output"},
 	 "to":   {"node": "the_output1"}}

@@ -33,10 +33,18 @@ public class slowtestplugin extends PipelineComponent {
 			} catch (IOException e) {
 				throw new PluginException(e);
 			}
+			
+            //Send on message possibly modified
+            try {
+                output.publish("I got a message".getBytes());
+            } catch (IOException e) {
+                throw new PluginException(e);
+            }
+            
         }
 
     };
-
+/*
     public final InputReader input = new InputReader() {
 
         public void handleBody(byte[] body) throws PluginException {
@@ -57,7 +65,7 @@ public class slowtestplugin extends PipelineComponent {
         }
 
     };
-    
+    */
     public PipelinePublisher output;
     
     public slowtestplugin(JSONObject config) throws IOException, PluginException {
