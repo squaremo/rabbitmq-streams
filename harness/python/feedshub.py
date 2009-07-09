@@ -45,7 +45,7 @@ def pp_message(msg):
     return d
 
 def pformat(j):
-    return json.dumps(j, indent = 2)
+    return json.dumps(j, indent=2)
 
 # def pformat(j):
 #     import pprint
@@ -129,14 +129,15 @@ class PluginBase(object):
 
     def _make_exchange_publisher(self, channel, exchange, routing_key):
         def p(body, **headers):
-            override_routing_key = "override_routing_key" in headers and headers["override_routing_key"] or None
+            override_routing_key = headers.pop("override_routing_key", None)
             if self.__publication_error:
                 raise Exception("Publishing after publication error")
             message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
             # TODO: treat application_headers specially, and expect a content type
             with self.__monitor:
                 try:
-                    channel.basic_publish(message, exchange, override_routing_key or routing_key)
+                    channel.basic_publish(message, exchange,
+                                          override_routing_key or routing_key)
                 except:
                     self.__publication_error = True
                     raise
@@ -202,7 +203,7 @@ class PluginBase(object):
             rk = self._build_log_rk(config, level)
             publisher = self._make_exchange_publisher(self.__log, feedshub_log_xname, rk)
             def log(body, label=None):
-                headers = label and {"com.rabbitmq.streams.logging.label":label} or {}
+                headers = {"com.rabbitmq.streams.logging.label": label} if label else {}
                 publisher(body, **headers)
             return log
         for level in ['debug', 'info', 'warn', 'error', 'fatal']:

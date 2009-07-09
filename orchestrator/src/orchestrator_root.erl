@@ -11,8 +11,6 @@
 
 -define(SERVER, ?MODULE).
 
--define(ROOT_STATUS_DOCID, ?FEEDSHUB_STATUS_DBNAME "root_config").
-
 -include("orchestrator.hrl").
 -include("rabbit.hrl").
 -include("rabbit_framing.hrl").
@@ -93,19 +91,10 @@ install_view(DbName, ViewDir) ->
 	 end,
     {ok, _} = couchapi:put(Path, Doc2).
 
-setup_core_couch() ->
-    ok = couchapi:createdb(?FEEDSHUB_STATUS_DBNAME),
-    {ok, _} = couchapi:put(?ROOT_STATUS_DOCID,
-                           {obj, [{"feedshub_version", ?FEEDSHUB_VERSION},
-                                  {"rabbitmq", {obj, [{"host", <<"localhost">>},
-                                                      {"user", <<"feedshub_admin">>},
-                                                      {"password", <<"feedshub_admin">>}]}}
-                                 ]}),
-    ok = install_views(),
-    ok.
-
 read_root_config() ->
-    {ok, RootConfig} = couchapi:get(?ROOT_STATUS_DOCID),
+    %% TODO(alexander): this seems wrong -- why do I need to tell get_env it's orchestrator?
+    {ok, RootConfigUrl} = application:get_env(orchestrator, root_config_url),
+    {ok, RootConfig} = couchapi:get({raw, RootConfigUrl}),
     case rfc4627:get_field(RootConfig, "feedshub_version") of
         {ok, ?FEEDSHUB_VERSION} ->
             {ok, RMQ} = rfc4627:get_field(RootConfig, "rabbitmq"),
@@ -130,8 +119,10 @@ startup_couch_scan() ->
         {ok, _DbInfo} ->
             ok;
         {error, 404, _} ->
-            ok = setup_core_couch()
+            exit({no_status_db, "You need to create " ++ ?FEEDSHUB_STATUS_DBNAME ++
+                  "before running the orchestrator"})
     end,
+    install_views(),
     {ok, #root_config{}} = read_root_config().
 
 activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
@@ -147,7 +138,7 @@ activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
         {error, {already_started, _Child}} ->
             ok;
 	Err -> error_logger:error_report({?MODULE, activate_thing, start_error, {ThingId, Module, Args, Err}}),
-            {error, start_error}     
+            {error, start_error}
     end;
 activate_thing(ThingId, Module, Args) ->
     activate_thing(list_to_binary(ThingId), Module, Args).
@@ -233,7 +224,7 @@ check_active_terminals(Channel) ->
 	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
-    
+
 status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status") of
 	{ok, Doc} ->

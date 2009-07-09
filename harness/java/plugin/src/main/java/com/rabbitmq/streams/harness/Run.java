@@ -15,10 +15,12 @@ public class Run {
   public static void main(final String[] args) throws IOException, InterruptedException {
     System.out.println(args[0]);
     Plugin plugin = plugin();
+    Harness harness = new Harness(plugin);
 
     if (plugin != null) {
       try {
-        plugin.start();
+//        plugin.start();
+        harness.start();
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         while (null != reader.readLine()) {
         }
@@ -28,7 +30,7 @@ public class Run {
         plugin.log.error(e);
       }
       finally {
-        plugin.shutdown();
+        harness.shutdown();
       }
     }
   }
@@ -50,7 +52,7 @@ public class Run {
       @SuppressWarnings({"unchecked"}) Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
       plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArguments);
     }
-    catch(Exception ex) {
+    catch (Exception ex) {
       System.err.println("Exception thrown while loading & constructing Java plugin");
       ex.printStackTrace(System.err);
     }

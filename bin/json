@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+r"""Usage: json get SUBSCRIPT...
+Access json component specified by path SUBSCRIPT...
+
+Examples:
+
+> echo '{"a":"b\n"}' | json get a
+"b\n"
+> echo '{"a":"b\n"}' | json --raw get a
+b
+> echo '{"foo":{"3":[0,1,2,3]}}' | json get foo 3 3
+3
+"""
+import sys
+from optparse import OptionParser, make_option as opt
+
+USAGE = __doc__
+
+opts, args = OptionParser(USAGE, [
+    opt('-r', '--raw', action='store_true', default=False,
+        help='Use raw, unquoted ascii representations.'),
+    opt('-q', '', action='store_true', default=False,
+        help="Don't output error messages.")]
+                          ).parse_args()
+import simplejson as json
+if args[0:1] != ['get']:
+    print >>sys.stderr, "Unexpected arguments: %r" % args
+    print >>sys.stderr, USAGE
+    sys.exit(255)
+
+path = args[1:]
+
+def json_itemgetter(py_lit, item):
+    """
+    >>> reduce(json_itemgetter, ['foo', '3', '3'], json.loads('{"foo":{"3":[0,1,2,3]}}'))
+    3
+    >>>
+    """
+    try:
+        return py_lit[item if not isinstance(py_lit, list) else int(item)]
+    except LookupError, e:
+        if not opts.q:
+            print >> sys.stderr, "Bad key: %s" % e.args
+        sys.exit(44)
+
+f = sys.stdin
+obj = reduce(json_itemgetter, path, json.load(f))
+if opts.raw:
+    sys.stdout.write(unicode(obj))
+else:
+    print json.dumps(obj)
+assert isinstance(obj, (int, str, unicode))
+
+
