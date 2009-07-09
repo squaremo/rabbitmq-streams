@@ -45,10 +45,7 @@ public class onevaluecachejava extends PipelineComponent {
                 //Check message against cachedValue
                 headers.put("cache2", cachedValue);
             }
-            if (cachedValue == BOB)
-            {
-            	
-            }
+            
             //Send on message possibly modified
             try {
                 output.publish(body, headers);

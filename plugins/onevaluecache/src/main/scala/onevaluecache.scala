@@ -25,7 +25,7 @@ class onevaluecache(config: JSONObject) extends PipelineComponent(config) {
       override def handleBody(body: Array[Byte])
       {
         cachedValue = new String(body);
-        
+        log.debug("Got cache value " + cachedValue)
         var state = getState();
         
         if (state == null)
@@ -33,16 +33,21 @@ class onevaluecache(config: JSONObject) extends PipelineComponent(config) {
         
         if (state.has(CachedValue))
         {
+        	log.debug("CachedValue already in db")
             val currentCache = state.get(CachedValue);
             
             if (currentCache != cachedValue)
             {
+            	log.debug("Setting cachedvalue since it has changed from " + currentCache + " to " + cachedValue)
+              
             	state.put(CachedValue, cachedValue)
             	setState(state)
             }
         }
         else
         {
+        	log.debug("Current value not there, setting")
+          
         	state.put(CachedValue, cachedValue)
         	setState(state)
         }
