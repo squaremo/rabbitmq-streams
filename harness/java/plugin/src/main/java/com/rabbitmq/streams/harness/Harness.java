@@ -6,19 +6,73 @@ import com.rabbitmq.client.impl.ChannelN;
 import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Session;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.URL;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URLClassLoader;
+import java.util.ArrayList;
 
 import net.sf.json.JSONObject;
 import net.sf.json.JSONNull;
 
 public class Harness implements Runnable {
 
-  public Harness(Plugin plugin) {
-    this.plugin = plugin;
-    configuration = plugin.getConfiguration();
+  public Harness(JSONObject configuration) {
+    this.configuration = configuration;
+    plugin = plugin(configuration);
   }
+
+  public Plugin plugin(JSONObject configuration) {
+    String pluginDirectory;
+    String pluginName;
+    Plugin plugin = null;
+
+    try {
+      pluginDirectory = pluginDirectory(configuration);
+      URI libUri = new URI(pluginDirectory + "lib/");
+
+      URLClassLoader ucl = new URLClassLoader(classPathEntries(new URL(pluginDirectory), libUri, jars(libUri)), ClassLoader.getSystemClassLoader());
+      Thread.currentThread().setContextClassLoader(ucl);
+      pluginName = configuration.getString("plugin_name");
+      @SuppressWarnings({"unchecked"}) Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
+      plugin = clazz.getConstructor(JSONObject.class).newInstance(configuration);
+    }
+    catch (Exception ex) {
+      System.err.println("Exception thrown while loading & constructing Java plugin");
+      ex.printStackTrace(System.err);
+    }
+    return plugin;
+  }
+
+  private String[] jars(URI libUri) {
+    return new File(libUri).list(new FilenameFilter() {
+      public boolean accept(File dir, String filename) {
+        return filename.endsWith(".jar");
+      }
+    });
+  }
+
+  private String pluginDirectory(JSONObject jsonArgs) {
+    String pluginDir = "file://" + jsonArgs.getString("plugin_dir");
+    if (!pluginDir.endsWith("/")) {
+      pluginDir += "/";
+    }
+    return pluginDir;
+  }
+
+  private URL[] classPathEntries(URL pluginUrl, URI libUri, String[] jars) throws MalformedURLException {
+    ArrayList<URL> classpathEntries = new ArrayList<URL>();
+    classpathEntries.add(pluginUrl);
+    if (null != jars) {
+      for (String jar : jars) {
+        classpathEntries.add(new URL(libUri + jar));
+      }
+    }
+
+    return classpathEntries.toArray(new URL[classpathEntries.size()]);
+  }
+
 
   public void run() {
     // configure message channels required by plugin

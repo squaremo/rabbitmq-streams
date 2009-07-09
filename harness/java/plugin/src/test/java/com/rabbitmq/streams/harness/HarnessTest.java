@@ -9,9 +9,7 @@ public class HarnessTest extends BaseTestCase {
   }
 
   public void testConstructor() {
-    Plugin plugin = mock(Plugin.class);
-
-    Harness harness = new Harness(plugin);
+    Harness harness = new Harness(getDefaultConfiguration());
 
     assertNotNull(harness);
   }

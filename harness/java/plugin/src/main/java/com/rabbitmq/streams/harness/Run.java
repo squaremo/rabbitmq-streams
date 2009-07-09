@@ -1,56 +1,58 @@
 package com.rabbitmq.streams.harness;
 
+import net.sf.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.File;
-import java.io.FilenameFilter;
-import java.net.*;
-import java.util.ArrayList;
-
-import net.sf.json.JSONObject;
 
 public class Run {
 
   public static void main(final String[] args) throws IOException, InterruptedException {
     System.out.println(args[0]);
-    Plugin plugin = plugin();
-    Harness harness = new Harness(plugin);
+    Harness harness = new Harness(readConfiguration());
 
-    if (plugin != null) {
-      try {
-//        plugin.start();
-        harness.start();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        while (null != reader.readLine()) {
-        }
-      }
-      catch (Exception e) {
-        e.printStackTrace();
-        plugin.log.error(e);
-      }
-      finally {
-        harness.shutdown();
+    try {
+      harness.start();
+      BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+      while (null != reader.readLine()) {
       }
     }
+    catch (Exception e) {
+      e.printStackTrace();
+    }
+    finally {
+      harness.shutdown();
+    }
+
   }
 
-  public static Plugin plugin() {
-    String pluginDirectory = null;
-    String pluginName = null;
-    JSONObject jsonArguments = null;
+  private static JSONObject readConfiguration() {
+    try {
+      return JSONObject.fromObject(new BufferedReader(new InputStreamReader(System.in)).readLine());
+    }
+    catch (IOException e) {
+      System.err.println("Unable to read configuration from standard input");
+      e.printStackTrace();
+    }
+    return null;
+  }
+/*
+  public static Plugin plugin(JSONObject configuration) {
+    String pluginDirectory;
+    String pluginName;
     Plugin plugin = null;
 
     try {
-      jsonArguments = JSONObject.fromObject(new BufferedReader(new InputStreamReader(System.in)).readLine());
-      pluginDirectory = pluginDirectory(jsonArguments);
+      configuration = JSONObject.fromObject(new BufferedReader(new InputStreamReader(System.in)).readLine());
+      pluginDirectory = pluginDirectory(configuration);
       URI libUri = new URI(pluginDirectory + "lib/");
 
       URLClassLoader ucl = new URLClassLoader(classPathEntries(new URL(pluginDirectory), libUri, jars(libUri)), ClassLoader.getSystemClassLoader());
       Thread.currentThread().setContextClassLoader(ucl);
-      pluginName = jsonArguments.getString("plugin_name");
+      pluginName = configuration.getString("plugin_name");
       @SuppressWarnings({"unchecked"}) Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
-      plugin = clazz.getConstructor(JSONObject.class).newInstance(jsonArguments);
+      plugin = clazz.getConstructor(JSONObject.class).newInstance(configuration);
     }
     catch (Exception ex) {
       System.err.println("Exception thrown while loading & constructing Java plugin");
@@ -86,4 +88,6 @@ public class Run {
 
     return classpathEntries.toArray(new URL[classpathEntries.size()]);
   }
+  */
+
 }

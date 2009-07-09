@@ -60,11 +60,6 @@ public abstract class Plugin implements Runnable {
     JSONObject userConfig = config.getJSONObject("configuration");
     mergedConfig.putAll(userConfig);
     this.staticConfiguration = mergedConfig;
-
-  }
-
-  public JSONObject getConfiguration() {
-    return JSONObject.fromObject(config.toString());
   }
 
   public void setMessageServerChannel(ChannelN channelN) {
