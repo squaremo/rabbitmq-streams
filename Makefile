@@ -443,7 +443,11 @@ demo-lshift: full-reset-core-nox demo-lshift-stop start-orchestrator-nox
 		echo $$! > $(LSHIFT_PIDSFILE)
 	sleep 1
 	make start-orchestrator-nox
-	xterm -T 'LShift Producer' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
+	xterm -T 'LShift Producer (45678)' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
+		echo $$! >> $(LSHIFT_PIDSFILE)
+	sleep 1
+
+	xterm -T 'LShift Cache (45679)' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45679 && sleep 1; done' & \
 		echo $$! >> $(LSHIFT_PIDSFILE)
 
 demo-lshift-stop: stop-orchestrator-nox
