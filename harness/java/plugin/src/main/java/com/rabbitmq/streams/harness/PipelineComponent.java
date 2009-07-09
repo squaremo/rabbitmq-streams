@@ -81,7 +81,7 @@ public abstract class PipelineComponent extends Plugin {
                 if (null != pluginConsumer) {
                   JSONObject conf = null;
                   try {
-                    conf = configForDelivery(delivery);
+                    conf = configForHeaders(delivery.getProperties().headers);
                   }
                   catch (Exception e) {
                     log.error("Cannot use config; ignoring message");

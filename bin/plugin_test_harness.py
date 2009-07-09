@@ -92,7 +92,7 @@ class TestWiring(object):
         self.channel.queue_bind(queue, exchange)
         def say(something, rk='', config=None):
             if config is not None:
-                headers = {'x-streams-plugin-config': config}
+                headers = config
                 self.channel.basic_publish(amqp.Message(body=something,
                                                    application_headers=headers),
                                       exchange,

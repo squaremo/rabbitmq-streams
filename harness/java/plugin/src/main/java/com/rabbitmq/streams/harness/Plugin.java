@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -20,7 +21,7 @@ public abstract class Plugin implements Runnable {
 
   public static final String newline = System.getProperty("line.separator");
 
-  public static final String PLUGIN_CONFIG_HEADER = "x-streams-plugin-config";
+  public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
 
   // FIXME: when we can clone properties, it'd be good to use the constants
   // in MessageProperties here and below.
@@ -44,9 +45,8 @@ public abstract class Plugin implements Runnable {
 
   final protected JSONObject pluginType;
   final protected JSONObject config;
+  final protected JSONObject uninterpolatedConfiguration;
   final protected JSONObject staticConfiguration;
-
-
 
   public Plugin(final JSONObject config) throws IOException {
     this.config = config;
@@ -59,7 +59,8 @@ public abstract class Plugin implements Runnable {
     }
     JSONObject userConfig = config.getJSONObject("configuration");
     mergedConfig.putAll(userConfig);
-    this.staticConfiguration = mergedConfig;
+    this.uninterpolatedConfiguration = mergedConfig;
+    this.staticConfiguration = interpolateConfig(mergedConfig, new HashMap<String, Object>());
   }
 
   public void setMessageServerChannel(ChannelN channelN) {
@@ -80,8 +81,7 @@ public abstract class Plugin implements Runnable {
 
   protected abstract Publisher publisher(String name, String exchange);
 
-  protected abstract Runnable inputReaderRunnable(Getter get,
-    QueueingConsumer consumer);
+  protected abstract Runnable inputReaderRunnable(Getter get, QueueingConsumer consumer);
 
   protected final void dieHorribly() {
     System.exit(1);
@@ -97,15 +97,43 @@ public abstract class Plugin implements Runnable {
     dieHorribly();
   }
 
-  protected final JSONObject configForDelivery(Delivery delivery) throws Exception {
-    Map<String, Object> headers = delivery.getProperties().headers;
-    if (headers != null && headers.containsKey(PLUGIN_CONFIG_HEADER)) {
-      String confStr = headers.get(PLUGIN_CONFIG_HEADER).toString();
-      log.debug("Plugin config found: " + confStr);
-      JSONObject headerConf = JSONObject.fromObject(confStr);
-      JSONObject dynamicConf = JSONObject.fromObject(this.staticConfiguration);
-      dynamicConf.putAll(headerConf);
-      return dynamicConf;
+  /**
+   * Set values in the header.
+   */
+  protected static void setValuesInHeader(Map<String, Object> headersToMutate, JSONObject vals) {
+    headersToMutate.put(Plugin.PLUGIN_VALUES_HEADER, vals);
+  }
+
+  protected static JSONObject getValuesFromHeader(Map<String, Object> headers) {
+    return (headers.containsKey(PLUGIN_VALUES_HEADER)) ? JSONObject.fromObject(headers.get(PLUGIN_VALUES_HEADER)) : null;
+  }
+
+  /**
+   * Interpolate values given in the header into the dynamic configuration.
+   * This is so that upstream components can pass on calculated values, to
+   * be used for handling a particular message.
+   */
+  protected static JSONObject interpolateConfig(JSONObject uninterpolated, Map<String, Object> vals) {
+    JSONObject result = JSONObject.fromObject(uninterpolated);
+    for (Object k : uninterpolated.keySet()) {
+      String key = k.toString();
+      String uninterpolatedValue = uninterpolated.getString(key);
+      // This can largely be done statically, but I'm waiting until the harness
+      // is refactored.
+      if (uninterpolatedValue.startsWith("$")) {
+        String valKey = uninterpolatedValue.substring(1);
+        result.put(key, vals.containsKey(valKey) ? vals.get(valKey) : "");
+      }
+    }
+    return result;
+  }
+
+  protected final JSONObject configForHeaders(Map<String, Object> headers) throws Exception {
+    if (headers ==null) return this.staticConfiguration;
+    JSONObject conf = getValuesFromHeader(headers);
+    if (conf != null) {
+      log.debug("Plugin values found in header: " + conf.toString());
+      return interpolateConfig(this.uninterpolatedConfiguration, conf);
     }
     else {
       return this.staticConfiguration;
