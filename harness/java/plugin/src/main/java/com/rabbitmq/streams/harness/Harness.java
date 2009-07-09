@@ -23,6 +23,18 @@ public class Harness implements Runnable {
     plugin = plugin(configuration);
   }
 
+  /**
+   * This constructor is here for the sole purpose of facilitating testing, do not use it in production code!
+   *
+   * A message will be written to stdout and stderr so if you use it you may get found out!
+   */
+  Harness(JSONObject configuration, Plugin plugin)  {
+    System.out.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
+    this.configuration = configuration;
+    this.plugin = plugin;
+    System.err.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
+  }
+
   public Plugin plugin(JSONObject configuration) {
     String pluginDirectory;
     String pluginName;
