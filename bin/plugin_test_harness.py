@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
 import amqplib.client_0_8 as amqp
 
-from feedshub import json
+from feedshub import json, plugin_config_header
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
 #                         |1 i/o|2 ch|  4 rk  |   6 config       |7 data|
@@ -92,7 +92,7 @@ class TestWiring(object):
         self.channel.queue_bind(queue, exchange)
         def say(something, rk='', config=None):
             if config is not None:
-                headers = config
+                headers = {plugin_config_header: config}
                 self.channel.basic_publish(amqp.Message(body=something,
                                                    application_headers=headers),
                                       exchange,
@@ -209,23 +209,24 @@ def parseInput(line):
         raise "Does not match"
     else:
         (io, channel, _1, rk, _2, conf, msg) = m.groups()
+        c = None
         if conf is not None:
             # let the exception bubble up
-            json.loads(conf)
-        return (io, channel, rk or '', conf, msg)
+            c = json.loads(conf)
+        return (io, channel, rk or '', c, msg)
             
 # TODO: a proper state-machine abstraction might be good here...
 def repl(lines, talkers):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
 
-    talker_name, msg, state = None, None, WANT_CHANNEL
+    talker_name, msg, rk, conf, state = None, None, "", None, WANT_CHANNEL
     exit_code = 0
 
     def ship():
         try:
             to_say = msg.rsplit('\n',1)[0]
             ## print >>sys.stderr, "A'shippin': %r"% to_say
-            talkers[talker_name](to_say)
+            talkers[talker_name](to_say, rk=rk, config=config)
             return 0
         except KeyError:
             print >>sys.stderr, ("ERROR(BAD_CHANNEL): %r unknown" %

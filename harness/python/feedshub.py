@@ -11,7 +11,7 @@ import sys
 import threading
 
 feedshub_log_xname = 'feedshub/log'
-plugin_config_header = 'x-streams-plugin-config'
+plugin_config_header = 'x-streams-plugin-values'
 
 try:
     import simplejson as json
@@ -100,19 +100,17 @@ class PluginBase(object):
                     headers = msg.properties['application_headers']
                     if headers and plugin_config_header in headers:
                         config = headers[plugin_config_header]
-                        self.debug("Plugin config found: " + config)
-                        dynamic = {}
-                        dynamic.update(self._static_config)
+                        self.debug("Plugin config found: %r" % config)
                         try:
-                            headerConfig = json.loads(config)
+                            headerConfig = config
                             if not isinstance(headerConfig, dict):
                                 raise "Not a dict"
                         except:
-                            self.error("Could not use config: " + config + "; ignoring message")
+                            self.error("Could not use config: %r; ignoring message" % config)
                             return
-                        dynamic.update(headerConfig)
+                        dynamic = self.interpolate(headerConfig)
                         return fun(msg, dynamic)
-                return fun(msg, self._static_config)
+                return fun(msg, self.interpolate({}))
             return handle
 
         for name, queue in config['inputs'].iteritems():
@@ -123,6 +121,18 @@ class PluginBase(object):
 
         self.info(pformat({"event": "configured",
                            "args": {"config": settings}}))
+
+    def interpolate(self, values):
+        """Interpolate values in for dynamic config"""
+        result = {}
+        for (key, val) in self._static_config.items():
+            if type(val) in (unicode, str) and val[0] == "$":
+                interp = values.get(val[1:], "")
+                #self.debug("Replacing %s with %s" % (val, interp))
+                result[key] = interp
+            else:
+                result[key] = val
+        return result
 
     def monitor(self):
         return self.__monitor
