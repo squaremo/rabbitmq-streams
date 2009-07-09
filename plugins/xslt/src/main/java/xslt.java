@@ -22,8 +22,6 @@ public class xslt extends PipelineComponent {
 
   public InputReader input;
 
-  public PipelinePublisher output;
-
   private final ErrorListener xsltErrorLogger = new ErrorListener() {
 
     public void error(TransformerException exception)
@@ -65,30 +63,25 @@ public class xslt extends PipelineComponent {
     trans.setErrorListener(xsltErrorLogger);
 
     input = new InputReader() {
-        
-        @Override
-        public void handleBodyAndConfig(byte[] body, JSONObject object) throws PluginException {
-          StreamSource xmlSource =
-            new StreamSource(new ByteArrayInputStream(body));
-          ByteArrayOutputStream output = new ByteArrayOutputStream();
-          StreamResult result = new StreamResult(output);
-          
-          try {
-            trans.transform(xmlSource, result);
-          }
-          catch (TransformerException e) {
-            throw new PluginException(e);
-          }
-          String outputString = output.toString();
-          try {
-            xslt.this.output.publish(outputString.getBytes());
-          }
-          catch (IOException e) {
-            throw new PluginException(e);
-          }
+
+      @Override
+      public void handleBodyAndConfig(byte[] body, JSONObject object) throws PluginException {
+        StreamSource xmlSource =
+          new StreamSource(new ByteArrayInputStream(body));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        StreamResult result = new StreamResult(output);
+
+        try {
+          trans.transform(xmlSource, result);
         }
-        
-      };
+        catch (TransformerException e) {
+          throw new PluginException(e);
+        }
+        String outputString = output.toString();
+        xslt.this.publishToChannel("output", outputString.getBytes());
+      }
+
+    };
 
     postConstructorInit();
   }

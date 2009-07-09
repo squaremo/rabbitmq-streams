@@ -12,6 +12,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import net.sf.json.JSONObject;
 import net.sf.json.JSONNull;
@@ -25,10 +26,10 @@ public class Harness implements Runnable {
 
   /**
    * This constructor is here for the sole purpose of facilitating testing, do not use it in production code!
-   *
+   * <p/>
    * A message will be written to stdout and stderr so if you use it you may get found out!
    */
-  Harness(JSONObject configuration, Plugin plugin)  {
+  Harness(JSONObject configuration, Plugin plugin) {
     System.out.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
     this.configuration = configuration;
     this.plugin = plugin;
@@ -97,9 +98,28 @@ public class Harness implements Runnable {
     connectLoggerToPlugin();
     connectDatabaseToPlugin();
 
+    constructPluginOutputs(configuration.getJSONObject("outputs"));
     plugin.initialise();
 
     new Thread(this).start();
+  }
+
+  private void constructPluginOutputs(JSONObject outputs) {
+    log.debug("OUTPUTS ARE " + outputs.toString());
+//    try {
+//      messageServerChannel.txSelect();
+//    }
+//    catch (IOException e) {
+//      log.error("Unable to txSelect on channel dying horribly");
+//      e.printStackTrace();
+//      System.exit(1);
+//    }
+    for (Iterator iterator = outputs.keys(); iterator.hasNext();) {
+      String name = (String)iterator.next();
+      String exchange = outputs.getString(name);
+      plugin.addOutput(name, new Publisher(exchange, messageServerChannel, log));
+      log.debug("Added publisher for " + exchange);
+    }
   }
 
   private void connectMessageChannelToPlugin() throws IOException {
