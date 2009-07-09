@@ -260,8 +260,9 @@ def repl(lines, send):
     def ship():
         try:
             to_say = msg.rsplit('\n',1)[0]
-            ## print >>sys.stderr, "A'shippin': %r"% to_say
+            print >>sys.stderr, "A'shippin': %r"% to_say
             send(**{talker_name :to_say})
+            print >>sys.stderr, "A'shipped"
             return 0
         except KeyError:
             print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
@@ -269,6 +270,7 @@ def repl(lines, send):
             return BAD_CHANNEL
 
     for line in lines:
+        print >>sys.stderr, "A'line read"
         if line.startswith('#'):
             pass
         elif not line.strip():
@@ -311,6 +313,7 @@ def repl(lines, send):
                     talker_name = None # FIXME
                 msg = bit
                 state = WANT_ANY
+        print >> sys.stderr, 'EOL'
     if talker_name is not None:
         exit_code |= ship()
     return exit_code
@@ -342,6 +345,12 @@ if __name__ == '__main__':
 
     if not opts.py:
         sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
+    if opts.py:
+        from IPython.Shell import IPShellEmbed
+        ipshell = IPShellEmbed(args,
+                               banner = 'Dropping into IPython',
+                               exit_msg = 'Leaving Interpreter, back to program.')
+
 
 
 
