@@ -189,9 +189,22 @@ def setup_everything(plugindir, config_json, Outputter):
 
     init_couch_state()
 
-    spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs, instance_config=instance_config,
-                 inputs=wiring.inputs, outputs=wiring.outputs,
-                 rabbit_params=RABBIT_CONNECTION_PARAMS)
+    def reconfigure_plugin(*args, **kwargs):
+        assert 0 <= len(args) <= 1
+        if args:
+            assert not kwargs
+            config, = args
+            if isinstance(config, basestring):
+                config = json.loads(config)
+        else:
+            config = instance_config.copy()
+            config.update(kwargs)
+        spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs,
+                     instance_config=config,
+                     inputs=wiring.inputs, outputs=wiring.outputs,
+                     rabbit_params=RABBIT_CONNECTION_PARAMS)
+
+    reconfigure_plugin()
 
     info()
     info("""##The input channels are: %s
@@ -201,7 +214,7 @@ def setup_everything(plugindir, config_json, Outputter):
     # type ^D to abort. You are free to insert whitespace before the ':'.
     ---
     """ % ' '.join(wiring.inputs))
-    return wiring
+    return wiring, reconfigure_plugin, instance_config
 
 
 
@@ -260,9 +273,9 @@ def repl(lines, send):
     def ship():
         try:
             to_say = msg.rsplit('\n',1)[0]
-            print >>sys.stderr, "A'shippin': %r"% to_say
+            ## print >>sys.stderr, "A'shippin': %r"% to_say
             send(**{talker_name :to_say})
-            print >>sys.stderr, "A'shipped"
+            ## print >>sys.stderr, "A'shipped"
             return 0
         except KeyError:
             print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
@@ -270,7 +283,7 @@ def repl(lines, send):
             return BAD_CHANNEL
 
     for line in lines:
-        print >>sys.stderr, "A'line read"
+        ## print >>sys.stderr, "A'line read"
         if line.startswith('#'):
             pass
         elif not line.strip():
@@ -313,15 +326,17 @@ def repl(lines, send):
                     talker_name = None # FIXME
                 msg = bit
                 state = WANT_ANY
-        print >> sys.stderr, 'EOL'
+        ## print >> sys.stderr, 'EOL'
     if talker_name is not None:
         exit_code |= ship()
     return exit_code
 
 
+def update(dict, stuff):
+    if ininstance(stuff, basestring):
+        stuff = json_decode_error
 
-
-
+false, true, null = False, True, None  # make json valid python
 
 if __name__ == '__main__':
     opts, args = OptionParser("""%prog [OPTIONS] PLUGINPATH [PLUGIN_CONFIG]
@@ -340,16 +355,20 @@ if __name__ == '__main__':
                       config_json = open(args.pop(0)).read() if args else '{}',
                       Outputter = BatchedOutputter if opts.py else StdoutOutputter)
 
-    wiring = setup_everything(**setup_args)
+    wiring, reconfigure_plugin, config = setup_everything(**setup_args)
     send = wiring.send
 
     if not opts.py:
         sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
-    if opts.py:
-        from IPython.Shell import IPShellEmbed
-        ipshell = IPShellEmbed(args,
-                               banner = 'Dropping into IPython',
-                               exit_msg = 'Leaving Interpreter, back to program.')
+
+    ## import code
+    ## code.interact('', lambda x: sys.stdin.readline().replace('\n',''), vars())
+
+    ## if opts.py:
+    ##     from IPython.Shell import IPShellEmbed
+    ##     ipshell = IPShellEmbed(args,
+    ##                            banner = 'Dropping into IPython',
+    ##                            exit_msg = 'Leaving Interpreter, back to program.')
 
 
 
