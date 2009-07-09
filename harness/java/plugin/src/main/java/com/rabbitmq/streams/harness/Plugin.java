@@ -37,7 +37,6 @@ public abstract class Plugin implements Runnable {
     return props;
   }
 
-  //final protected Connection messageServerConnection;
   protected ChannelN messageServerChannel;
   protected Connection messageServerConnection; // TODO does this need to be available to plugins directly
   protected Logger log;
@@ -62,42 +61,9 @@ public abstract class Plugin implements Runnable {
     mergedConfig.putAll(userConfig);
     this.staticConfiguration = mergedConfig;
 
-    /* refactored into harness
-    JSONObject messageServerSpec = config.getJSONObject("messageserver");
-    messageServerConnection = AMQPConnection.amqConnectionFromConfig(messageServerSpec);
-    messageServerChannel = (ChannelN) messageServerConnection.createChannel();
-    ChannelN logChannel = (ChannelN) messageServerConnection.createChannel();
-
-    String logRoutingKey = logRoutingKey(config);
-
-    log = new Logger(logChannel, logRoutingKey);
-    Thread logThread = new Thread(log);
-    logThread.setDaemon(true);
-    logThread.start();
-    log.info("Starting up...");
-
-
-    Database privDb = null;
-    if (config.has("database") && !JSONNull.getInstance().equals(config.get("database"))) {
-      String privDbStr = config.getString("database");
-      URL privDbURL = new URL(privDbStr);
-      Session privDbCouchSession = new Session(privDbURL.getHost(), privDbURL.getPort(), "", "");
-      String privDbPath = privDbURL.getPath();
-      int loc = privDbPath.lastIndexOf('/');
-      String privDbName = privDbPath.substring(1 + loc);
-      // We do this in two steps, since if the DB already exists, couchdb4j will
-      // get a 412 (precondition failed) and return null.
-      privDbCouchSession.createDatabase(privDbName);
-      privDb = privDbCouchSession.getDatabase(privDbName);
-      log.debug("Database supplied: " + privDb.getName());
-    }
-    privateDb = privDb;
-    */
   }
 
   public JSONObject getConfiguration() {
-    System.out.println("***************\n************\n STATIC CONFIG IS " + staticConfiguration);
-    System.out.println("***************\n************\n CONFIG IS " + config);
     return JSONObject.fromObject(config.toString());
   }
 
@@ -116,15 +82,6 @@ public abstract class Plugin implements Runnable {
   public void setDatabase(Database database)  {
     privateDb = database;
   }
-
-  /* refactored into harness
-  private String logRoutingKey(JSONObject config) {
-    if (config.containsKey("server_id")) {
-      return "." + config.getString("server_id") + "." + config.getString("plugin_name");
-    }
-    return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
-  }
-  */
 
   protected abstract Publisher publisher(String name, String exchange);
 
@@ -331,42 +288,15 @@ public abstract class Plugin implements Runnable {
 
   protected void postConstructorInit() throws IllegalArgumentException, SecurityException {
     // TODO remove as part of refactor
-//    // set up outputs FIRST, so we don't start processing messages
-//    // before we can put them anywhere
-//    JSONObject outputs = config.getJSONObject("outputs");
-//    constructOutputs(outputs);
-//
-//    JSONObject inputs = config.getJSONObject("inputs");
-//    constructInputs(inputs);
   }
 
   public void run() {
   }
 
   public void shutdown() throws IOException {
-    /* refactored into harness
-    if (messageServerChannel.isOpen()) {
-      try {
-        messageServerChannel.close();
-      }
-      catch (ShutdownSignalException ignored) {
-      }
-    }
-    log.shutdown();
-    if (messageServerConnection.isOpen()) {
-      try {
-        messageServerConnection.close();
-      }
-      catch (ShutdownSignalException ignored) {
-      }
-    }
-    */
   }
 
   public final void start() throws Exception {
-    /* refactored into harness
-    new Thread(this).start();
-    */
   }
 
 }
