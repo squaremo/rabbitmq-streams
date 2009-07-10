@@ -1,22 +1,17 @@
+import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginException;
+import net.sf.json.JSONObject;
+
+import javax.xml.transform.*;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-
-import javax.xml.transform.ErrorListener;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
-import javax.xml.transform.stream.StreamSource;
-
-import com.rabbitmq.streams.harness.InputReader;
-import com.rabbitmq.streams.harness.PipelineComponent;
-import com.rabbitmq.streams.harness.PluginException;
-import net.sf.json.JSONObject;
 
 public class xslt extends PipelineComponent {
 
@@ -83,6 +78,6 @@ public class xslt extends PipelineComponent {
 
     };
 
-    postConstructorInit();
+    registerHandler("input", input);
   }
 }

@@ -38,6 +38,5 @@ class javascript(config : JSONObject) extends PipelineComponent(config) {
             out.publish(result.toString.getBytes)
         }
     }
-    postConstructorInit()
 
 }

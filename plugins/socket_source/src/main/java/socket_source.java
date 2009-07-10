@@ -1,3 +1,6 @@
+import com.rabbitmq.streams.harness.Server;
+import net.sf.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -7,9 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.rabbitmq.streams.harness.Server;
-import net.sf.json.JSONObject;
 
 
 public class socket_source extends Server {
@@ -44,8 +44,6 @@ public class socket_source extends Server {
 
   public socket_source(JSONObject config) throws IOException {
     super(config);
-
-    postConstructorInit();
   }
 
   private final class SocketSource implements Runnable {

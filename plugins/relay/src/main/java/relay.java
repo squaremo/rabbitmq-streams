@@ -1,12 +1,12 @@
+import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.PluginException;
+import com.rabbitmq.streams.harness.Server;
+import net.sf.json.JSONObject;
+
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
-
-import com.rabbitmq.streams.harness.InputReader;
-import com.rabbitmq.streams.harness.Server;
-import com.rabbitmq.streams.harness.PluginException;
-import net.sf.json.JSONObject;
+import java.util.Set;
 
 // TODO: update to deal with multiple source/destinations
 public class relay extends Server {
@@ -42,6 +42,6 @@ public class relay extends Server {
   
   public relay(JSONObject config) throws IOException {
     super(config);
-    postConstructorInit();
+    registerHandler("input", input);
   }
 }

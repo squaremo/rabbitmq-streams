@@ -70,7 +70,7 @@ public class socket_destination extends Server {
 
   public socket_destination(JSONObject config) throws IOException {
     super(config);
-    postConstructorInit();
+    registerHandler("input", input);
   }
 
   private final class SocketDestination implements Runnable {

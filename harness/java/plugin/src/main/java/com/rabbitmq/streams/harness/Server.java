@@ -3,7 +3,6 @@ package com.rabbitmq.streams.harness;
 import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Document;
 import com.fourspaces.couchdb.Session;
-import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -18,11 +17,8 @@ import java.util.List;
  * outputs, rather than having them specified, and don't enforce transactions.
  */
 public abstract class Server extends Plugin {
-
   final protected Database terminalsDatabase;
   final protected String serverId;
-
-//  public ServerPublisher output; // this is magically set on initialisation
 
   public Server(JSONObject config) throws IOException {
     super(config);
@@ -41,43 +37,13 @@ public abstract class Server extends Plugin {
     }
     String terminalsDbName = path.substring(loc);
     terminalsDatabase = couchSession.getDatabase(terminalsDbName);
+
+    registerHandler("command", command);
   }
 
-  protected final Runnable inputReaderRunnable(final Plugin.Getter getter,
-    final QueueingConsumer consumer) {
-    return new Runnable() {
-      public void run() {
-        // Subclasses must do their own acking and transactions
-        while (Server.this.messageServerChannel.isOpen()) {
-          try {
-            Delivery delivery = consumer.nextDelivery();
-            try {
-              InputHandler pluginConsumer = getter.get();
-              if (null != pluginConsumer) {
-                JSONObject conf;
-                try {
-                  conf = configForHeaders(delivery.getProperties().headers);
-                }
-                catch (Exception e) {
-                  log.error("Cannot use config; ignoring message");
-                  return;
-                }
-                pluginConsumer.handleDelivery(delivery, conf);
-              }
-              else {
-                Server.this.log.warn("No non-null input reader field ");
-              }
-            }
-            catch (Exception e) {
-              Server.this.log.error(e);
-            }
-          }
-          catch (InterruptedException _) {
-            // just continue around and try fetching again
-          }
-        }
-      }
-    };
+  @Override
+  public InputReaderRunnable handlerRunnable(String name) {
+    return new DefaultInputReaderRunnable();
   }
 
   protected final void ack(Delivery delivery) throws IOException {
@@ -88,15 +54,8 @@ public abstract class Server extends Plugin {
     messageServerChannel.basicAck(tag, false);
   }
 
-//  protected final Publisher publisher(final String name, final String exchange) {
-//    return new ServerPublisher(exchange, messageServerChannel);
-//  }
-
   protected final void publishToDestination(byte[] body, String destination) throws IOException {
-    Publisher publisher = getPublisher("output");
-    log.debug("Obtained publisher - " + publisher);
-    publisher.publish(body, destination);
-    log.debug("Published to " + destination);
+    getPublisher("output").publish(body, destination);
   }
 
   /**
@@ -122,20 +81,6 @@ public abstract class Server extends Plugin {
   protected final Document terminalStatus(String terminalId) throws IOException {
     return this.terminalsDatabase.getDocument(terminalId + "_status");
   }
-
-//  public static final class ServerPublisher implements Publisher {
-//    private String exchange;
-//    private Channel channel;
-//
-//    ServerPublisher(String exchangeName, Channel out) {
-//      channel = out;
-//      exchange = exchangeName;
-//    }
-//
-//    public void publishWithKey(byte[] body, String key) throws IOException {
-//      channel.basicPublish(exchange, key, basicPropsPersistent, body);
-//    }
-//  }
 
   public static abstract class ServerInputReader extends InputReader {
 
@@ -200,8 +145,5 @@ public abstract class Server extends Plugin {
    * @param configs    the new configurations for the terminal.
    * @param active     the status of the terminal.
    */
-
-  protected abstract void terminalStatusChange(String terminalId,
-    List<JSONObject> configs,
-    boolean active);
+  protected abstract void terminalStatusChange(String terminalId, List<JSONObject> configs, boolean active);
 }

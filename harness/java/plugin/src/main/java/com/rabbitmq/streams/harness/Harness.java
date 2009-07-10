@@ -1,21 +1,23 @@
 package com.rabbitmq.streams.harness;
 
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ShutdownSignalException;
-import com.rabbitmq.client.impl.ChannelN;
 import com.fourspaces.couchdb.Database;
 import com.fourspaces.couchdb.Session;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.QueueingConsumer;
+import com.rabbitmq.client.ShutdownSignalException;
+import com.rabbitmq.client.impl.ChannelN;
+import net.sf.json.JSONNull;
+import net.sf.json.JSONObject;
 
-import java.io.*;
-import java.net.URL;
+import java.io.File;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Iterator;
-
-import net.sf.json.JSONObject;
-import net.sf.json.JSONNull;
 
 public class Harness implements Runnable {
 
@@ -88,44 +90,46 @@ public class Harness implements Runnable {
 
 
   public void run() {
-    // configure message channels required by plugin
-    // configure database required by plugin
-    // create thread and go!
   }
 
   public void start() throws IOException {
-    connectMessageChannelToPlugin();
+    messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
+    messageServerChannel = (ChannelN) messageServerConnection.createChannel();
+    plugin.setMessageServerChannel(messageServerChannel); // TODO this is needed for the command channel can this be pulled out of server somehow?
     connectLoggerToPlugin();
     connectDatabaseToPlugin();
 
     constructPluginOutputs(configuration.getJSONObject("outputs"));
-    plugin.initialise();
+    constructPluginInputs(configuration.getJSONObject("inputs"));
 
     new Thread(this).start();
   }
 
   private void constructPluginOutputs(JSONObject outputs) {
-    log.debug("OUTPUTS ARE " + outputs.toString());
-//    try {
-//      messageServerChannel.txSelect();
-//    }
-//    catch (IOException e) {
-//      log.error("Unable to txSelect on channel dying horribly");
-//      e.printStackTrace();
-//      System.exit(1);
-//    }
     for (Iterator iterator = outputs.keys(); iterator.hasNext();) {
-      String name = (String)iterator.next();
+      String name = (String) iterator.next();
       String exchange = outputs.getString(name);
       plugin.addOutput(name, new Publisher(exchange, messageServerChannel, log));
-      log.debug("Added publisher for " + exchange);
     }
   }
 
-  private void connectMessageChannelToPlugin() throws IOException {
-    messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
-    messageServerChannel = (ChannelN) messageServerConnection.createChannel();
-    plugin.setMessageServerChannel(messageServerChannel);
+  @SuppressWarnings("unchecked")
+  private void constructPluginInputs(JSONObject inputs) {
+    for (Iterator<String> fields = (Iterator<String>) inputs.keys(); fields.hasNext();) {
+      final String fieldName = fields.next();
+      try {
+        final QueueingConsumer consumer = new QueueingConsumer(messageServerChannel);
+        final InputReaderRunnable runnable = plugin.handlerRunnable(fieldName);
+        runnable.configure(consumer, messageServerChannel, plugin.handler(fieldName), configuration, log);
+
+        new Thread(runnable).start();
+        messageServerChannel.basicConsume(inputs.getString(fieldName), false, consumer);
+      }
+      catch (IOException e) {
+        log.fatal("Unable to connect to input " + fieldName);
+        System.exit(1);
+      }
+    }
   }
 
   private void connectLoggerToPlugin() throws IOException {
@@ -158,7 +162,6 @@ public class Harness implements Runnable {
     }
 
   }
-
 
   public void shutdown() throws IOException {
     if (messageServerChannel.isOpen()) {

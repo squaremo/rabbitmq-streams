@@ -21,5 +21,4 @@ class websubscriber(config : JSONObject) extends Server(config) {
         dispatcher ! StatusChange(terminalId, List(configs:_*), active)
     }
 
-    postConstructorInit()
 }

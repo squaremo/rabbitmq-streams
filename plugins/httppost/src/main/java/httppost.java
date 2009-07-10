@@ -1,5 +1,8 @@
 
 import com.rabbitmq.streams.harness.Server;
+import net.reversehttp.*;
+import net.sf.json.JSONObject;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -8,12 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import net.reversehttp.HttpQuery;
-import net.reversehttp.HttpRequest;
-import net.reversehttp.HttpServer;
-import net.reversehttp.NormalHttpServer;
-import net.reversehttp.RequestHandler;
-import net.sf.json.JSONObject;
 
 public class httppost extends Server implements RequestHandler {
     private final Object terminalMonitor = new Object();
@@ -47,8 +44,6 @@ public class httppost extends Server implements RequestHandler {
         });
         httpdThread.setDaemon(true);
         httpdThread.start();
-        
-        postConstructorInit();
     }
 
     protected void terminalStatusChange(String terminalId,
