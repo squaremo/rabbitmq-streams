@@ -30,7 +30,7 @@ public class relay extends Server {
       public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
         try {
           if (activeTerminals.contains(key)) {
-            relay.this.output.publishWithKey(body, key);
+            relay.this.publishToDestination(body, key);
           }
           relay.this.ack(tag);
         }

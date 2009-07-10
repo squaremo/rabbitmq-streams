@@ -14,8 +14,8 @@ public class regexp_split extends PipelineComponent {
 
   public InputReader input;
 
-  public PipelinePublisher positive;
-  public PipelinePublisher negative;
+  private final static String POSITIVE = "positive";
+  private final static String NEGATIVE = "negative";
 
   public regexp_split(JSONObject configuration) throws IOException  {
     super(configuration);
@@ -43,9 +43,9 @@ public class regexp_split extends PipelineComponent {
             // Unless there's no body at all, we've added an extra line ending
             Matcher matcher = pattern.matcher(sb.substring(0, sb.length() > 0 ? sb.length() - newline.length() : 0));
             if (matcher.matches()) {
-              positive.publish(body);
+              publishToChannel(POSITIVE, body);
             } else {
-              negative.publish(body);
+              publishToChannel(NEGATIVE, body);
             }
           }
           catch (IOException ex) {

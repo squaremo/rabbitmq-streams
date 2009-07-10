@@ -1,7 +1,7 @@
 package com.rabbitmq.streams.harness;
 
 import com.fourspaces.couchdb.Database;
-import com.rabbitmq.client.AMQP.BasicProperties;
+//import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
@@ -13,9 +13,9 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.HashMap;
 
 public abstract class Plugin implements Runnable {
 
@@ -25,18 +25,18 @@ public abstract class Plugin implements Runnable {
 
   // FIXME: when we can clone properties, it'd be good to use the constants
   // in MessageProperties here and below.
-  static final BasicProperties basicPropsPersistent = new BasicProperties();
-
-  static {
-    basicPropsPersistent.deliveryMode = 2;
-  }
-
-  static BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
-    BasicProperties props = new BasicProperties();
-    props.deliveryMode = 2;
-    props.headers = headers;
-    return props;
-  }
+//  static final BasicProperties basicPropsPersistent = new BasicProperties();
+//
+//  static {
+//    basicPropsPersistent.deliveryMode = 2;
+//  }
+//
+//  static BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
+//    BasicProperties props = new BasicProperties();
+//    props.deliveryMode = 2;
+//    props.headers = headers;
+//    return props;
+//  }
 
   protected ChannelN messageServerChannel;
   protected Connection messageServerConnection; // TODO does this need to be available to plugins directly
@@ -47,6 +47,8 @@ public abstract class Plugin implements Runnable {
   final protected JSONObject config;
   final protected JSONObject uninterpolatedConfiguration;
   final protected JSONObject staticConfiguration;
+
+  private final Map<String, Publisher> outputs = new HashMap<String, Publisher>();
 
   public Plugin(final JSONObject config) throws IOException {
     this.config = config;
@@ -63,6 +65,17 @@ public abstract class Plugin implements Runnable {
     this.staticConfiguration = interpolateConfig(mergedConfig, new HashMap<String, Object>());
   }
 
+  public void addOutput(String channel, Publisher publisher)  {
+    log.debug("Adding publisher for channel - " + channel);
+    outputs.put(channel, publisher);
+  }
+
+  public Publisher getPublisher(String channel) {
+    log.debug("Obtaining publisher for channel - " + channel + " - " + outputs.get(channel));
+    return outputs.get(channel);
+  }
+
+
   public void setMessageServerChannel(ChannelN channelN) {
     messageServerChannel = channelN;
   }
@@ -75,11 +88,11 @@ public abstract class Plugin implements Runnable {
     this.log = log;
   }
 
-  public void setDatabase(Database database)  {
+  public void setDatabase(Database database) {
     privateDb = database;
   }
 
-  protected abstract Publisher publisher(String name, String exchange);
+//  protected abstract Publisher publisher(String name, String exchange);
 
   protected abstract Runnable inputReaderRunnable(Getter get, QueueingConsumer consumer);
 
@@ -92,10 +105,10 @@ public abstract class Plugin implements Runnable {
     dieHorribly();
   }
 
-  private void illegalAccess(String name) {
-    log.fatal("Illegal access: " + name);
-    dieHorribly();
-  }
+//  private void illegalAccess(String name) {
+//    log.fatal("Illegal access: " + name);
+//    dieHorribly();
+//  }
 
   /**
    * Set values in the header.
@@ -158,21 +171,21 @@ public abstract class Plugin implements Runnable {
   }
 
   @SuppressWarnings("unchecked")
-  protected void constructOutputs(JSONObject outputs) {
-    // TODO refactor this to ovoid reflection
-    for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt.hasNext();) {
-      String name = outKeysIt.next();
-      String exchange = outputs.getString(name);
-      try {
-        Publisher p = publisher(name, exchange);
-        Setter setter = this.outputSetter(name, p);
-        setter.set(p);
-      }
-      catch (IllegalAccessException iac) {
-        illegalAccess(name);
-      }
-    }
-  }
+//  protected void constructOutputs(JSONObject outputs) {
+//    // TODO refactor this to avoid reflection
+//    for (Iterator<String> outKeysIt = (Iterator<String>) outputs.keys(); outKeysIt.hasNext();) {
+//      String name = outKeysIt.next();
+//      String exchange = outputs.getString(name);
+//      try {
+//        Publisher p = publisher(name, exchange);
+//        Setter setter = this.outputSetter(name, p);
+//        setter.set(p);
+//      }
+//      catch (IllegalAccessException iac) {
+//        illegalAccess(name);
+//      }
+//    }
+//  }
 
   static interface Getter {
     InputReader get() throws IllegalAccessException;
@@ -252,12 +265,10 @@ public abstract class Plugin implements Runnable {
           catch (IllegalArgumentException e) {
             Plugin.this.log.fatal(e);
             dieHorribly();
-            return;
           }
           catch (IllegalAccessException e) {
             Plugin.this.log.fatal(e);
             dieHorribly();
-            return;
           }
         }
       };
@@ -268,22 +279,19 @@ public abstract class Plugin implements Runnable {
         return new Setter() {
           public void set(Publisher pub) {
             try {
-              pluginQueueMethod.invoke(Plugin.this, new Object[]{pub});
+              pluginQueueMethod.invoke(Plugin.this, pub);
             }
             catch (IllegalArgumentException e) {
               Plugin.this.log.fatal(e);
               dieHorribly();
-              return;
             }
             catch (IllegalAccessException e) {
               Plugin.this.log.fatal(e);
               dieHorribly();
-              return;
             }
             catch (InvocationTargetException e) {
               Plugin.this.log.fatal(e);
               dieHorribly();
-              return;
             }
           }
         };
@@ -302,8 +310,8 @@ public abstract class Plugin implements Runnable {
 
   public void initialise() throws IllegalArgumentException, SecurityException {
     // set up outputs FIRST, so we don't start processing messages before we can put them anywhere
-    JSONObject outputs = config.getJSONObject("outputs");
-    constructOutputs(outputs);
+//    JSONObject outputs = config.getJSONObject("outputs");
+//    constructOutputs(outputs);
 
     JSONObject inputs = config.getJSONObject("inputs");
     constructInputs(inputs);
