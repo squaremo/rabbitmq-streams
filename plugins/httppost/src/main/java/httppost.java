@@ -22,9 +22,9 @@ public class httppost extends Server implements RequestHandler {
 
     public httppost(JSONObject config) throws IOException {
         super(config);
-
         //FIXME: make use of host
         //String host = (String) configuration.get("http_server_host");
+        JSONObject staticConfiguration = config.getJSONObject("configuration");
         Object portObj = staticConfiguration.get("http_server_port");
         if ((portObj == null || !(portObj instanceof Integer))) {
             throw new IllegalArgumentException("Invalid http_server_port configuration value");

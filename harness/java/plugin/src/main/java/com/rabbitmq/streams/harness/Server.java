@@ -46,14 +46,6 @@ public abstract class Server extends Plugin {
     return new DefaultInputReaderRunnable();
   }
 
-  protected final void ack(Delivery delivery) throws IOException {
-    this.ack(delivery.getEnvelope().getDeliveryTag());
-  }
-
-  protected final void ack(long tag) throws IOException {
-    messageServerChannel.basicAck(tag, false);
-  }
-
   protected final void publishToDestination(byte[] body, String destination) throws IOException {
     getPublisher("output").publish(body, destination);
   }
@@ -82,7 +74,7 @@ public abstract class Server extends Plugin {
     return this.terminalsDatabase.getDocument(terminalId + "_status");
   }
 
-  public static abstract class ServerInputReader extends InputReader {
+  public static abstract class ServerInputReader implements InputHandler {
 
     @Override
     public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
@@ -92,7 +84,7 @@ public abstract class Server extends Plugin {
     abstract public void handleBodyForTerminal(byte[] body, String key, long tagToAck) throws PluginException;
   }
 
-  public final InputReader command = new InputReader() {
+  private final InputHandler command = new InputHandler() {
 
     @Override
     public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {

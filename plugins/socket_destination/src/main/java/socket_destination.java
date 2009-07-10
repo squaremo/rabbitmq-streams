@@ -18,7 +18,7 @@ public class socket_destination extends Server {
 
   private final Map<String, List<SocketDestination>> terminalMap = new HashMap<String, List<SocketDestination>>();
 
-  public final InputReader input = new Server.ServerInputReader() {
+  public final Server.ServerInputReader input = new Server.ServerInputReader() {
 
       @Override
       public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {

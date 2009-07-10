@@ -9,7 +9,7 @@ import java.io.IOException;
 /**
  * This class abstracts the publishing of messages.
  */
-public final class Publisher {
+public class Publisher {
 
   public Publisher(String exchange, Channel channel, Logger log) {
     this.exchange = exchange;

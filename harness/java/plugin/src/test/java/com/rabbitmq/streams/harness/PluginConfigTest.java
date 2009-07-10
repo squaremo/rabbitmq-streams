@@ -8,7 +8,6 @@ package com.rabbitmq.streams.harness;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import java.util.HashMap;
 import java.util.Map;
-import net.sf.json.JSONArray;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import net.sf.json.JSONObject;
@@ -37,8 +36,8 @@ public class PluginConfigTest {
   public void testSetValues() {
     Map<String, Object> headers = new HashMap();
     JSONObject vals = new JSONObject();
-    Plugin.setValuesInHeader(headers, vals);
-    assertEquals(vals, Plugin.getValuesFromHeader(headers));
+    InputReaderRunnable.setValuesInHeader(headers, vals);
+    assertEquals(vals, InputReaderRunnable.getValuesFromHeader(headers));
   }
 
   /**
@@ -51,46 +50,11 @@ public class PluginConfigTest {
     JSONObject conf = new JSONObject();
     conf.put("interpolated", "$foo");
     conf.put("notinterpolated", "foo");
-    JSONObject interpolateConfig = Plugin.interpolateConfig(conf, vals);
+    JSONObject interpolateConfig = InputReaderRunnable.interpolateConfig(conf, vals);
     assertNotNull(interpolateConfig);
     assertEquals(interpolateConfig.size(), 2);
     assertEquals("bar", interpolateConfig.get("interpolated"));
     assertEquals("foo", interpolateConfig.get("notinterpolated"));
-  }
-
-  /**
-   * Test of configForHeaders method, of class Plugin.
-   */
-  @Test
-  public void testConfigForHeaders() throws Exception {
-    Map<String, Object> headers = new HashMap();
-    Plugin.setValuesInHeader(headers, JSONObject.fromObject("{\"foo\": \"baz\"}"));
-    JSONObject config = minimalConfig();
-    JSONObject pluginconfig = new JSONObject();
-    pluginconfig.put("foo", "$foo");
-    pluginconfig.put("bar", "bar");
-    config.put("configuration", pluginconfig);
-    Plugin plugin = new Plugin(config) {
-      public InputReaderRunnable handlerRunnable(String channel) {
-        return null;
-      }
-    };
-    plugin.setLog(new Logger(null, "") {
-      @Override public void debug(String msg) {}
-    });
-    assertNotNull(plugin);
-    JSONObject configForHeaders = plugin.configForHeaders(headers);
-    assertNotNull(configForHeaders);
-    assertEquals("baz", configForHeaders.get("foo"));
-  }
-
-  public JSONObject minimalConfig() {
-    JSONObject res = new JSONObject();
-    JSONObject ptype = new JSONObject();
-    ptype.put("global_configuration_specification", new JSONArray());
-    res.put("plugin_type", ptype);
-    res.put("configuration", new JSONObject());
-    return res;
   }
 
 }

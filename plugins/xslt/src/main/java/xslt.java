@@ -15,8 +15,6 @@ import java.net.URLConnection;
 
 public class xslt extends PipelineComponent {
 
-  public InputReader input;
-
   private final ErrorListener xsltErrorLogger = new ErrorListener() {
 
     public void error(TransformerException exception)
@@ -57,7 +55,7 @@ public class xslt extends PipelineComponent {
     final Transformer trans = transTmp;
     trans.setErrorListener(xsltErrorLogger);
 
-    input = new InputReader() {
+    InputReader input = new InputReader() {
 
       @Override
       public void handleBodyAndConfig(byte[] body, JSONObject object) throws PluginException {

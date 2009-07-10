@@ -12,15 +12,13 @@ import java.util.regex.Pattern;
 
 public class regexp_split extends PipelineComponent {
 
-  public InputReader input;
-
   private final static String POSITIVE = "positive";
   private final static String NEGATIVE = "negative";
 
   public regexp_split(JSONObject configuration) throws IOException {
     super(configuration);
 
-    input = new InputReader() {
+    InputReader input = new InputReader() {
       @Override
       public void handleBodyAndConfig(byte[] body, JSONObject config) throws PluginException {
         String regexp = config.getString("regexp");

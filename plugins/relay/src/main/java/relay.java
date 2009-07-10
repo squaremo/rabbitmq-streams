@@ -1,4 +1,3 @@
-import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.PluginException;
 import com.rabbitmq.streams.harness.Server;
 import net.sf.json.JSONObject;
@@ -24,8 +23,8 @@ public class relay extends Server {
     }
   }
 
-  public final InputReader input = new Server.ServerInputReader() {
-      
+  public final Server.ServerInputReader input = new Server.ServerInputReader() {
+
       @Override
       public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
         try {

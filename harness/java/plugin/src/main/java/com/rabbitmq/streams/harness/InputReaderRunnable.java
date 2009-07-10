@@ -9,6 +9,8 @@ import java.util.Map;
 
 public abstract class InputReaderRunnable implements Runnable {
 
+  public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
+
   public InputReaderRunnable() {
   }
 
@@ -31,38 +33,49 @@ public abstract class InputReaderRunnable implements Runnable {
     staticConfiguration.putAll(config.getJSONObject("configuration"));
   }
 
-  protected JSONObject mergeConfigWithHeaders(JSONObject original, Map<String, Object> headers) {
+    /**
+   * Set values in the header.
+   */
+  protected static void setValuesInHeader(Map<String, Object> headersToMutate, JSONObject vals) {
+    headersToMutate.put(PLUGIN_VALUES_HEADER, vals);
+  }
+
+  protected static JSONObject getValuesFromHeader(Map<String, Object> headers) {
+    return (headers.containsKey(PLUGIN_VALUES_HEADER)) ? JSONObject.fromObject(headers.get(PLUGIN_VALUES_HEADER)) : null;
+  }
+
+  static JSONObject mergeConfigWithHeaders(JSONObject original, Map<String, Object> headers) {
     JSONObject result = JSONObject.fromObject(original);
     if (headers != null) {
-      JSONObject values = headerValues(headers);
+      JSONObject values = getValuesFromHeader(headers);
       if (values != null) {
-        for (Object k : values.keySet()) {
-          String key = (String) k;
-          String originalValue = original.getString(key);
-          if (originalValue.startsWith("$")) {
-            String variableName = originalValue.substring(1);
-            if (values.containsKey(variableName)) {
-              result.put(key, values.get(variableName));
-            }
-            else {
-              result.put(key, ""); // No variable defined in headers so blank field.
-            }
-          }
-        }
+        result = interpolateConfig(original, values);
       }
     }
 
     return result;
   }
 
-  private JSONObject headerValues(Map<String, Object> headers) {
-    if (headers.containsKey(X_STREAMS_PLUGIN_VALUES)) {
-      return JSONObject.fromObject(headers.get(X_STREAMS_PLUGIN_VALUES));
+  /**
+   * Interpolate values given in the header into the dynamic configuration.
+   * This is so that upstream components can pass on calculated values, to
+   * be used for handling a particular message.
+   */
+  protected static JSONObject interpolateConfig(JSONObject uninterpolated, Map<String, Object> vals) {
+    JSONObject result = JSONObject.fromObject(uninterpolated);
+    for (Object k : uninterpolated.keySet()) {
+      String key = k.toString();
+      String uninterpolatedValue = uninterpolated.getString(key);
+      // This can largely be done statically, but I'm waiting until the harness
+      // is refactored.
+      if (uninterpolatedValue.startsWith("$")) {
+        String valKey = uninterpolatedValue.substring(1);
+        result.put(key, vals.containsKey(valKey) ? vals.get(valKey) : "");
+      }
     }
-    return null;
+    return result;
   }
 
-  private static final String X_STREAMS_PLUGIN_VALUES = "x-streams-plugin-values";
   protected QueueingConsumer consumer;
   protected ChannelN channel;
   protected InputHandler handler;

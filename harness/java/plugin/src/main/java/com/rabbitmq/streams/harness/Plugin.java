@@ -1,7 +1,7 @@
 package com.rabbitmq.streams.harness;
 
 import com.fourspaces.couchdb.Database;
-import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.impl.ChannelN;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -14,22 +14,17 @@ public abstract class Plugin {
 
   public static final String newline = System.getProperty("line.separator");
 
-  public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
-
-  protected ChannelN messageServerChannel;
-  protected Connection messageServerConnection; // TODO does this need to be available to plugins directly
+  private ChannelN messageServerChannel; // TODO consider encapsulating this and moving to the harness
   protected Logger log;
   protected Database privateDb;
 
   final protected JSONObject pluginType;
   final protected JSONObject config;
-  final protected JSONObject uninterpolatedConfiguration;
-  final protected JSONObject staticConfiguration;
 
   private final Map<String, Publisher> outputs = new HashMap<String, Publisher>();
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
 
-  public Plugin(final JSONObject config) throws IOException {
+  public Plugin(final JSONObject config) {
     this.config = config;
     pluginType = config.getJSONObject("plugin_type");
     JSONArray globalConfig = pluginType.getJSONArray("global_configuration_specification");
@@ -40,8 +35,6 @@ public abstract class Plugin {
     }
     JSONObject userConfig = config.getJSONObject("configuration");
     mergedConfig.putAll(userConfig);
-    this.uninterpolatedConfiguration = mergedConfig;
-    this.staticConfiguration = interpolateConfig(mergedConfig, new HashMap<String, Object>());
   }
 
   public boolean configuredCorrectly()  {
@@ -56,11 +49,17 @@ public abstract class Plugin {
     return outputs.get(channel);
   }
 
+  /**
+   * For plugins to register a handler for handler() to suplpy to the harness.
+   * In other words, this maps a handler to a channel name.
+   * @param name
+   * @param handler
+   */
   public void registerHandler(String name, InputHandler handler)  {
     handlers.put(name, handler);
   }
 
-  public InputHandler handler(String name)  {
+  InputHandler handler(String name)  {
     return handlers.get(name);
   }
 
@@ -68,10 +67,6 @@ public abstract class Plugin {
 
   public void setMessageServerChannel(ChannelN channelN) {
     messageServerChannel = channelN;
-  }
-
-  public void setMessageServerConnection(Connection connection) {
-    messageServerConnection = connection;
   }
 
   public void setLog(Logger log) {
@@ -86,50 +81,12 @@ public abstract class Plugin {
     System.exit(1);
   }
 
-  /**
-   * Set values in the header.
-   */
-  protected static void setValuesInHeader(Map<String, Object> headersToMutate, JSONObject vals) {
-    headersToMutate.put(Plugin.PLUGIN_VALUES_HEADER, vals);
+  protected final void ack(Delivery delivery) throws IOException {
+    this.ack(delivery.getEnvelope().getDeliveryTag());
   }
 
-  protected static JSONObject getValuesFromHeader(Map<String, Object> headers) {
-    return (headers.containsKey(PLUGIN_VALUES_HEADER)) ? JSONObject.fromObject(headers.get(PLUGIN_VALUES_HEADER)) : null;
-  }
-
-  /**
-   * Interpolate values given in the header into the dynamic configuration.
-   * This is so that upstream components can pass on calculated values, to
-   * be used for handling a particular message.
-   */
-  protected static JSONObject interpolateConfig(JSONObject uninterpolated, Map<String, Object> vals) {
-    JSONObject result = JSONObject.fromObject(uninterpolated);
-    for (Object k : uninterpolated.keySet()) {
-      String key = k.toString();
-      String uninterpolatedValue = uninterpolated.getString(key);
-      // This can largely be done statically, but I'm waiting until the harness
-      // is refactored.
-      if (uninterpolatedValue.startsWith("$")) {
-        String valKey = uninterpolatedValue.substring(1);
-        result.put(key, vals.containsKey(valKey) ? vals.get(valKey) : "");
-      }
-    }
-    return result;
-  }
-
-  @SuppressWarnings({"unchecked"})
-  protected final JSONObject configForHeaders(Map<String, Object> headers) throws Exception {
-    if (headers == null) {
-      return this.staticConfiguration;
-    }
-    JSONObject conf = getValuesFromHeader(headers);
-    if (conf != null) {
-      log.debug("Plugin values found in header: " + conf.toString());
-      return interpolateConfig(this.uninterpolatedConfiguration, conf);
-    }
-    else {
-      return this.staticConfiguration;
-    }
+  protected final void ack(long tag) throws IOException {
+    messageServerChannel.basicAck(tag, false);
   }
 
 }
