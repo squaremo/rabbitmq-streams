@@ -39,7 +39,7 @@ public final class Publisher {
     log.debug("Published message with headers: " + body.toString());
   }
 
-  private AMQP.BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
+  static AMQP.BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
     AMQP.BasicProperties props = new AMQP.BasicProperties();
     props.deliveryMode = 2;
     props.headers = headers;
