@@ -24,9 +24,7 @@ public class Publisher {
   }
 
   public void publish(byte[] body, String key) throws IOException {
-    log.debug("Publishing to " + exchange + " on " + channel + " with key " + key);
     channel.basicPublish(exchange, key, basicProperties, body);
-    log.debug("Published to " + exchange + " on " + channel + " with key " + key);
   }
 
   public void publish(byte[] body, Map<String, Object> headers) throws IOException {
@@ -34,9 +32,7 @@ public class Publisher {
   }
 
   public void publish(byte[] body, String key, Map<String, Object> headers) throws IOException {
-    log.debug("Publishing message with headers: " + body.toString());
     channel.basicPublish(exchange, key, propertiesWithHeaders(headers), body);
-    log.debug("Published message with headers: " + body.toString());
   }
 
   static AMQP.BasicProperties propertiesWithHeaders(Map<String, Object> headers) {
