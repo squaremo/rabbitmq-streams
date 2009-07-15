@@ -34,6 +34,8 @@ COUCH_LISTENER_PIDFILE=var/run/couch-listener.pid
 RABBIT_LISTENER_PIDFILE=var/run/rabbit-listener.pid
 ORCHESTRATOR_LISTENER_PIDFILE=var/run/orchestrator-listener.pid
 SHOWANDTELL_PIDSFILE=var/run/showandtell.pids
+LSHIFT_PIDSFILE=var/run/lshift.pids
+SLOWTEST_PIDSFILE=var/run/slowtest.pids
 
 LISTEN_ORCHESTRATOR=while true; do sleep 1 && nc -l $(LISTEN_ORCHESTRATOR_PORT); done | tee -a $(ORCHESTRATOR_LOG)
 LISTEN_RABBIT=while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done | tee -a $(RABBIT_LOG)
@@ -449,4 +451,35 @@ demo-showandtell-stop: stop-orchestrator-nox
 	-kill `cat $(SHOWANDTELL_PIDSFILE)`
 	-rm -f $(SHOWANDTELL_PIDSFILE)
 
+demo-lshift: full-reset-core-nox demo-lshift-stop start-orchestrator-nox
+	@echo 'Running LShift demo'
+	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/lshift
+	xterm -T 'LShift Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
+		echo $$! > $(LSHIFT_PIDSFILE)
+	sleep 1
+	$(MAKE) start-orchestrator-nox
+	xterm -T 'LShift Producer (45678)' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
+		echo $$! >> $(LSHIFT_PIDSFILE)
+	sleep 1
+
+	xterm -T 'LShift Cache (45679)' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45679 && sleep 1; done' & \
+		echo $$! >> $(LSHIFT_PIDSFILE)
+
+demo-lshift-stop: stop-orchestrator-nox
+	-kill `cat $(LSHIFT_PIDSFILE)`
+	-rm -f $(LSHIFT_PIDSFILE)
+
+test-slow: full-reset-core-nox test-slow-stop start-orchestrator-nox
+	@echo 'Running Slow test'
+	$(PYTHON) sbin/import_config.py $(COUCH_SERVER) examples/slowtest
+	xterm -T 'LShift Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
+		echo $$! > $(SLOWTEST_PIDSFILE)
+	sleep 1
+	$(MAKE) start-orchestrator-nox
+	xterm -T 'LShift Producer (45678)' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
+		echo $$! >> $(SLOWTEST_PIDSFILE)
+
+test-slow-stop: stop-orchestrator-nox
+	-kill `cat $(SLOWTEST_PIDSFILE)`
+	-rm -f $(SLOWTEST_PIDSFILE)
 
