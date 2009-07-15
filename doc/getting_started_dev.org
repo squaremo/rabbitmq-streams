@@ -101,16 +101,17 @@ make listen-all
     run the 3 listeners in a single (GNU) =screen= session, but this is really only
     recommended in that specific case or for =screen= aficionados.]
 
-2. Start all the core components, rabbitmq and couchdb (=start-core-nox=; this
-   will also get close any existing instances), clean the CouchDB and RabbitMQ
-   broker (=cleandb=), re-initialize the user/admin accounts
-   (=create-fresh-accounts=), then start the orchestrator
+2. Start all the core components, rabbitmq and couchdb
+   (=start-core-nox=; this will also get close any existing
+   instances), clean the CouchDB and RabbitMQ broker (=cleandb=, after
+   which they need to be restarted), re-initialize the user/admin
+   accounts (=create-fresh-accounts=), then start the orchestrator
    (=start-orchestrator-nox=) and install the test configuration
-   (=sbin/import_config.py examples/test=) and get everthing up and running
-   with the new config (=start-orchestrator-nox=):
+   (=sbin/import_config.py examples/test=) and get everthing up and
+   running with the new config (=start-orchestrator-nox=):
 
 #+BEGIN_SRC sh
-make start-core-nox cleandb create-fresh-accounts start-orchestrator-nox
+make cleandb start-core-nox create-fresh-accounts start-orchestrator-nox
 python sbin/import_config.py http://127.0.0.1:5984  examples/test
 make start-orchestrator-nox
 #+END_SRC

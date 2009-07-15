@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import with_statement
 import atexit
 import httplib
@@ -40,8 +39,7 @@ def newname():
 def make_stdout_msg_outputter(name):
     def stdout_msg_outputter(msg):
         line_sep = "\n%s :" % (' ' * len(name))
-	headers = 'application_headers' in msg.properties and msg.properties['application_headers']
-        print (">%s%s:%s" % (name, headers and ('(%r)' % headers) or '',line_sep.join(msg.body.split('\n')+[])))
+        print (">%s:%s" % (name, line_sep.join(msg.body.split('\n')+[])))
     return stdout_msg_outputter
 
 def continously(f):
