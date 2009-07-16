@@ -2,8 +2,8 @@
  * Default package descendent, to please the harness
  */
 
-import com.rabbitmq.streams.plugins.javascript.JavaScriptPlugin
+import net.sf.json.JSONObject
 
-class javascript extends JavaScriptPlugin {
+class javascript(config : JSONObject) extends JavaScriptPlugin(config) {
 
 }

@@ -2,6 +2,8 @@
  * A plugin that evaluates a supplied JavaScript function to transform messages.
  */
 
+package com.rabbitmq.streams.plugins.javascript
+
 import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, Publisher}
 import net.sf.json.JSONObject
 
@@ -18,11 +20,13 @@ class JavaScriptPlugin(config : JSONObject) extends PipelineComponent(config) {
 
     private val function = context.compileFunction(globalScope, functionText, "<config>", 1, null)
 
-    private def cleanUpFunctionValue(func : String) : String =
+    protected def cleanUpFunctionValue(func : String) : String =
         if (func.startsWith("\"") && func.endsWith("\""))
             func.substring(1, func.length-1)
         else
             func
+
+
 
     object input extends InputReader {
         override def handleBody(body : Array[Byte]) {
