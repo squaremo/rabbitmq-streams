@@ -1,12 +1,6 @@
 package com.rabbitmq.streams.harness;
 
-import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Document;
-import com.fourspaces.couchdb.Session;
-import net.sf.json.JSONObject;
-
 import java.io.IOException;
-import java.net.URL;
 import java.util.Map;
 
 /**
@@ -18,41 +12,17 @@ public abstract class PipelineComponent extends Plugin {
 
   final private Object privateLock = new Object();
 
-  @Override
-  public InputReaderRunnable handlerRunnable(String name) {
-    return new TransactionalInputReaderRunnable(privateLock);
+  protected void registerInput(String channel, InputReader reader) {
+    // TODO: Make this look like a state monad
+    this.messageChannel.consume(channel, reader);
   }
 
-  public void publishToChannel(String channel, byte[] body) {
-    Publisher publisher = getPublisher(channel);
-    if (publisher != null) {
-      try {
-        publisher.publish(body);
-      }
-      catch (IOException e) {
-        log.error(e);
-        e.printStackTrace();
-      }
-    }
-    else {
-      log.error("No publisher has been made available to this plugin for the channel named " + channel);
-    }
+  protected void publishToChannel(String channel, byte[] body) throws IOException, MessagingException {
+    this.messageChannel.publish(channel, body);
   }
 
-  public void publishToChannel(String channel, byte[] body, Map<String, Object> headers) {
-    Publisher publisher = getPublisher(channel);
-    if (publisher != null) {
-      try {
-        publisher.publish(body, headers);
-      }
-      catch (IOException e) {
-        log.error(e);
-        e.printStackTrace();
-      }
-    }
-    else {
-      log.error("No publisher has been made available to this plugin for the channel named " + channel);
-    }
+  public void publishToChannel(String channel, byte[] body, Map<String, Object> headers) throws IOException, MessagingException {
+    this.messageChannel.publish(channel, body, headers);
   }
 
 }

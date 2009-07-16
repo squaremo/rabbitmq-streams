@@ -25,7 +25,7 @@ public class PluginTestingTools {
 
   static class NoopPlugin extends Plugin {
     @Override
-    public InputReaderRunnable handlerRunnable(String name) {
+    public InputConsumer handlerRunnable(String name) {
       throw new UnsupportedOperationException("Not supported yet.");
     }
   }

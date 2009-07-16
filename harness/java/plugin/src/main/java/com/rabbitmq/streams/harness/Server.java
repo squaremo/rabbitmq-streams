@@ -15,18 +15,16 @@ import java.util.List;
 public abstract class Server extends Plugin {
 
   @Override
-  public void configure(JSONObject config, JSONObject pluginType) {
-    super.configure(config, pluginType);
-    registerHandler("command", command);
+  public void configure(JSONObject staticConfig) {
+    this.messageChannel.consume("command", command);
   }
 
-  @Override
-  public InputReaderRunnable handlerRunnable(String name) {
-    return new DefaultInputReaderRunnable();
+  public void registerInputHandler(ServerInputReader handler) {
+    this.messageChannel.consume("input", handler);
   }
 
-  protected final void publishToDestination(byte[] body, String destination) throws IOException {
-    getPublisher("output").publish(body, destination);
+  protected final void publishToDestination(byte[] body, String destination) throws IOException, MessagingException {
+    this.messageChannel.publish("output", body, destination);
   }
 
   /**
@@ -56,19 +54,19 @@ public abstract class Server extends Plugin {
   public static abstract class ServerInputReader implements InputHandler {
 
     @Override
-    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
-      handleBodyForTerminal(delivery.getBody(), delivery.getEnvelope().getRoutingKey(), delivery.getEnvelope().getDeliveryTag());
+    public void handleMessage(Message msg, JSONObject config) throws PluginException {
+      handleBodyForTerminal(msg.body(), msg.routingKey(), msg);
     }
 
-    abstract public void handleBodyForTerminal(byte[] body, String key, long tagToAck) throws PluginException;
+    abstract public void handleBodyForTerminal(byte[] body, String key, Message ack) throws PluginException;
   }
 
   private final InputHandler command = new InputHandler() {
 
     @Override
-    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
+    public void handleMessage(Message message, JSONObject config) throws PluginException {
 
-      String serverIdterminalId = delivery.getEnvelope().getRoutingKey();
+      String serverIdterminalId = message.routingKey();
       int loc = serverIdterminalId.lastIndexOf('.');
       String serverIds = serverIdterminalId.substring(0, loc);
       String terminalId = serverIdterminalId.substring(loc + 1);
@@ -99,7 +97,13 @@ public abstract class Server extends Plugin {
         Server.this.terminalStatusChange(terminalId,
           terminalConfigs,
           terminalStatus.getBoolean("active"));
-        Server.this.ack(delivery);
+        try {
+          message.ack();
+        }
+        catch (MessagingException me) {
+          log.error("Unable to ack message");
+          // FIXME rollback?
+        }
       }
       catch (IOException ex) {
         throw new PluginException("Unable to handle delivery.", ex);

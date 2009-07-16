@@ -53,32 +53,6 @@ public class PluginTest extends PluginTestingTools {
   }
 
   /**
-   * Test of addOutput method, of class Plugin.
-   */
-  @Test
-  public void testAddOutput() throws IOException {
-    Publisher pub = mock(Publisher.class);
-    Plugin plugin = new NoopPlugin();
-    plugin.addOutput("foo", pub);
-    plugin.getPublisher("foo").publish("foobar".getBytes());
-    verify(pub).publish("foobar".getBytes());
-  }
-
-  /**
-   * Test that if we register a handler, then send something to the plugin's idea of the handler, it goes
-   * to the same place.
-   */
-  @Test
-  public void testRegisterHandler() throws Exception {
-    InputReader handler = mock(InputReader.class);
-    Plugin plugin = new NoopPlugin();
-    plugin.registerHandler("foo", handler);
-    Delivery parcel = new Delivery(null, null, "bar".getBytes());
-    plugin.handler("foo").handleDelivery(parcel, null);
-    verify(handler).handleDelivery(parcel, null);
-  }
-
-  /**
    * Test of setValuesInHeader method, of class Plugin.
    */
   @Test
@@ -86,14 +60,14 @@ public class PluginTest extends PluginTestingTools {
     Map<String, Object> header = new HashMap();
     JSONObject vals = new JSONObject();
     vals.put("foo", "bar");
-    InputReaderRunnable.setValuesInHeader(header, vals);
-    assertEquals(InputReaderRunnable.getValuesFromHeader(header), vals);
-    assertEquals(InputReaderRunnable.getValuesFromHeader(header).getString("foo"), "bar");
+    InputConsumer.setValuesInHeader(header, vals);
+    assertEquals(InputConsumer.getValuesFromHeader(header), vals);
+    assertEquals(InputConsumer.getValuesFromHeader(header).getString("foo"), "bar");
   }
 
   public class PluginImpl extends Plugin {
 
-    public InputReaderRunnable handlerRunnable(String name) {
+    InputConsumer handlerRunnable(String name) {
       return null;
     }
   }

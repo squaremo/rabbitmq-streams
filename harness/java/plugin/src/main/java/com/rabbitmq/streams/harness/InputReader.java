@@ -1,7 +1,6 @@
 package com.rabbitmq.streams.harness;
 
 import net.sf.json.JSONObject;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 /**
  * A callback interface for plugins to implement.  The methods are hierarchical,
@@ -10,8 +9,8 @@ import com.rabbitmq.client.QueueingConsumer.Delivery;
  */
 public abstract class InputReader implements InputHandler {
 
-    public final void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
-        handleBodyAndConfig(delivery.getBody(), config);
+    public final void handleMessage(Message m, JSONObject config) throws PluginException {
+        handleBodyAndConfig(m.body(), config);
     }
 
     public void handleBodyAndConfig(byte[] body, JSONObject config) throws PluginException {

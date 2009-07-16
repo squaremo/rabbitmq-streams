@@ -36,8 +36,8 @@ public class PluginConfigTest {
   public void testSetValues() {
     Map<String, Object> headers = new HashMap();
     JSONObject vals = new JSONObject();
-    InputReaderRunnable.setValuesInHeader(headers, vals);
-    assertEquals(vals, InputReaderRunnable.getValuesFromHeader(headers));
+    InputConsumer.setValuesInHeader(headers, vals);
+    assertEquals(vals, InputConsumer.getValuesFromHeader(headers));
   }
 
   /**
@@ -50,7 +50,7 @@ public class PluginConfigTest {
     JSONObject conf = new JSONObject();
     conf.put("interpolated", "$foo");
     conf.put("notinterpolated", "foo");
-    JSONObject interpolateConfig = InputReaderRunnable.interpolateConfig(conf, vals);
+    JSONObject interpolateConfig = InputConsumer.interpolateConfig(conf, vals);
     assertNotNull(interpolateConfig);
     assertEquals(interpolateConfig.size(), 2);
     assertEquals("bar", interpolateConfig.get("interpolated"));

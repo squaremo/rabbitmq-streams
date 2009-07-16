@@ -1,29 +1,31 @@
 package com.rabbitmq.streams.harness;
 
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.QueueingConsumer;
-import com.rabbitmq.client.impl.ChannelN;
+import com.rabbitmq.client.QueueingConsumer.Delivery;
+import java.io.IOException;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONArray;
 
 import java.util.Map;
 
-public abstract class InputReaderRunnable implements Runnable {
+abstract class InputConsumer implements Runnable {
 
   public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
 
-  public InputReaderRunnable() {
-  }
+  protected QueueingConsumer consumer;
+  protected final InputHandler handler;
+  private final JSONObject originalConfiguration;
+  private JSONObject staticConfiguration;
 
-  public void configure(QueueingConsumer consumer, ChannelN channel, InputHandler handler, JSONObject config, Logger log) {
+  protected InputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
     this.consumer = consumer;
-    this.channel = channel;
     this.handler = handler;
-    this.config = config;
-    this.log = log;
-    makeStaticConfiguration();
+    this.originalConfiguration = config.getJSONObject("configuration");
+    makeStaticConfiguration(config);
   }
 
-  private void makeStaticConfiguration() {
+  private void makeStaticConfiguration(JSONObject config) {
     JSONArray globalConfig = config.getJSONObject("plugin_type").getJSONArray("global_configuration_specification");
     staticConfiguration = new JSONObject();
     for (Object configItem : globalConfig) {
@@ -44,15 +46,14 @@ public abstract class InputReaderRunnable implements Runnable {
     return (headers.containsKey(PLUGIN_VALUES_HEADER)) ? JSONObject.fromObject(headers.get(PLUGIN_VALUES_HEADER)) : null;
   }
 
-  static JSONObject mergeConfigWithHeaders(JSONObject original, Map<String, Object> headers) {
-    JSONObject result = JSONObject.fromObject(original);
+  JSONObject mergeConfigWithHeaders(Map<String, Object> headers) {
+    JSONObject result = JSONObject.fromObject(staticConfiguration);
     if (headers != null) {
       JSONObject values = getValuesFromHeader(headers);
       if (values != null) {
-        result = interpolateConfig(original, values);
+        result = interpolateConfig(originalConfiguration, values);
       }
     }
-
     return result;
   }
 
@@ -76,10 +77,36 @@ public abstract class InputReaderRunnable implements Runnable {
     return result;
   }
 
-  protected QueueingConsumer consumer;
-  protected ChannelN channel;
-  protected InputHandler handler;
-  protected JSONObject config, staticConfiguration;
-  protected Logger log;
+  protected static class AMQPMessage implements Message {
+    private final Delivery delivery;
+    private final Channel channel;
+
+    AMQPMessage(Channel channel, Delivery delivery) {
+      this.channel = channel;
+      this.delivery = delivery;
+    }
+
+    public Map<String, Object> headers() {
+      return delivery.getProperties().headers;
+    }
+
+    public byte[] body() {
+      return delivery.getBody();
+    }
+
+    public void ack() throws MessagingException {
+      try {
+        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+      }
+      catch (IOException ioe) {
+        throw new MessagingException("Could not ack message", ioe);
+      }
+    }
+
+    public String routingKey() {
+      throw new UnsupportedOperationException("Not supported yet.");
+    }
+  }
+
 }
 
