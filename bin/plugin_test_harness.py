@@ -1,12 +1,14 @@
+# -*- encoding: utf-8 -*-
 from __future__ import with_statement
 import atexit
 from functools import partial
+import hashlib
 import httplib
 from optparse import OptionParser, make_option as opt
 import os
 import posixpath
 import re
-import hashlib
+import time
 import signal
 import subprocess
 import sys
@@ -21,9 +23,16 @@ import amqplib.client_0_8 as amqp
 from feedshub import json
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
-SEP="\t"
-#IO_LINE_REX=re.compile(r'^([<>]?)|\.{3})?(\w*)\s*'+SEP+'(.*\n?)')
-IO_LINE_REX=re.compile(r'^(?:\.{3}|([<>]?)([^'+SEP+']*?))\s*'+SEP+'(.*\n?)')
+SEP, IN, OUT = "\t><"
+CONT = "..."
+
+MODS = frozenset('sleep rk config headers'.split())
+
+class ReplError(Exception): pass
+
+
+
+
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
                                 password='feedshub_admin', virtual_host='/')
@@ -41,6 +50,7 @@ def info(*args):
     for arg in args:
         print arg,
     print
+    sys.stdout.flush()
 
 
 def json_repr(py_obj):
@@ -51,9 +61,9 @@ def newname():
     return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
 
 def format_output(channel_name, msg):
-    line_sep = "\n%s%s" % (' ' * len(channel_name), SEP)
-    print ">%s%s%s" % (
-        channel_name, SEP, line_sep.join(msg.body.split('\n')+[]))
+    line_sep = "\n%s%s%s" % (CONT, ' ' * (len(OUT)+len(channel_name)), SEP)
+    print "%s%s%s%s" % (
+        OUT, channel_name, SEP, line_sep.join(msg.body.split('\n')+[]))
     sys.stdout.flush()
 
 
@@ -103,6 +113,25 @@ def continously(f):
         t.must_die = 1
     return pull_the_plug
 
+def secondify(string):
+    r"""Interpret a string as a number of seconds.
+
+    >>> map(secondify, ['60', '6e1s', '60.0e0 s', '1.0 min', '6e7us'])
+    [60.0, 60.0, 60.0, 60.0, 60.0]
+    >>> secondify('0.5')
+    0.5
+    >>> secondify('foobar') #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: ...
+    """
+    INTERVALS = dict(us=1e-6,ms=1e-3,s=1, min=60, h=60*60)
+    m = re.match(r"(.*?)\s*([um]?s|min|h|d)?$", string.replace(u'μ','u'))
+    if not m: raise ValueError("Not a valid time duration string: %r" % string)
+    else:     return float(m.group(1)) * INTERVALS[m.group(2) or 's']
+
+
+
 
 class TestWiring(object):
 
@@ -121,7 +150,7 @@ class TestWiring(object):
         for (name, exchange) in self.outputs.items():
             self.subscribe(name, exchange, )
         self.subscribe(name="log", exchange="feedshub/log", key='#',
-                       mk_callback=partial(format_output, ">log"))
+                       mk_callback=partial(format_output, "log"))
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -149,12 +178,23 @@ class TestWiring(object):
     def make_talker(self, queue):
         exchange = self.declexchange()
         self.channel.queue_bind(queue, exchange)
-        def say(something):
-            self.channel.basic_publish(amqp.Message(body=something), exchange)
+        def say(something, rk='', config=None):
+            if config is not None:
+                headers = {plugin_config_header: config}
+                self.channel.basic_publish(amqp.Message(body=something,
+                                                   application_headers=headers),
+                                      exchange,
+                                      routing_key=rk)
+            else:
+                self.channel.basic_publish(amqp.Message(body=something),
+                                      exchange,
+                                      routing_key=rk)
         return say
 
     def send(self, **kwargs):
-        assert set(kwargs) == set(self.inputs) # XXX
+        if 'SLEEP' in kwargs:
+            for s in kwargs.pop('SLEEP'): time.sleep(secondify(s))
+        assert set(kwargs) == set(self.inputs)
         for in_name, to_say in kwargs.items():
             if isinstance(to_say, basestring):
                 to_say = [to_say]
@@ -194,8 +234,7 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
 def setup_everything(plugindir, config_json, Outputter):
     instance_config = json.loads(config_json)
 
-    info("<$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config)))
-    info()
+    info(OUT+"$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config)))
 
     with open(os.path.join(plugindir, 'plugin.js')) as f:
         plugin_specs = json.loads(f.read())
@@ -229,14 +268,13 @@ def setup_everything(plugindir, config_json, Outputter):
 
     reconfigure_plugin()
 
-    info()
     info("""##The input channels are: %s
-    # type 'INPUT<tab>MESSAGE' to inject a message into channel INPUT,
-    # type 'more-stuff' to continue the message and
-    # type '' (an empty line) to finish it (all newlines but the last are kept).
-    # type ^D to abort. You are free to insert whitespace before the ':'.
-    ---
-    """ % ' '.join(wiring.inputs))
+# type 'INPUT<tab>MESSAGE' to inject a message into channel INPUT,
+# type '<tab>more-stuff' to continue the message (all newlines but the last are kept)
+# repeat as required if there are multiple input channels then
+# type '' (an empty line) to finish the input group
+# type ^D to exit.
+""" % ' '.join(wiring.inputs))
     return wiring, reconfigure_plugin, instance_config
 
 
@@ -269,11 +307,12 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
         "state":  posixpath.join(plugin_test_doc_url, statedocname),
         "database": plugin_test_doc_url
     }
-
     harnessdir = os.path.join(HARNESS_BASE_DIR, init['harness_type'])
     harness = os.path.join(harnessdir, 'run_plugin.sh')
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
+                                  stdout=subprocess.PIPE, # TODO(alexander):
                                   stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+    info("## Harness PID")
     info("## Initialising plugin with:")
     info("#", json.dumps(init))
     pluginproc.stdin.write(json.dumps(init) + "\n")
@@ -283,81 +322,161 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     # whack all lingering plugin processes
     __processes_to_kill.append(pluginproc)
 
-
-    info("## Initialising plugin with:")
     return pluginproc
 
 
-# TODO: a proper state-machine abstraction might be good here...
-def repl(lines, send):
-    WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
 
+
+
+################################## Parsing ###################################
+
+IO_LINE_REX=re.compile(r'''(?x)
+ ^(?:                                                       # either
+       (?:                                                    #     nothing
+          |\.{3}                                              #  or '...'
+          |(?P<typ>[<>]?)(?P<chan>\w+)(?P<json>[^%(SEP)s]*)   #  or [{'<','>'}] CHANNEL [JSON]
+       )                                                      # followed by
+       \s*%(SEP)s                                             #  SEP [MSG_PART]
+       (?P<bit>.*?)
+      )?                         # or nothing at all (empty line)
+\n?$''' % dict(SEP=re.escape(SEP)))
+
+strip_final_newline = partial(re.compile(r'\n\Z').sub, '')
+
+def parse_io_line(line):
+    r"""Parse a repl input line into chan_type, name, opts, msg_part.
+    >>> parse_io_line(">input stuff")
+    Traceback (most recent call last):
+    ...
+    ReplError: Unparsable input line(did you forget a '\t'?): '>input stuff'
+    >>> parse_io_line("")
+    (None, None, {}, None)
+    >>> parse_io_line("\t")
+    (None, None, {}, '')
+    >>> parse_io_line("...\t")
+    (None, None, {}, '')
+    >>> parse_io_line("...\tmsg")
+    (None, None, {}, 'msg')
+    >>> parse_io_line("...\tmsg\n")
+    (None, None, {}, 'msg')
+    >>> parse_io_line("\tmsg")
+    (None, None, {}, 'msg')
+    >>> parse_io_line(IN + "ch\tmsg") == (IN, 'ch', {}, 'msg')
+    True
+    >>> parse_io_line("ch\tmsg") == (IN, 'ch', {}, 'msg')
+    True
+    >>> parse_io_line(OUT + "ch\tmsg") == (OUT, 'ch', {}, 'msg')
+    True
+    >>> parse_io_line(">ch\tmsg\n")
+    ('>', 'ch', {}, 'msg')
+    >>> parse_io_line(">ch\tmsg")
+    ('>', 'ch', {}, 'msg')
+    >>> parse_io_line('input{"sleep":3}\tmsg') ==  (IN, 'input', {u'sleep': 3}, 'msg')
+    True
+    >>> parse_io_line('input{"config":{"regexp"  : "foobar"}}\tmsg') == (IN, 'input', {u'config': {u'regexp': u'foobar'}}, 'msg')
+    True
+    >>> parse_io_line('input{"conf":{"regexp"  : "foobar"}}\tmsg')
+    Traceback (most recent call last):
+    [...]
+    ReplError: Got the following unknown keys: conf (known keys are: headers,config,sleep,rk)
+    """
+    # [[sleep], rk, config, headers]
+    try:
+        d=IO_LINE_REX.match(line).groupdict()
+    except AttributeError:
+        raise ReplError("Unparsable input line%s: %r" % (
+            ("" if SEP in line else ("(did you forget a %r?)" % SEP)), line))
+    chan_type, chan, opts, msg_part = None, None, {}, d['bit']
+    if d['chan']:
+        chan_type = d['typ'] or IN
+        chan = d['chan']
+        if d['json']:
+            try:
+                opts = json.loads(d['json'])
+                if not isinstance(opts, dict): raise ValueError
+            except ValueError:
+                raise ReplError("Expected a json dictionary, got: %s", d['json'])
+            bad_keys = set(opts) - MODS
+            if bad_keys:
+                raise ReplError(
+                    "Got the following unknown keys: %s (known keys are: %s)" % (
+                        ",".join(bad_keys), ",".join(MODS)))
+    return chan_type, chan, opts, msg_part
+
+
+
+# TODO: a proper state-machine abstraction might be good here...
+def repl(lines, send, is_valid_channel=lambda *_: True):
+    WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
     talker_name, msg, state = None, None, WANT_CHANNEL
     exit_code = 0
-
+    io_group = {}
+    channel_acc = []
     def ship():
         try:
-            to_say = msg.rsplit('\n',1)[0]
-            ## print >>sys.stderr, "A'shippin': %r"% to_say
-            send(**{talker_name :to_say})
-            ## print >>sys.stderr, "A'shipped"
+            ## print >>sys.stderr, "###DEBUG A'shippin': %r"% io_group
+            send(**io_group)
+            io_group.clear()
+            ## print >>sys.stderr, "###DEBUG A'shipped"
             return 0
         except KeyError:
             print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
                                  (SEP, talker_name))
             return BAD_CHANNEL
 
-    for line in lines:
-        ## print >>sys.stderr, "A'line read"
-        if line.startswith('#'):
-            pass
-        elif not line.strip():
-            if state == WANT_ANY:
+    def finish_channel():
+        io_group.setdefault(channel_acc[0],[]).append("\n".join(channel_acc[1:]))
+        del channel_acc[:]
+
+    def new_channel(channel, msg_part):
+        assert not channel_acc
+        channel_acc[:] = [channel, msg_part]
+
+    for (lineno, line) in enumerate(lines):
+        if line.startswith("#"): continue
+        try:
+            chan_type, name, opts, msg_part = parse_io_line(line)
+            if chan_type:
+                if not is_valid_channel(chan_type, name):
+                    print >>sys.stderr, (
+                        OUT+'ERROR["BAD_CHANNEL"]%s%r' % (SEP, chan_type+name))
+                    exit_code |= MALFORMED_INPUT
+
+        except ReplError:
+            print >>sys.stderr, (
+                OUT+'ERROR["MALFORMED_INPUT"]%s'
+                " Bad input! (neither comment nor message):%r" % (SEP, line))
+            exit_code |= MALFORMED_INPUT
+            continue
+
+        if state == WANT_ANY:
+            if msg_part is None:
+                assert not line.strip()
+                finish_channel()
                 exit_code |= ship()
-                talker_name, msg, state = None, None, WANT_CHANNEL
-        else:
-            try:
-                typ, channel, bit = IO_LINE_REX.match(line).groups()
-            except Exception:
-                print >>sys.stderr, (
-                    ">ERROR(MALFORMED_INPUT)%s"
-                    " Bad input! (neither comment nor message):%r" % (SEP, line))
-                continue
-            if not channel:
-                if state is WANT_CHANNEL:
-                    print >>sys.stderr, (
-                        ">ERROR(MALFORMED_INPUT)%s"
-                        " need some channel to send message to!" % (SEP,))
-                    exit_code |= MALFORMED_INPUT
-                    continue
-                elif not bit and not typ:
-                    exit_code |= ship()
-                    talker_name, msg, state = None, None, WANT_CHANNEL
-                elif not typ:
-                    msg += bit
-                    state = WANT_ANY
-                else:
-                    print >>sys.stderr, (
-                        ">ERROR(MALFORMED_INPUT)%s"
-                        "%r on its own is not meaningful" % (SEP, bit))
-                    exit_code |= MALFORMED_INPUT
-                    continue
+                state = WANT_CHANNEL
             else:
-                if typ != '>':
-                    if state is WANT_ANY:
-                        exit_code |= ship()
-                    talker_name = channel
+                if not name:
+                    channel_acc.append(msg_part)
                 else:
-                    talker_name = None # FIXME
-                msg = bit
+                    finish_channel()
+                    new_channel(name, msg_part)
+        else:
+            assert state == WANT_CHANNEL
+            if not name:
+                print >>sys.stderr, (
+                    OUT+'ERROR["MALFORMED_INPUT"]%s'
+                    " need some channel to send message %r to!" % (SEP, msg_part))
+                exit_code |= MALFORMED_INPUT
+            else:
+                new_channel(name, msg_part)
                 state = WANT_ANY
-        ## print >> sys.stderr, 'EOL'
-    if talker_name is not None:
-        exit_code |= ship()
+
+    if channel_acc:
+        finish_channel()
+        ship()
     return exit_code
 
-
-false, true, null = False, True, None  # make json valid python
 
 if __name__ == '__main__':
     opts, args = OptionParser("""%prog [OPTIONS] PLUGINPATH [PLUGIN_CONFIG]
@@ -365,32 +484,37 @@ if __name__ == '__main__':
     Test a plugin by sending input and observing its output.
     """,
                               [opt(None, "--py", action="store_true",
-                                   help="If true, leave control to python, else start I/O repl")
+                                   help="If true, leave control to python, else start I/O repl"),
+                               opt(None, "--selftest", action="store_true",
+                                   help="Run a basic selftest."),
+                               opt(None, "--test", action="store_true",
+                                   help="Treat stdin as Input/ExpectedOuptput pairings")
                                ]).parse_args()
-    if not args or len(args) > 2:
-        print >> sys.stderr, "Illegal number of arguments (%d)" % len(args), "try",\
-              sys.argv[0], "--help"
-        sys.exit(os.EX_USAGE)
-    print args, opts.py
-    setup_args = dict(plugindir  = os.path.abspath(args.pop(0)),
-                      config_json = open(args.pop(0)).read() if args else '{}',
-                      Outputter = BatchedOutputter if opts.py else StdoutOutputter)
+    if opts.selftest:
+        import doctest
+        print doctest.testmod()
+    else:
+        if not args or len(args) > 2:
+            print >> sys.stderr, "Illegal number of arguments (%d)" % len(args), "try",\
+                  sys.argv[0], "--help"
+            sys.exit(os.EX_USAGE)
 
-    wiring, reconfigure_plugin, config = setup_everything(**setup_args)
-    send = wiring.send
+        if opts.test:
+            is_valid_channel=lambda t, c: (c in wiring.talkers or c == "SLEEP")
+            Outputter = BatchedOutputter
 
-    if not opts.py:
-        sys.exit(repl(iter(sys.stdin.readline, ''), wiring.send))
+        else:
+            is_valid_channel=lambda t, c: t==IN and (c in wiring.talkers or c == "SLEEP")
+            Outputter = StdoutOutputter
 
-    ## import code
-    ## code.interact('', lambda x: sys.stdin.readline().replace('\n',''), vars())
+        setup_args = dict(plugindir=os.path.abspath(args.pop(0)),
+                          config_json=open(args.pop(0)).read() if args else '{}',
+                          Outputter=Outputter)
 
-    ## if opts.py:
-    ##     from IPython.Shell import IPShellEmbed
-    ##     ipshell = IPShellEmbed(args,
-    ##                            banner = 'Dropping into IPython',
-    ##                            exit_msg = 'Leaving Interpreter, back to program.')
+        wiring, reconfigure_plugin, config = setup_everything(**setup_args)
+        send = wiring.send
 
-
-
-
+        if not opts.py:
+            sys.exit(repl(lines=iter(sys.stdin.readline, ''),
+                          send=wiring.send,
+                          is_valid_channel=is_valid_channel))
