@@ -14,49 +14,100 @@ public abstract class Plugin {
 
   public static final String newline = System.getProperty("line.separator");
 
+  protected String id;
   private ChannelN messageServerChannel; // TODO consider encapsulating this and moving to the harness
+  private StateResource stateResource;
   protected Logger log;
-  protected Database privateDb;
+  protected DatabaseResource privateDb;
+  protected DatabaseResource terminalsDatabase;
 
-  final protected JSONObject pluginType;
-  final protected JSONObject config;
+  protected JSONObject pluginType;
+  protected JSONObject staticConfiguration;
 
   private final Map<String, Publisher> outputs = new HashMap<String, Publisher>();
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
 
-  public Plugin(final JSONObject config) {
-    this.config = config;
-    pluginType = config.getJSONObject("plugin_type");
+  public void configure(final JSONObject staticConfig, final JSONObject pluginType) {
+    this.pluginType = pluginType;
     JSONArray globalConfig = pluginType.getJSONArray("global_configuration_specification");
     JSONObject mergedConfig = new JSONObject();
     for (Object configItem : globalConfig) {
       JSONObject item = (JSONObject) configItem;
       mergedConfig.put(item.getString("name"), JSONObject.fromObject(item.get("value")));
     }
-    JSONObject userConfig = config.getJSONObject("configuration");
-    mergedConfig.putAll(userConfig);
+    mergedConfig.putAll(staticConfig);
+    this.staticConfiguration = mergedConfig;
+  }
+
+  protected void setId(String id) {
+    this.id = id;
+  }
+
+  public String getId() {
+    return id;
   }
 
   public boolean configuredCorrectly()  {
     return true;
   }
 
+  void setStateResource(StateResource state) {
+    this.stateResource = state;
+  }
+
+  void setTerminalsDatabase(DatabaseResource db) {
+    this.terminalsDatabase = db;
+  }
+
   public void addOutput(String channel, Publisher publisher) {
     outputs.put(channel, publisher);
   }
 
+  /**
+   * For plugins to get an output channel
+   * @param channel the name of the channel required
+   */
   public Publisher getPublisher(String channel) {
     return outputs.get(channel);
   }
 
   /**
-   * For plugins to register a handler for handler() to suplpy to the harness.
+   * For plugins to register a handler for handler() to supply to the harness.
    * In other words, this maps a handler to a channel name.
    * @param name
    * @param handler
    */
-  public void registerHandler(String name, InputHandler handler)  {
+  protected void registerHandler(String name, InputHandler handler)  {
     handlers.put(name, handler);
+  }
+
+  /**
+   * For plugins to set their state
+   * @param name
+   * @return
+   */
+  protected final void setState(Map<String, Object> state) {
+    try {
+      stateResource.setState(state);
+    }
+    catch (IOException ioe) {
+
+    }
+  }
+
+  /**
+   * For plugins to get their state
+   * @return
+   */
+  protected final Map<String, Object> getState() {
+    try {
+      return stateResource.getState();
+    }
+    catch (IOException ioe) {
+      log.fatal("Cannot read state");
+      this.dieHorribly();
+      return null; // obey the type system
+    }
   }
 
   InputHandler handler(String name)  {
@@ -73,7 +124,7 @@ public abstract class Plugin {
     this.log = log;
   }
 
-  public void setDatabase(Database database) {
+  public void setDatabase(DatabaseResource database) {
     privateDb = database;
   }
 

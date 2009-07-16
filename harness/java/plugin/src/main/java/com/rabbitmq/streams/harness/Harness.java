@@ -1,6 +1,7 @@
 package com.rabbitmq.streams.harness;
 
 import com.fourspaces.couchdb.Database;
+import com.fourspaces.couchdb.Document;
 import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.QueueingConsumer;
@@ -18,6 +19,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 
 public class Harness implements Runnable {
 
@@ -32,16 +34,15 @@ public class Harness implements Runnable {
    * A message will be written to stdout and stderr so if you use it you may get found out!
    */
   Harness(JSONObject configuration, Plugin plugin) {
-    System.out.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
+    System.err.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
     this.configuration = configuration;
     this.plugin = plugin;
-    System.err.println("This constructor is for use in unit test code only to facilitate testing - DO NOT USE IN PRODUCTION CODE");
   }
 
-  public Plugin plugin(JSONObject configuration) {
+  protected Plugin plugin(JSONObject configuration) {
     String pluginDirectory;
     String pluginName;
-    Plugin plugin = null;
+    Plugin p = null;
 
     try {
       pluginDirectory = pluginDirectory(configuration);
@@ -51,13 +52,20 @@ public class Harness implements Runnable {
       Thread.currentThread().setContextClassLoader(ucl);
       pluginName = configuration.getString("plugin_name");
       @SuppressWarnings({"unchecked"}) Class<Plugin> clazz = (Class<Plugin>) ucl.loadClass(pluginName);
-      plugin = clazz.getConstructor(JSONObject.class).newInstance(configuration);
+      p = clazz.getConstructor().newInstance();
     }
     catch (Exception ex) {
-      System.err.println("Exception thrown while loading & constructing Java plugin");
-      ex.printStackTrace(System.err);
+      
     }
-    return plugin;
+    p.setId(idForPlugin(configuration));
+    return p;
+  }
+
+  protected void configurationError(String message, Exception e) {
+      System.err.println("Exception thrown while loading & constructing Java plugin");
+      System.err.println(message);
+      e.printStackTrace(System.err);
+      // FIXME what here?  Die horribly?
   }
 
   private String[] jars(URI libUri) {
@@ -84,10 +92,8 @@ public class Harness implements Runnable {
         classpathEntries.add(new URL(libUri + jar));
       }
     }
-
     return classpathEntries.toArray(new URL[classpathEntries.size()]);
   }
-
 
   public void run() {
   }
@@ -96,8 +102,14 @@ public class Harness implements Runnable {
     messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
     messageServerChannel = (ChannelN) messageServerConnection.createChannel();
     plugin.setMessageServerChannel(messageServerChannel); // TODO this is needed for the command channel can this be pulled out of server somehow?
+    plugin.configure(configuration.getJSONObject("configuration"), configuration.getJSONObject("plugin_type"));
+    String id = idForPlugin(configuration);
+    setStateResourceOnPlugin(configuration, plugin);
     connectLoggerToPlugin();
     connectDatabaseToPlugin();
+    if (pluginIsServer(configuration)) {
+      connectTerminalsDatabase(plugin, configuration);
+    }
 
     constructPluginOutputs(configuration.getJSONObject("outputs"));
     constructPluginInputs(configuration.getJSONObject("inputs"));
@@ -141,11 +153,43 @@ public class Harness implements Runnable {
     plugin.setLog(log);
   }
 
+  private boolean pluginIsServer(JSONObject config) {
+    return config.getJSONObject("plugin_type").getString("type").equals("server");
+  }
+
+  private String idForPlugin(JSONObject config) {
+    if (pluginIsServer(config)) {
+      return config.getString("server_id");
+    }
+    else {
+      return config.getString("feed_id") + config.getString("node_id");
+    }
+  }
+
   private String logRoutingKey(JSONObject config) {
-    if (config.containsKey("server_id")) {
+    if (pluginIsServer(config)) {
       return "." + config.getString("server_id") + "." + config.getString("plugin_name");
     }
     return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
+  }
+
+  protected void setStateResourceOnPlugin(JSONObject configuration, Plugin plugin) {
+    String url = configuration.getString("state");
+    try {
+      URL dbURL = new URL(url);
+      String path = dbURL.getPath();
+      int loc = path.lastIndexOf('/'); // minus document
+      String db = path.substring(0, loc);
+      int loc2 = db.lastIndexOf('/');
+      String dbName = db.substring(loc2);
+      Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(), "", "");
+      String stateDocName = path.substring(1 + loc);
+      Database stateDb = couchSession.getDatabase(dbName);
+      plugin.setStateResource(new CouchDbStateResource(stateDb, stateDocName));
+    }
+    catch (MalformedURLException mue) {
+      configurationError("Error constructing state resource", mue);
+    }
   }
 
   private void connectDatabaseToPlugin() throws MalformedURLException {
@@ -158,9 +202,32 @@ public class Harness implements Runnable {
       session.createDatabase(name);
       Database database = session.getDatabase(name);
       log.debug("Database supplied: " + database.getName());
-      plugin.setDatabase(database);
+      plugin.setDatabase(new CouchDbDatabaseResource(database));
     }
+  }
 
+  private void connectTerminalsDatabase(Plugin plugin, JSONObject config) {
+    String serverId = config.getString("server_id");
+    String terminalsDbStr = config.getString("terminals_database");
+    try {
+      URL terminalsDbUrl = new URL(terminalsDbStr);
+      Session couchSession = new Session(terminalsDbUrl.getHost(), terminalsDbUrl.getPort(), "", "");
+      String path = terminalsDbUrl.getPath();
+      int loc;
+      if (path.endsWith("/")) {
+        loc = path.substring(0, path.length() - 1).lastIndexOf('/');
+      }
+    else {
+        loc = path.lastIndexOf('/');
+    }
+      String terminalsDbName = path.substring(loc);
+      Database terminalsDatabase = couchSession.getDatabase(terminalsDbName);
+      plugin.setTerminalsDatabase(new CouchDbDatabaseResource(terminalsDatabase));
+    }
+    catch (MalformedURLException mue) {
+      // FIXME log a fatal error and die horriby
+      throw new RuntimeException(mue);
+    }
   }
 
   public void shutdown() throws IOException {
@@ -178,6 +245,49 @@ public class Harness implements Runnable {
       }
       catch (ShutdownSignalException ignored) {
       }
+    }
+  }
+
+  protected static class CouchDbStateResource implements StateResource {
+    private final Database database;
+    private final String docId;
+
+    public CouchDbStateResource(Database db, String id) {
+      this.database = db;
+      this.docId = id;
+    }
+
+    public void setState(Map<String, Object> state) throws IOException {
+      Document doc = database.getDocument(docId);
+      if (null==doc) {
+        doc = new Document();
+        doc.setId(docId);
+      }
+      doc.clear();
+      doc.putAll(state);
+      database.saveDocument(doc, docId);
+    }
+
+    public Map<String, Object> getState() throws IOException {
+      Document doc = database.getDocument(docId);
+      if (null==doc) {
+        return new JSONObject();
+      }
+      else {
+        return doc.getJSONObject();
+      }
+    }
+  }
+
+  protected static class CouchDbDatabaseResource implements DatabaseResource {
+    private final Database database;
+
+    public CouchDbDatabaseResource(Database db) {
+      database = db;
+    }
+
+    public JSONObject getDocument(String id) throws IOException {
+      return database.getDocument(id).getJSONObject();
     }
   }
 

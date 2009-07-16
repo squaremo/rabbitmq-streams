@@ -93,10 +93,6 @@ public class PluginTest extends PluginTestingTools {
 
   public class PluginImpl extends Plugin {
 
-    public PluginImpl() throws Exception {
-      super(null);
-    }
-
     public InputReaderRunnable handlerRunnable(String name) {
       return null;
     }
