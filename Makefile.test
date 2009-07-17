@@ -24,7 +24,7 @@ GRINDER_CMD=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
 run-perf-test: create-cachedir init-perf-test
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
-		test/load/sender.properties &
+		test/performance/tests/http2plain/sender.properties &
 
 create-cachedir:
 	mkdir -p ${PYTHON_CACHEDIR}
@@ -35,15 +35,15 @@ grinder-console:
 
 start-grinder-receiver: create-cachedir
 	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
-		test/load/receiver.properties &
+		test/performance/tests/http2plain/receiver.properties &
 
 stop-grinder-receiver:
 	# TODO: Variable to tidy  up, and catch error for non-existant process
 	pkill -fx  -P \
-		`pgrep -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"` \
+		`pgrep -fx "java.*net.grinder.Grinder.*receiver.properties"` \
 		".*net.grinder.engine.process.WorkerProcessEntryPoint"
 
-	pkill -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"
+	pkill -fx "java.*net.grinder.Grinder.*receiver.properties"
 
 init-test:
 	make stop-core-nox 
@@ -53,5 +53,5 @@ init-test:
 	make start-orchestrator-nox
 
 init-perf-test: 
-	sbin/import_config.py test/load/config
+	sbin/import_config.py test/performance/config
 	make start-orchestrator-nox 
