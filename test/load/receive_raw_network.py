@@ -21,8 +21,7 @@ from net.grinder.script.Grinder import grinder
 
 import re
 
-# TODO: Make into script parameter
-PORT=12345
+PORT = grinder.properties.getInt("streams.test.port", 55555)
 
 log = grinder.logger.output
 totalRuns = grinder.properties.getInt("grinder.runs", -1)

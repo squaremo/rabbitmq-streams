@@ -6,12 +6,9 @@ from HTTPClient import NVPair
 from jarray import zeros
 from java.lang import System
 
-# TODO: Make script parameter
-URL = "http://localhost:9876/foo"
+URL = grinder.properties.getProperty("streams.test.url")
 
-# The size of the message to send
-MSG_SIZE = 1024
-
+MSG_SIZE = grinder.properties.getInt("streams.test.msg_size", 128)
 
 log = grinder.logger.output
 
@@ -21,8 +18,6 @@ class TestRunner:
     def __call__(self):
         test = Test(1, "HTTP post")
         request = test.wrap(HTTPRequest())
-
-        # TODO: Add random data generation
 
         timestamp = "|timestamp=" + str(System.currentTimeMillis()) + "|"
         padding = 'X' * (MSG_SIZE - len(timestamp))
