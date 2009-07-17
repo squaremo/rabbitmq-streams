@@ -22,20 +22,13 @@ JAVA_ARGS=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
 GRINDER_CMD=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
 
-run-perf-test: create-cachedir init-orchestrator
-	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
-		test/performance/tests/http2plain/sender.properties &
+# *** Top level targets ***
 
-create-cachedir:
-	mkdir -p ${PYTHON_CACHEDIR}
-	chmod a+rw ${PYTHON_CACHEDIR}
-
-grinder-console:
+start-grinder-console:
 	${GRINDER_CMD} net.grinder.Console &
 
-start-grinder-receiver: create-cachedir
-	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
-		test/performance/tests/http2plain/receiver.properties &
+stop-grinder-console:
+	# TODO:
 
 stop-grinder-receiver:
 	# TODO: Variable to tidy  up, and catch error for non-existant process
@@ -45,13 +38,31 @@ stop-grinder-receiver:
 
 	pkill -fx "java.*net.grinder.Grinder.*receiver.properties"
 
-init-test:
+init-rabbit-streams:
 	make stop-core-nox 
 	make cleandb
 	make start-core-nox
 	make create-fresh-accounts
 	make start-orchestrator-nox
 
+
+run-short-thrash-test:
+	${MAKE} -f Makefile.test TEST=http2plain STREAM=empty run-perf-test
+
+run-perf-test: create-cachedir init-orchestrator
+	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
+		test/performance/tests/${TEST}/sender.properties &
+
+# *** End top level targets ***
+
+create-cachedir:
+	mkdir -p ${PYTHON_CACHEDIR}
+	chmod a+rw ${PYTHON_CACHEDIR}
+
+start-grinder-receiver: create-cachedir
+	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
+		test/performance/tests/${TEST}/receiver.properties &
+
 init-orchestrator: start-grinder-receiver
-	sbin/import_config.py test/performance/config
+	sbin/import_config.py test/performance/streams/${STREAM}
 	make start-orchestrator-nox 
