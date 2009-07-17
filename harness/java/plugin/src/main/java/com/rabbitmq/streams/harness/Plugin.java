@@ -20,7 +20,7 @@ public abstract class Plugin {
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
   protected MessageChannel messageChannel;
 
-  public abstract void configure(final JSONObject staticConfig);
+  public abstract void configure(final JSONObject staticConfig) throws PluginException;
   
   public String getId() {
     return id;

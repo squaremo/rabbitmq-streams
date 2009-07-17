@@ -95,6 +95,10 @@ public abstract class Server extends Plugin {
     abstract public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException;
   }
 
+  protected void registerInput(InputHandler handler) {
+    this.messageChannel.consume("input", handler);
+  }
+
   private final InputHandler command = new InputHandler() {
 
     @Override

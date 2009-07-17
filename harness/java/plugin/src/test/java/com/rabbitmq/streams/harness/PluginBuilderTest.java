@@ -31,7 +31,6 @@ public class PluginBuilderTest {
 
   @BeforeClass
   public static void setUpClass() throws Exception {
-    pluginConfig = new JSONObject();
   }
 
   @AfterClass
@@ -51,7 +50,7 @@ public class PluginBuilderTest {
   /**
    * Test of buildPlugin method, of class PluginBuilder.
    */
-  @Test
+  //@Test Template-generated, disabled for now
   public void testBuildPlugin() {
     System.out.println("buildPlugin");
     JSONObject configuration = null;
@@ -66,7 +65,7 @@ public class PluginBuilderTest {
   /**
    * Test of configurePlugin method, of class PluginBuilder.
    */
-  @Test
+  //@Test Template-generated, disabled for now
   public void testConfigurePlugin() throws Exception {
     System.out.println("configurePlugin");
     Plugin plugin = null;
@@ -80,7 +79,7 @@ public class PluginBuilderTest {
   /**
    * Test of mergedStaticConfiguration method, of class PluginBuilder.
    */
-  @Test
+  //@Test Template-generated, disabled for now
   public void testMergedStaticConfiguration() {
     System.out.println("mergedStaticConfiguration");
     JSONObject configuration = null;
@@ -94,7 +93,7 @@ public class PluginBuilderTest {
   /**
    * Test of configureServer method, of class PluginBuilder.
    */
-  @Test
+  //@Test Template-generated, disabled for now
   public void testConfigureServer() throws Exception {
     Server plugin = mock(Server.class);
     JSONObject configuration = new JSONObject();
@@ -107,7 +106,7 @@ public class PluginBuilderTest {
   /**
    * Test of configurePipelineComponent method, of class PluginBuilder.
    */
-  @Test
+  //@Test Template-generated, disabled for now
   public void testConfigurePipelineComponent() throws Exception {
     System.out.println("configurePipelineComponent");
     Plugin plugin = null;
