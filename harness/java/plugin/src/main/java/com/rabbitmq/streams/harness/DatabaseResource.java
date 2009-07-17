@@ -15,5 +15,6 @@ import net.sf.json.JSONObject;
 public interface DatabaseResource {
 
   public JSONObject getDocument(String id) throws IOException;
+  public String getName();
 
 }

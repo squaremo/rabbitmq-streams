@@ -1,11 +1,7 @@
 package com.rabbitmq.streams.harness;
 
-import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Document;
-import com.fourspaces.couchdb.Session;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.impl.ChannelN;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
@@ -18,16 +14,16 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import net.sf.json.JSONArray;
 
 public class PluginBuilder {
   private final Logger log;
+  private final PluginResourceFactory resources;
 
-  public PluginBuilder(Logger log) {
+  public PluginBuilder(Logger log, PluginResourceFactory resourceFactory) {
     this.log = log;
+    resources = resourceFactory;
   }
 
   // Methods that interpret the JSONObject
@@ -105,15 +101,13 @@ public class PluginBuilder {
     plugin.configure(mergedStaticConfiguration(configuration));
     String id = idForPlugin(configuration);
     setStateResourceOnPlugin(configuration, plugin);
-    if (configuration.containsKey("database")) {
-      connectDatabaseToPlugin(plugin, configuration);
-    }
+    connectDatabaseToPlugin(plugin, configuration);
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
-    AMQPMessageChannel c = new AMQPMessageChannel(channel, configuration.getJSONObject("configuration"));
-    constructPluginOutputs(configuration, c);
-    constructPluginInputs(configuration, c);
-    plugin.setMessageChannel(c);
+    MessageResource mr = resources.getMessageResource(configuration.getJSONObject("configuration"));
+    constructPluginOutputs(configuration, mr);
+    constructPluginInputs(configuration, mr);
+    plugin.setMessageChannel(mr);
   }
 
   protected static JSONObject mergedStaticConfiguration(JSONObject configuration) {
@@ -148,7 +142,7 @@ public class PluginBuilder {
     configurePlugin(plugin, configuration);
   }
 
-  private void constructPluginOutputs(JSONObject configuration, AMQPMessageChannel channel) {
+  private void constructPluginOutputs(JSONObject configuration, MessageResource channel) {
     JSONObject outputs = configuration.getJSONObject("outputs");
     for (Iterator iterator = outputs.keys(); iterator.hasNext();) {
       String name = (String) iterator.next();
@@ -158,7 +152,7 @@ public class PluginBuilder {
   }
 
   @SuppressWarnings("unchecked")
-  private void constructPluginInputs(JSONObject configuration, AMQPMessageChannel channel) {
+  private void constructPluginInputs(JSONObject configuration, MessageResource channel) {
     JSONObject inputs = configuration.getJSONObject("inputs");
     for (Iterator<String> fields = (Iterator<String>) inputs.keys(); fields.hasNext();) {
       String name = (String) fields.next();
@@ -187,55 +181,23 @@ public class PluginBuilder {
     return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
   }
 
-  protected void setStateResourceOnPlugin(JSONObject configuration, Plugin plugin) {
-    String url = configuration.getString("state");
-    try {
-      URL dbURL = new URL(url);
-      String path = dbURL.getPath();
-      int loc = path.lastIndexOf('/'); // minus document
-      String db = path.substring(0, loc);
-      int loc2 = db.lastIndexOf('/');
-      String dbName = db.substring(loc2);
-      Session couchSession = new Session(dbURL.getHost(), dbURL.getPort(), "", "");
-      String stateDocName = path.substring(1 + loc);
-      Database stateDb = couchSession.getDatabase(dbName);
-      plugin.setStateResource(new CouchDbStateResource(stateDb, stateDocName));
-    }
-    catch (MalformedURLException mue) {
-      configurationError("Error constructing state resource", mue);
-    }
+  protected void setStateResourceOnPlugin(JSONObject configuration, Plugin plugin) throws PluginBuildException {
+    plugin.setStateResource(resources.getStateResource(configuration.getString("state")));
   }
 
-  private void connectDatabaseToPlugin(Plugin plugin, JSONObject configuration) throws Exception {
+  protected void connectDatabaseToPlugin(Plugin plugin, JSONObject configuration) throws Exception {
     if (configuration.has("database") && !JSONNull.getInstance().equals(configuration.get("database"))) {
       String connectionString = configuration.getString("database");
-      URL url = new URL(connectionString);
-      Session session = new Session(url.getHost(), url.getPort(), "", "");
-      String name = url.getPath().substring(1 + url.getPath().lastIndexOf('/'));
-      // We do this in two steps, since if the DB already exists, couchdb4j will get a 412 (precondition failed) and return null.
-      session.createDatabase(name);
-      Database database = session.getDatabase(name);
-      log.debug("Database supplied: " + database.getName());
-      plugin.setDatabase(new CouchDbDatabaseResource(database));
+      DatabaseResource db = resources.getDatabase(connectionString);
+      log.debug("Database supplied: " + db.getName());
+      plugin.setDatabase(db);
     }
   }
 
   private void connectTerminalsDatabase(Plugin plugin, JSONObject config) throws Exception {
     String serverId = config.getString("server_id");
     String terminalsDbStr = config.getString("terminals_database");
-    URL terminalsDbUrl = new URL(terminalsDbStr);
-    Session couchSession = new Session(terminalsDbUrl.getHost(), terminalsDbUrl.getPort(), "", "");
-    String path = terminalsDbUrl.getPath();
-    int loc;
-    if (path.endsWith("/")) {
-      loc = path.substring(0, path.length() - 1).lastIndexOf('/');
-    }
-    else {
-      loc = path.lastIndexOf('/');
-    }
-    String terminalsDbName = path.substring(loc);
-    Database terminalsDatabase = couchSession.getDatabase(terminalsDbName);
-    plugin.setTerminalsDatabase(new CouchDbDatabaseResource(terminalsDatabase));
+    plugin.setTerminalsDatabase(resources.getDatabase(terminalsDbStr));
   }
 
   // </editor-fold>
@@ -248,11 +210,17 @@ public class PluginBuilder {
 
   // Methods that set up the plugin
 
-  protected <C extends Plugin> C constructPlugin(ClassLoader cloader, String pluginName) throws Exception {
-    C p = null;
-    Class<C> clazz = (Class<C>) cloader.loadClass(pluginName);
-    p = clazz.getConstructor().newInstance();
-    return p;
+  protected <C extends Plugin> C constructPlugin(ClassLoader cloader, String pluginName) throws PluginNotFoundException, Exception {
+    try {
+      C p = null;
+      Class<C> clazz = (Class<C>) cloader.loadClass(pluginName);
+      p = clazz.getConstructor().newInstance();
+      return p;
+    } catch (ClassNotFoundException ex) {
+      throw new PluginNotFoundException("Cannot find plugin class " + pluginName, ex);
+    } catch (NoSuchMethodException ex) {
+      throw new PluginNotFoundException("No default constructor for class " + pluginName, ex);
+    }
   }
 
   /*public void shutdown() throws IOException {
@@ -273,89 +241,6 @@ public class PluginBuilder {
   }
   }*/
   
-  protected static class CouchDbStateResource implements StateResource {
-    private final Database database;
-    private final String docId;
-
-    public CouchDbStateResource(Database db, String id) {
-      this.database = db;
-      this.docId = id;
-    }
-
-    public void setState(Map<String, Object> state) throws IOException {
-      Document doc = database.getDocument(docId);
-      if (null==doc) {
-        doc = new Document();
-        doc.setId(docId);
-      }
-      doc.clear();
-      doc.putAll(state);
-      database.saveDocument(doc, docId);
-    }
-
-    public Map<String, Object> getState() throws IOException {
-      Document doc = database.getDocument(docId);
-      if (null==doc) {
-        return new JSONObject();
-      }
-      else {
-        return doc.getJSONObject();
-      }
-    }
-  }
-
-  protected static class CouchDbDatabaseResource implements DatabaseResource {
-    private final Database database;
-
-    public CouchDbDatabaseResource(Database db) {
-      database = db;
-    }
-
-    public JSONObject getDocument(String id) throws IOException {
-      return database.getDocument(id).getJSONObject();
-    }
-  }
-
-  protected static class AMQPMessageChannel implements MessageChannel {
-    private final Channel channel;
-    private Map<String, AMQPPublisher> outputs;
-    private Map<String, String> inputs;
-    protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
-    private final JSONObject config;
-
-    AMQPMessageChannel(Channel channel, JSONObject config) {
-      this.channel = channel;
-      this.config = config;
-      this.outputs = new HashMap(1);
-      this.inputs = new HashMap(1);
-    }
-
-    void declareExchange(String name, String exchange) {
-      outputs.put(name, new AMQPPublisher(exchange, channel));
-    }
-
-    void declareQueue(String name, String queue) {
-      inputs.put(name, queue);
-    }
-
-    public void consume(String channelName, InputHandler handler) {
-      QueueingConsumer queuer = new QueueingConsumer(channel);
-      AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
-      new Thread(consumer).start();
-    }
-
-    public void publish(String channelName, Message msg) throws IOException, MessagingException {
-      AMQPPublisher p = outputs.get(channelName);
-      if (null!=p) {
-        p.publish(msg);
-      }
-      else {
-        throw new MessagingException("No such channel: " + channelName);
-      }
-    }
-
-
-  }
 
 }
 

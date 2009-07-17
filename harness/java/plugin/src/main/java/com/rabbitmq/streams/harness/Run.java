@@ -1,5 +1,6 @@
 package com.rabbitmq.streams.harness;
 
+import com.rabbitmq.client.Connection;
 import net.sf.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -12,11 +13,11 @@ public class Run {
     System.out.println(args[0]);
     JSONObject config = readConfiguration();
     // FIXME Yuck, we shouldn't have to care here
-    AMQPLogger buildlog = new AMQPLogger(AMQPConnection.amqConnectionFromConfig(
-            config.getJSONObject("messageserver")).createChannel(),
-            config.getString("plugin_name"));
+    Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
+    AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), config.getString("plugin_name"));
 
-    PluginBuilder builder = new PluginBuilder(buildlog);
+    PluginResourceFactory factory = new PluginResourceFactory(conn);
+    PluginBuilder builder = new PluginBuilder(buildlog, factory);
     builder.buildPlugin(config);
 
     try {

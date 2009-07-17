@@ -35,15 +35,15 @@ public abstract class Plugin {
     this.id = id;
   }
 
-  final void setStateResource(StateResource state) {
+  void setStateResource(StateResource state) {
     this.stateResource = state;
   }
 
-  final void setTerminalsDatabase(DatabaseResource db) {
+  void setTerminalsDatabase(DatabaseResource db) {
     this.terminalsDatabase = db;
   }
 
-  final void setMessageChannel(MessageChannel channel) {
+  void setMessageChannel(MessageChannel channel) {
     this.messageChannel = channel;
   }
 
