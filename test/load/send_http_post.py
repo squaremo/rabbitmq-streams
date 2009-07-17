@@ -9,6 +9,10 @@ from java.lang import System
 # TODO: Make script parameter
 URL = "http://localhost:9876/foo"
 
+# The size of the message to send
+MSG_SIZE = 1024
+
+
 log = grinder.logger.output
 
 class TestRunner:
@@ -19,7 +23,10 @@ class TestRunner:
         request = test.wrap(HTTPRequest())
 
         # TODO: Add random data generation
-        data = str(System.currentTimeMillis()) + '\n'
+
+        timestamp = "|timestamp=" + str(System.currentTimeMillis()) + "|"
+        padding = 'X' * (MSG_SIZE - len(timestamp))
+        data = timestamp + padding + '\n'
         
         result = request.POST(URL, data)
 

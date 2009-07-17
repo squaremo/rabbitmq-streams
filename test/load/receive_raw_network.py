@@ -1,8 +1,6 @@
 # TODO: Some comments
 # TODO: Make more objecty
 # TODO: Stop multiple threads from calling
-# TODO: Real delivery time
-# TODO: Use message formatting
 # TODO: Currently takes only one connx at a time
 
 from net.grinder.script.Grinder import grinder
@@ -21,6 +19,8 @@ from threading import Condition
 from threading import Thread
 from net.grinder.script.Grinder import grinder
 
+import re
+
 # TODO: Make into script parameter
 PORT=12345
 
@@ -38,6 +38,9 @@ grinder.statistics.registerDataLogExpression("Delivery time", "userLong0")
 grinder.statistics.registerSummaryExpression("Mean delivery time",
                                              "(/ userLong0 (count timedTests))")
 
+# Compile the regex pattern outside of a class method
+# See http://osdir.com/ml/java.grinder.user/2005-11/msg00060.html
+tsPattern = re.compile(r"\|timestamp=([0-9]*)\|.*")
 
 # Test timing is meaningless for this scenario, record the delivery time instead
 def recordDeliveryTime(deliveryTime):
@@ -78,12 +81,9 @@ class NetworkListener(Thread):
         socket.close()
 
     def _handleMessage(self, message):
-        """Called for each message received. Adds the timing information to the
-        message queue in a thread safe manner."""
+        """Called for each message received."""
         lock.acquire()
-        sendTime = long(message)
-        deliveryTime = System.currentTimeMillis() - sendTime
-        messageQueue.append(deliveryTime)
+        messageQueue.append(message)
         lock.notifyAll()
         lock.release()
 
@@ -106,8 +106,16 @@ class TestRunner:
     def __call__(self):
         lock.acquire()
         while not messageQueue: lock.wait()
-        deliveryTime = messageQueue.pop(0)
+        message = messageQueue.pop(0)
         lock.release()
+        
+        m = tsPattern.match(message)
+        if m is None or not len(m.groups()) ==1:
+            raise Exception(
+                "Could not find timestamp in message: " + str(message))
+
+        timestamp = long(m.group(1))
+        deliveryTime = System.currentTimeMillis() - timestamp
         recordTest(deliveryTime)
 
         if(grinder.runNumber >= totalRuns - 1):
