@@ -22,7 +22,7 @@ JAVA_ARGS=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
 GRINDER_CMD=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
 
-run-perf-test: create-cachedir init-perf-test
+run-perf-test: create-cachedir init-orchestrator
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
 		test/performance/tests/http2plain/sender.properties &
 
@@ -52,6 +52,6 @@ init-test:
 	make create-fresh-accounts
 	make start-orchestrator-nox
 
-init-perf-test: 
+init-orchestrator: start-grinder-receiver
 	sbin/import_config.py test/performance/config
 	make start-orchestrator-nox 
