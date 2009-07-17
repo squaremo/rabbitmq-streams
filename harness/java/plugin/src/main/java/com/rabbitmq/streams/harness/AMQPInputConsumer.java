@@ -4,12 +4,13 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import java.io.IOException;
+import java.util.HashMap;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONArray;
 
 import java.util.Map;
 
-abstract class InputConsumer implements Runnable {
+abstract class AMQPInputConsumer implements Runnable {
 
   public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
 
@@ -18,7 +19,7 @@ abstract class InputConsumer implements Runnable {
   private final JSONObject originalConfiguration;
   private JSONObject staticConfiguration;
 
-  protected InputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
+  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
     this.consumer = consumer;
     this.handler = handler;
     this.originalConfiguration = config.getJSONObject("configuration");
@@ -77,9 +78,64 @@ abstract class InputConsumer implements Runnable {
     return result;
   }
 
-  protected static class AMQPMessage implements Message {
+  protected static class AMQPMessage extends InputMessage {
     private final Delivery delivery;
     private final Channel channel;
+
+    private class MessageDecorator extends InputMessage {
+
+      InputMessage inner;
+      private Map<String, Object> headers;
+      private byte[] body;
+
+      MessageDecorator(InputMessage msg, byte[] body, Map<String, Object> headers) {
+        inner = msg;
+        this.body = body;
+        this.headers = headers;
+      }
+
+      MessageDecorator(InputMessage msg, byte[] body, String key, Object val) {
+        this(msg, body, null);
+        Map<String, Object> h = new HashMap(1);
+        h.put(key, val);
+        headers = h;
+      }
+
+      @Override
+      public InputMessage withHeader(String key, Object val) {
+        return new MessageDecorator(this, body, key, val);
+      }
+
+      @Override
+      public InputMessage withBody(byte[] body) {
+        return new MessageDecorator(this, body, this.headers);
+      }
+
+      @Override
+      public InputMessage withHeaders(Map<String, Object> headers) {
+        Map<String, Object> hs = new HashMap(inner.headers());
+        hs.putAll(headers);
+        return new MessageDecorator(this, this.body, hs);
+      }
+
+      @Override
+      public void ack() throws MessagingException {
+        inner.ack();
+      }
+
+      public Map<String, Object> headers() {
+        return (null==headers) ? inner.headers() : headers;
+      }
+
+      public byte[] body() {
+        return (null==body) ? inner.body() : body;
+      }
+
+      public String routingKey() {
+        return inner.routingKey();
+      }
+
+    }
 
     AMQPMessage(Channel channel, Delivery delivery) {
       this.channel = channel;
@@ -104,7 +160,22 @@ abstract class InputConsumer implements Runnable {
     }
 
     public String routingKey() {
-      throw new UnsupportedOperationException("Not supported yet.");
+      return delivery.getEnvelope().getRoutingKey();
+    }
+
+    @Override
+    public InputMessage withHeader(String key, Object val) {
+      return new MessageDecorator(this, null, key, val);
+    }
+
+    @Override
+    public InputMessage withBody(byte[] body) {
+      return new MessageDecorator(this, body, null);
+    }
+
+    @Override
+    public InputMessage withHeaders(Map<String, Object> headers) {
+      return new MessageDecorator(this, null, headers);
     }
   }
 

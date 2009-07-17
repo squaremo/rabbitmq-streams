@@ -9,16 +9,12 @@ import net.sf.json.JSONObject;
  */
 public abstract class InputReader implements InputHandler {
 
-    public final void handleMessage(Message m, JSONObject config) throws PluginException {
-        handleBodyAndConfig(m.body(), config);
+    public final void handleMessage(InputMessage m, JSONObject config) throws PluginException {
+        handleMessage(m);
     }
 
-    public void handleBodyAndConfig(byte[] body, JSONObject config) throws PluginException {
-        handleBody(body);
-    }
-
-    public void handleBody(byte[] body) throws PluginException {
-        // do exactly nothing.  This is so that classes can override handleBodyAndConfig without supplying a handleBody.
+    public void handleMessage(InputMessage m) throws PluginException {
+        // Do exactly nothing.  Override this if you don't care for dynamic configuration.
     }
 
 }

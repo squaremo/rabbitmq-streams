@@ -6,7 +6,9 @@ import net.sf.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A superclass for gateways. These have predefined inputs and
@@ -23,8 +25,40 @@ public abstract class Server extends Plugin {
     this.messageChannel.consume("input", handler);
   }
 
+  private class ServerMessage implements Message {
+    private final byte[] body;
+    private final String routingKey;
+    private final Map headers;
+
+    ServerMessage(final byte[] body, final String destination, final Map<String, Object> headers) {
+      this.body = body;
+      this.routingKey = destination;
+      this.headers = headers;
+    }
+
+    ServerMessage(final byte[] body, final String destination) {
+      this(body, destination, Collections.EMPTY_MAP);
+    }
+
+    public Map<String, Object> headers() {
+      return headers;
+    }
+
+    public byte[] body() {
+      return body;
+    }
+
+    public String routingKey() {
+      return routingKey;
+    }
+  }
+
   protected final void publishToDestination(byte[] body, String destination) throws IOException, MessagingException {
-    this.messageChannel.publish("output", body, destination);
+    this.messageChannel.publish("output", new ServerMessage(body, destination));
+  }
+
+  protected final void publishToDestination(byte[] body, String destination, Map<String, Object> headers) throws IOException, MessagingException {
+    this.messageChannel.publish("output", new ServerMessage(body, destination, headers));
   }
 
   /**
@@ -54,17 +88,17 @@ public abstract class Server extends Plugin {
   public static abstract class ServerInputReader implements InputHandler {
 
     @Override
-    public void handleMessage(Message msg, JSONObject config) throws PluginException {
+    public void handleMessage(InputMessage msg, JSONObject config) throws PluginException {
       handleBodyForTerminal(msg.body(), msg.routingKey(), msg);
     }
 
-    abstract public void handleBodyForTerminal(byte[] body, String key, Message ack) throws PluginException;
+    abstract public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException;
   }
 
   private final InputHandler command = new InputHandler() {
 
     @Override
-    public void handleMessage(Message message, JSONObject config) throws PluginException {
+    public void handleMessage(InputMessage message, JSONObject config) throws PluginException {
 
       String serverIdterminalId = message.routingKey();
       int loc = serverIdterminalId.lastIndexOf('.');

@@ -15,7 +15,7 @@ import net.sf.json.JSONObject;
  * Note: Transactions are only on outgoing messages, so it doesn't matter that two or more threads could receive messages before one
  * acquires the lock; the transaction will be complete or abandoned before another consumer can start sending anything.
  */
-class TransactionalInputReaderRunnable extends InputConsumer {
+class TransactionalInputReaderRunnable extends AMQPInputConsumer {
 
   TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Object lock) {
     super(consumer, handler, config);
@@ -29,7 +29,7 @@ class TransactionalInputReaderRunnable extends InputConsumer {
         synchronized (lock) {
           try {
             try {
-              Message msg = new AMQPMessage(consumer.getChannel(), delivery);
+              InputMessage msg = new AMQPMessage(consumer.getChannel(), delivery);
               handler.handleMessage(msg, mergeConfigWithHeaders(delivery.getProperties().headers));
               msg.ack();
             }

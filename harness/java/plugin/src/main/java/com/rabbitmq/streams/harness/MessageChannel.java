@@ -6,7 +6,6 @@
 package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  *
@@ -14,8 +13,5 @@ import java.util.Map;
  */
 public interface MessageChannel {
   public void consume(String channelName, InputHandler handler);
-  public void publish(String channelName, byte[] body) throws IOException, MessagingException;
-  public void publish(String channelName, byte[] body, Map<String, Object> headers) throws IOException, MessagingException;
-  public void publish(String channelName, byte[] body, String routingKey) throws IOException, MessagingException;
-  public void publish(String channelName, byte[] body, String routingKey, Map<String, Object> headers) throws IOException, MessagingException;
+  public void publish(String channelName, Message msg) throws IOException, MessagingException;
 }

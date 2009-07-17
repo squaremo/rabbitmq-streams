@@ -318,7 +318,7 @@ public class PluginBuilder {
 
   protected static class AMQPMessageChannel implements MessageChannel {
     private final Channel channel;
-    private Map<String, Publisher> outputs;
+    private Map<String, AMQPPublisher> outputs;
     private Map<String, String> inputs;
     protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
     private final JSONObject config;
@@ -331,7 +331,7 @@ public class PluginBuilder {
     }
 
     void declareExchange(String name, String exchange) {
-      outputs.put(name, new Publisher(exchange, channel));
+      outputs.put(name, new AMQPPublisher(exchange, channel));
     }
 
     void declareQueue(String name, String queue) {
@@ -340,26 +340,14 @@ public class PluginBuilder {
 
     public void consume(String channelName, InputHandler handler) {
       QueueingConsumer queuer = new QueueingConsumer(channel);
-      InputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
+      AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
       new Thread(consumer).start();
     }
 
-    public void publish(String channelName, byte[] body) throws IOException, MessagingException {
-      publish(channelName, body, "", EMPTY_HEADERS);
-    }
-
-    public void publish(String channelName, byte[] body, Map<String, Object> headers) throws IOException, MessagingException {
-      publish(channelName, body, "", headers);
-    }
-
-    public void publish(String channelName, byte[] body, String routingKey) throws IOException, MessagingException {
-      publish(channelName, body, routingKey, EMPTY_HEADERS);
-    }
-
-    public void publish(String channelName, byte[] body, String routingKey, Map<String, Object> headers) throws IOException, MessagingException {
-      Publisher p = outputs.get(channelName);
+    public void publish(String channelName, Message msg) throws IOException, MessagingException {
+      AMQPPublisher p = outputs.get(channelName);
       if (null!=p) {
-        p.publish(body, routingKey, headers);
+        p.publish(msg);
       }
       else {
         throw new MessagingException("No such channel: " + channelName);

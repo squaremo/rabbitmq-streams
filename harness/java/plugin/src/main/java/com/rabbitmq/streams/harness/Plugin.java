@@ -1,6 +1,5 @@
 package com.rabbitmq.streams.harness;
 
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import java.io.IOException;
@@ -17,21 +16,12 @@ public abstract class Plugin {
   protected DatabaseResource privateDb;
   protected DatabaseResource terminalsDatabase;
 
-  protected JSONObject pluginType;
-  protected JSONObject staticConfiguration;
-
-  private final Map<String, Publisher> outputs = new HashMap<String, Publisher>();
+  private final Map<String, AMQPPublisher> outputs = new HashMap<String, AMQPPublisher>();
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
   protected MessageChannel messageChannel;
 
-  public void configure(final JSONObject staticConfig) {
-    staticConfiguration = staticConfig;
-  }
-
-  protected void setId(String id) {
-    this.id = id;
-  }
-
+  public abstract void configure(final JSONObject staticConfig);
+  
   public String getId() {
     return id;
   }
@@ -40,17 +30,31 @@ public abstract class Plugin {
     return true;
   }
 
-  void setStateResource(StateResource state) {
+// <editor-fold defaultstate="collapsed" desc="Mutators for the harness">
+  void setId(String id) {
+    this.id = id;
+  }
+
+  final void setStateResource(StateResource state) {
     this.stateResource = state;
   }
 
-  void setTerminalsDatabase(DatabaseResource db) {
+  final void setTerminalsDatabase(DatabaseResource db) {
     this.terminalsDatabase = db;
   }
 
-  void setMessageChannel(MessageChannel channel) {
+  final void setMessageChannel(MessageChannel channel) {
     this.messageChannel = channel;
   }
+
+  public void setLog(Logger log) {
+    this.log = log;
+  }
+
+  public void setDatabase(DatabaseResource database) {
+    privateDb = database;
+  }// </editor-fold>
+
 
   /**
    * For plugins to set their state
@@ -79,18 +83,6 @@ public abstract class Plugin {
       this.dieHorribly();
       return null; // obey the type system
     }
-  }
-
-  InputHandler handler(String name)  {
-    return handlers.get(name);
-  }
-
-  public void setLog(Logger log) {
-    this.log = log;
-  }
-
-  public void setDatabase(DatabaseResource database) {
-    privateDb = database;
   }
 
   protected final void dieHorribly() {

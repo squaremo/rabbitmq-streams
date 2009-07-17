@@ -5,8 +5,6 @@
 
 package com.rabbitmq.streams.harness;
 
-import com.rabbitmq.client.QueueingConsumer.Delivery;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import net.sf.json.JSONObject;
@@ -17,7 +15,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-import static org.mockito.Mockito.*;
 
 /**
  *
@@ -60,16 +57,9 @@ public class PluginTest extends PluginTestingTools {
     Map<String, Object> header = new HashMap();
     JSONObject vals = new JSONObject();
     vals.put("foo", "bar");
-    InputConsumer.setValuesInHeader(header, vals);
-    assertEquals(InputConsumer.getValuesFromHeader(header), vals);
-    assertEquals(InputConsumer.getValuesFromHeader(header).getString("foo"), "bar");
-  }
-
-  public class PluginImpl extends Plugin {
-
-    InputConsumer handlerRunnable(String name) {
-      return null;
-    }
+    AMQPInputConsumer.setValuesInHeader(header, vals);
+    assertEquals(AMQPInputConsumer.getValuesFromHeader(header), vals);
+    assertEquals(AMQPInputConsumer.getValuesFromHeader(header).getString("foo"), "bar");
   }
 
 }

@@ -9,29 +9,17 @@ import java.io.IOException;
 /**
  * This class abstracts the publishing of messages.
  */
-public class Publisher {
+public class AMQPPublisher {
 
-  public Publisher(String exchange, Channel channel) {
+  public AMQPPublisher(String exchange, Channel channel) {
     this.exchange = exchange;
     this.channel = channel;
     basicProperties = new AMQP.BasicProperties();
     basicProperties.deliveryMode = 2;
   }
 
-  public void publish(byte[] body) throws IOException {
-    publish(body, "");
-  }
-
-  public void publish(byte[] body, String key) throws IOException {
-    channel.basicPublish(exchange, key, basicProperties, body);
-  }
-
-  public void publish(byte[] body, Map<String, Object> headers) throws IOException {
-    publish(body, "", headers);
-  }
-
-  public void publish(byte[] body, String key, Map<String, Object> headers) throws IOException {
-    channel.basicPublish(exchange, key, propertiesWithHeaders(headers), body);
+  public void publish(Message msg) throws IOException {
+    channel.basicPublish(exchange, msg.routingKey(), propertiesWithHeaders(msg.headers()), msg.body());
   }
 
   static AMQP.BasicProperties propertiesWithHeaders(Map<String, Object> headers) {

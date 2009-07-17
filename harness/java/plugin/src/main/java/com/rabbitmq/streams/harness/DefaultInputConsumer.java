@@ -4,7 +4,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import net.sf.json.JSONObject;
 
-class DefaultInputConsumer extends InputConsumer {
+class DefaultInputConsumer extends AMQPInputConsumer {
 
   DefaultInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
     super(consumer, handler, config);
@@ -14,7 +14,7 @@ class DefaultInputConsumer extends InputConsumer {
     while (consumer.getChannel().isOpen()) {
       try {
         Delivery delivery = consumer.nextDelivery();
-        Message msg = new InputConsumer.AMQPMessage(consumer.getChannel(), delivery);
+        InputMessage msg = new AMQPInputConsumer.AMQPMessage(consumer.getChannel(), delivery);
         handler.handleMessage(msg, mergeConfigWithHeaders(delivery.getProperties().headers));
       }
       catch (InterruptedException ignored) {
