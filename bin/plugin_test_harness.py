@@ -18,9 +18,10 @@ here = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, os.path.join(here, '../harness/python'))
 sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
+
 import amqplib.client_0_8 as amqp
 
-from feedshub import json
+from feedshub import json, plugin_config_header as PLUGIN_CONFIG_HEADER
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
 SEP, IN, OUT = "\t><"
@@ -46,11 +47,16 @@ def waste():
         os.kill(__processes_to_kill.pop().pid, signal.SIGTERM)
 atexit.register(waste)
 
+
+verbosity = 1
 def info(*args):
-    for arg in args:
-        print arg,
-    print
-    sys.stdout.flush()
+    global verbosity
+    just_comments = ((args or "#")[0].startswith('#'))
+    if verbosity > just_comments:
+        for arg in args:
+            print arg,
+        print
+        sys.stdout.flush()
 
 
 def json_repr(py_obj):
@@ -86,18 +92,58 @@ class BatchedOutputter(object):
 
     def make_output_callback(self, channel_name):
         assert channel_name in self.channel_names
-        res = self.outputs[channel_name] = []
         def output_concer(msg):
-            res.append(msg)
+            self.outputs.setdefault(channel_name, []).append(msg)
         return output_concer
 
     def flush(self):
         for c in sorted(self.outputs):
-            ## print '#DEBUG c:', c
             while self.outputs[c]:
-                ## print '#DEBUG o[c]:', self.outputs[c]
                 self.format_output(c, self.outputs[c].pop(0))
-        ## print '#DEBUG flushed!', self.outputs
+        self.outputs.clear()
+
+
+class Failure(object):
+    def __init__(self, expected, obtained):
+        self.expected, self.obtained = expected, obtained
+    def __repr__(self):
+        return "Failure(expected=%r, obtained=%r)" % (self.expected, self.obtained)
+
+Success = lambda obtained:obtained
+
+class TestOutputter(object):
+
+    def __init__(self, channel_names, format_output=None):
+        self.channel_names = channel_names
+        self.outputs = []
+        self.results = []
+        self.attempted = 0
+        self.failed = 0
+
+    def make_output_callback(self, channel_name):
+        assert channel_name in self.channel_names
+        def output_concer(msg):
+            self.outputs[-1].setdefault(channel_name, []).append(Msg(msg.body))
+        return output_concer
+
+    def expect(self, **kwargs):
+        self.outputs.append({})
+        assert not (set(kwargs) - set(self.channel_names))
+        expected, obtained = kwargs, self.outputs[-1]
+        self.attempted += 1
+        ok = expected == obtained
+        if not ok:
+            self.results.append(Success(obtained=obtained))
+        else:
+            self.results.append(Failure(expected=expected, obtained=obtained))
+            self.failed += 1
+
+    def flush(self): pass
+
+    def __str__(self):
+        return "<%s failed=%d, attempted=%d>" % (type(self), self.failed, self.attempted)
+
+
 
 def continously(f):
     class RepetitiveThread(threading.Thread):
@@ -126,7 +172,7 @@ def secondify(string):
     ValueError: ...
     """
     INTERVALS = dict(us=1e-6,ms=1e-3,s=1, min=60, h=60*60)
-    m = re.match(r"(.*?)\s*([um]?s|min|h|d)?$", string.replace(u'μ','u'))
+    m = re.match(r"(.*?)\s*([um]?s|min|h|d)?$", str(string.replace(u'μ','u')))
     if not m: raise ValueError("Not a valid time duration string: %r" % string)
     else:     return float(m.group(1)) * INTERVALS[m.group(2) or 's']
 
@@ -149,8 +195,11 @@ class TestWiring(object):
         # Now, we want to *listen* to the outputs, and *talk* to the inputs
         for (name, exchange) in self.outputs.items():
             self.subscribe(name, exchange, )
-        self.subscribe(name="log", exchange="feedshub/log", key='#',
-                       mk_callback=partial(format_output, "log"))
+
+        global verbosity
+        if verbosity > 1:
+            self.subscribe(name="log", exchange="feedshub/log", key='#',
+                           mk_callback=partial(format_output, "log"))
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -178,28 +227,46 @@ class TestWiring(object):
     def make_talker(self, queue):
         exchange = self.declexchange()
         self.channel.queue_bind(queue, exchange)
-        def say(something, rk='', config=None):
+        def say(body, rk='', config=None):
             if config is not None:
-                headers = {plugin_config_header: config}
-                self.channel.basic_publish(amqp.Message(body=something,
-                                                   application_headers=headers),
-                                      exchange,
-                                      routing_key=rk)
+                headers = {PLUGIN_CONFIG_HEADER: config}
+                self.channel.basic_publish(
+                    amqp.Message(body=body, application_headers=headers),
+                    exchange,
+                    routing_key=rk)
             else:
-                self.channel.basic_publish(amqp.Message(body=something),
+                self.channel.basic_publish(amqp.Message(body=body),
                                       exchange,
                                       routing_key=rk)
         return say
 
-    def send(self, **kwargs):
-        if 'SLEEP' in kwargs:
-            for s in kwargs.pop('SLEEP'): time.sleep(secondify(s))
-        assert set(kwargs) == set(self.inputs)
+    def _normalize_kwargs(self, kwargs):
+        res = {}
         for in_name, to_say in kwargs.items():
             if isinstance(to_say, basestring):
+                to_say = [Msg(body=to_say)]
+            if isinstance(to_say, Msg):
                 to_say = [to_say]
-            for blahblah in to_say:
-                self.talkers[in_name](blahblah)
+            for cant in to_say:
+                res[in_name] =  to_say
+        return res
+
+    def send(self, **kwargs):
+        """Usage (in order of convenience forms -> general):
+              send(channel_a="text", channel_b="more text")
+              send(channel=["1st message", "2nd msg"], ...)
+              send(channel_a=[Msg("text", rk="nsa", config={"FYI":True}), ...], ...)
+        """
+        if 'SLEEP' in kwargs:
+            sleeps = kwargs.pop('SLEEP')
+            if isinstance(sleeps, basestring): sleeps = [sleeps]
+            elif isinstance(sleeps, (int, float)): sleeps = [repr(sleeps)]
+            for s in sleeps: time.sleep(secondify(s))
+        assert set(kwargs) == set(self.inputs)
+        kwargs = self._normalize_kwargs(kwargs)
+        for in_name, to_say in kwargs.items():
+            for cant in to_say:
+                self.talkers[in_name](cant.body, rk=cant.rk, config=cant.config)
         self.outputter.flush()
 
     def teardown(self):
@@ -234,7 +301,7 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
 def setup_everything(plugindir, config_json, Outputter):
     instance_config = json.loads(config_json)
 
-    info(OUT+"$PluginInstanceConfiguration%s%s" % (SEP, json_repr(instance_config)))
+    info(IN + "PLUGIN_INSTANCE_CONFIG%s%s" % (SEP, json_repr(instance_config)))
 
     with open(os.path.join(plugindir, 'plugin.js')) as f:
         plugin_specs = json.loads(f.read())
@@ -312,7 +379,7 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                                   stdout=subprocess.PIPE, # TODO(alexander):
                                   stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
-    info("## Harness PID")
+    info("## Harness PID", pluginproc.stdout.readline())
     info("## Initialising plugin with:")
     info("#", json.dumps(init))
     pluginproc.stdin.write(json.dumps(init) + "\n")
@@ -403,10 +470,19 @@ def parse_io_line(line):
                         ",".join(bad_keys), ",".join(MODS)))
     return chan_type, chan, opts, msg_part
 
-
+class Msg:
+    def __init__(self, body, rk="", config=None):
+        self.body, self.rk, self.config = body, rk, config
+    def __repr__(self):
+        return "Msg(body=%r, rk=%r, config=%r)" % (
+            self.body, self.rk, self.config)
+    def __eq__(self, other):
+        return type(self) == type(other) and (
+            (self.body, self.rk, self.config) == (other.body, other.rk, other.config))
+    def __ne__(self, other): return not (self == other)
 
 # TODO: a proper state-machine abstraction might be good here...
-def repl(lines, send, is_valid_channel=lambda *_: True):
+def repl(lines, send, expect=False, is_valid_channel=lambda *_: True, lineno=1):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
     talker_name, msg, state = None, None, WANT_CHANNEL
     exit_code = 0
@@ -415,7 +491,11 @@ def repl(lines, send, is_valid_channel=lambda *_: True):
     def ship():
         try:
             ## print >>sys.stderr, "###DEBUG A'shippin': %r"% io_group
-            send(**io_group)
+            if group_chan_type == IN:
+                send(**io_group)
+            else:
+                assert group_chan_type == OUT
+                expect(**io_group)
             io_group.clear()
             ## print >>sys.stderr, "###DEBUG A'shipped"
             return 0
@@ -425,17 +505,20 @@ def repl(lines, send, is_valid_channel=lambda *_: True):
             return BAD_CHANNEL
 
     def finish_channel():
-        io_group.setdefault(channel_acc[0],[]).append("\n".join(channel_acc[1:]))
+        msg = Msg(rk=channel_acc[2], config=channel_acc[3], body="\n".join(channel_acc[4:]))
+        msg.lineno = channel_acc[1]
+        io_group.setdefault(channel_acc[0],[]).append(msg)
         del channel_acc[:]
 
-    def new_channel(channel, msg_part):
+    def new_channel(channel, rk, config, first_msg_part):
         assert not channel_acc
-        channel_acc[:] = [channel, msg_part]
+        channel_acc[:] = [channel, lineno, rk, config, first_msg_part]
 
-    for (lineno, line) in enumerate(lines):
+    for line in lines:
+        lineno += 1
         if line.startswith("#"): continue
         try:
-            chan_type, name, opts, msg_part = parse_io_line(line)
+            chan_type, name, msg_opts, msg_part = parse_io_line(line)
             if chan_type:
                 if not is_valid_channel(chan_type, name):
                     print >>sys.stderr, (
@@ -460,7 +543,13 @@ def repl(lines, send, is_valid_channel=lambda *_: True):
                     channel_acc.append(msg_part)
                 else:
                     finish_channel()
-                    new_channel(name, msg_part)
+                    if chan_type != group_chan_type:
+                        exit_code |= ship()
+                    new_channel(name,
+                                rk=msg_opts.pop('rk', ''),
+                                config=msg_opts.pop('config', None),
+                                first_msg_part=msg_part)
+                    assert not msg_opts
         else:
             assert state == WANT_CHANNEL
             if not name:
@@ -469,8 +558,13 @@ def repl(lines, send, is_valid_channel=lambda *_: True):
                     " need some channel to send message %r to!" % (SEP, msg_part))
                 exit_code |= MALFORMED_INPUT
             else:
-                new_channel(name, msg_part)
+                new_channel(name,
+                            rk=msg_opts.pop('rk', ''),
+                            config=msg_opts.pop('config', None),
+                            first_msg_part=msg_part)
+                assert not msg_opts
                 state = WANT_ANY
+        group_chan_type = chan_type or group_chan_type
 
     if channel_acc:
         finish_channel()
@@ -488,7 +582,9 @@ if __name__ == '__main__':
                                opt(None, "--selftest", action="store_true",
                                    help="Run a basic selftest."),
                                opt(None, "--test", action="store_true",
-                                   help="Treat stdin as Input/ExpectedOuptput pairings")
+                                   help="Treat stdin as Input/ExpectedOuptput pairings"),
+                               opt('-v', "--verbose", action="store_true", default=False,
+                                   help="Print out additional info.")
                                ]).parse_args()
     if opts.selftest:
         import doctest
@@ -497,24 +593,52 @@ if __name__ == '__main__':
         if not args or len(args) > 2:
             print >> sys.stderr, "Illegal number of arguments (%d)" % len(args), "try",\
                   sys.argv[0], "--help"
-            sys.exit(os.EX_USAGE)
+            sys.exit(255)
+
+        plugin_path = args.pop(0)
+        filename = args.pop(0) if args else None
+
 
         if opts.test:
-            is_valid_channel=lambda t, c: (c in wiring.talkers or c == "SLEEP")
-            Outputter = BatchedOutputter
-
+            is_valid_channel=lambda t, c: (
+                t==IN  and (c in wiring.inputs or c == "SLEEP") or
+                t==OUT and  c in wiring.outputs)
+            Outputter = TestOutputter
+            verbosity = 1
+            if filename is not None:
+                sys.stdin_bak = sys.stdin
+                sys.stdin = open(filename)
+            make_expect = lambda wiring: wiring.outputter.expect
+            field, config_json = sys.stdin.readline().split('\t',1)
+            if field != IN+"PLUGIN_INSTANCE_CONFIG":
+                print >> sys.stderr, "First line of stdin must be the PLUGIN_INSTANCE_CONFIG"
+                sys.exit(255)
         else:
-            is_valid_channel=lambda t, c: t==IN and (c in wiring.talkers or c == "SLEEP")
-            Outputter = StdoutOutputter
+            is_valid_channel=lambda t, c: t==IN and (c in wiring.inputs or c == "SLEEP")
+            Outputter = StdoutOutputter if not opts.py else BatchedOutputter
+            make_expect = lambda wiring: None
+            verbosity = 1 + opts.verbose
+            config_json = open(filename).read() if filename else "{}"
 
-        setup_args = dict(plugindir=os.path.abspath(args.pop(0)),
-                          config_json=open(args.pop(0)).read() if args else '{}',
+        setup_args = dict(plugindir=os.path.abspath(plugin_path),
+                          config_json=config_json,
                           Outputter=Outputter)
 
         wiring, reconfigure_plugin, config = setup_everything(**setup_args)
         send = wiring.send
 
         if not opts.py:
-            sys.exit(repl(lines=iter(sys.stdin.readline, ''),
-                          send=wiring.send,
-                          is_valid_channel=is_valid_channel))
+            try:
+                repl_exit = repl(lines=iter(sys.stdin.readline, ''),
+                              send=send,
+                              expect=make_expect(wiring),
+                              is_valid_channel=is_valid_channel)
+            finally:
+                if hasattr(sys, "stdin_bak"):
+                    sys.stdin = sys.stdin_bak
+            if opts.test:
+                time.sleep(1)
+                sys.exit(255*bool(repl_exit) or min(254, wiring.outputter.failed))
+            else:
+                sys.exit(repl_exit)
+
