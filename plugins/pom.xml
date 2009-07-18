@@ -42,6 +42,7 @@
     <module>logger</module>
     <module>notification</module>
     <module>httppost</module>
+    <module>javascript</module>
   </modules>
 
   <build>

@@ -68,8 +68,8 @@ prepare-rfc4627:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rfc4627
 
 build-ibrowse: prepare-ibrowse
-	$(MAKE) -C build/src/jungerl/lib/ibrowse/src
-	cp -r build/src/jungerl/lib/ibrowse/ebin ${CURDIR}/${TARGET_DIR}/lib/erlang/ibrowse
+	$(MAKE) -C build/src/ibrowse
+	cp -r build/src/ibrowse/ebin ${CURDIR}/${TARGET_DIR}/lib/erlang/ibrowse
 
 prepare-ibrowse:
 	mkdir -p ${TARGET_DIR}/lib/erlang/ibrowse/ebin
@@ -153,6 +153,6 @@ package:
 	rm -f ${PACKAGE_FILE}
 	mkdir -p tmp
 	hg clone -r $(CURRENT_BRANCH) . tmp/rabbitmq-streams-0.1
-	$(MAKE) -C tmp/rabbitmq-streams-0.1 create-var-dirs build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/jungerl build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
+	$(MAKE) -C tmp/rabbitmq-streams-0.1 create-var-dirs build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/ibrowse build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
 	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=.hg --exclude=.hgignore  --exclude=.svn rabbitmq-streams-0.1
 	rm -rf tmp

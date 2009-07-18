@@ -9,13 +9,13 @@ import net.sf.json.JSONObject;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
 /**
- * A callback interface for handling incoming messages.  This one has
- * the full interface; most plugins will in fact want to use a variation on
+ * A callback interface for handling incoming messages.  This interface is for the harness to deliver messages to;
+ * the superclass InputReader is for plugins to implement.
  * @see{InputReader}.
  * @author mikeb@lshift.net
  */
 public interface InputHandler {
 
-    public void handleDelivery(Delivery delivery, JSONObject config) throws Exception;
+  public void handleDelivery(Delivery delivery, JSONObject config) throws Exception;
 
 }

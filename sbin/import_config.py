@@ -1,3 +1,5 @@
+#!/usr/bin/python -Wignore::DeprecationWarning
+
 import sys
 import os.path
 orig_path = os.path.dirname(sys.argv[0])
@@ -14,12 +16,19 @@ try:
 except ImportError:
     import json
 
+from optparse import OptionParser
 
-if len(sys.argv) != 3:
-    print "Usage: python import_config.py <couch_db> <directory>..."
+parser = OptionParser(usage="usage: %prog [options] DIR ...")
+parser.add_option('--couchdb',
+                  default="http://localhost:5984/", dest="couchdb",
+                  help="URL of CouchDB into which to import")
+(options, args) = parser.parse_args()
+
+if len(args) < 1:
+    parser.print_help()
     sys.exit(41)
 
-couch_url, dirs_to_import = sys.argv[1], sys.argv[2:]
+couch_url, dirs_to_import = options.couchdb, args
 server = couchdb.Server(couch_url)
 
 for dir_to_import in dirs_to_import:

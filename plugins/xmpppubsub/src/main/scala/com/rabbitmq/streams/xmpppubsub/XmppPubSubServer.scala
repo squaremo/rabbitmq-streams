@@ -56,11 +56,10 @@ class XmppPubSubServer(config: JSONObject) extends Server(config) {
     }
   }
 
+  registerHandler("input", input)
+
   override def terminalStatusChange(destination: String, configs: java.util.List[JSONObject], active: Boolean) {
     dispatcher ! DestinationStatusChange(destination, List(configs: _*), active)
   }
-
-  postConstructorInit()
-
 
 }

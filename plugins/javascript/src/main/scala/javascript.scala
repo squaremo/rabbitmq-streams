@@ -19,11 +19,6 @@ class javascript(config : JSONObject) extends PipelineComponent(config) {
 
     private val function = context.compileFunction(globalScope, functionText, "<config>", 1, null)
 
-    private var out : PipelineComponent.PipelinePublisher = null
-    def output(pub : PipelineComponent.PipelinePublisher) {
-        out = pub
-    }
-
     private def cleanUpFunctionValue(func : String) : String =
         if (func.startsWith("\"") && func.endsWith("\""))
             func.substring(1, func.length-1)
@@ -35,9 +30,7 @@ class javascript(config : JSONObject) extends PipelineComponent(config) {
             val strValue = new String(body)
             val context = Context.enter()
             val result = function.call(context, globalScope, function, Array(strValue))
-            out.publish(result.toString.getBytes)
+            getPublisher("output").publish(result.toString.getBytes)
         }
     }
-    postConstructorInit()
-
 }

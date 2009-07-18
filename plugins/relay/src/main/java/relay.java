@@ -1,12 +1,11 @@
+import com.rabbitmq.streams.harness.PluginException;
+import com.rabbitmq.streams.harness.Server;
+import net.sf.json.JSONObject;
+
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.List;
-
-import com.rabbitmq.streams.harness.InputReader;
-import com.rabbitmq.streams.harness.Server;
-import com.rabbitmq.streams.harness.PluginException;
-import net.sf.json.JSONObject;
+import java.util.Set;
 
 // TODO: update to deal with multiple source/destinations
 public class relay extends Server {
@@ -24,13 +23,13 @@ public class relay extends Server {
     }
   }
 
-  public final InputReader input = new Server.ServerInputReader() {
-      
+  public final Server.ServerInputReader input = new Server.ServerInputReader() {
+
       @Override
       public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
         try {
           if (activeTerminals.contains(key)) {
-            relay.this.output.publishWithKey(body, key);
+            relay.this.publishToDestination(body, key);
           }
           relay.this.ack(tag);
         }
@@ -42,6 +41,6 @@ public class relay extends Server {
   
   public relay(JSONObject config) throws IOException {
     super(config);
-    postConstructorInit();
+    registerHandler("input", input);
   }
 }

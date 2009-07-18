@@ -83,5 +83,4 @@ class Receiver(terminal : String, bks : Seq[String], conn : Connection) extends 
         }
     }
 
-    postConstructorInit()
 }
