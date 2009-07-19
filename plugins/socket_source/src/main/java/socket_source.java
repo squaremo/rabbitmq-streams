@@ -42,10 +42,6 @@ public class socket_source extends Server {
     }
   }
 
-  public socket_source(JSONObject config) throws IOException {
-    super(config);
-  }
-
   private final class SocketSource implements Runnable {
     final private int port;
     final private String termId;
@@ -86,8 +82,8 @@ public class socket_source extends Server {
           sock.close();
         }
       }
-      catch (IOException e) {
-        socket_source.this.log.warn(e);
+      catch (Exception e) {
+        socket_source.this.log.error(e);
       }
       finally {
         try {
@@ -99,7 +95,7 @@ public class socket_source extends Server {
           }
         }
         catch (IOException e2) {
-          socket_source.this.log.warn(e2);
+          socket_source.this.log.error(e2);
         }
       }
     }

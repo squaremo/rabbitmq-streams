@@ -87,7 +87,6 @@ public abstract class Server extends Plugin {
 
   public static abstract class ServerInputReader implements InputHandler {
 
-    @Override
     public void handleMessage(InputMessage msg, JSONObject config) throws PluginException {
       handleBodyForTerminal(msg.body(), msg.routingKey(), msg);
     }
@@ -101,7 +100,6 @@ public abstract class Server extends Plugin {
 
   private final InputHandler command = new InputHandler() {
 
-    @Override
     public void handleMessage(InputMessage message, JSONObject config) throws PluginException {
 
       String serverIdterminalId = message.routingKey();

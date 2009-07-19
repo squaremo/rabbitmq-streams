@@ -72,6 +72,11 @@ public class PluginResourceFactory {
       return database.getDocument(id).getJSONObject();
     }
 
+    public void saveDocument(JSONObject doc, String id) throws IOException {
+      Document d = new Document(doc);
+      database.saveDocument(d, id);
+    }
+
     public String getName() {
       return database.getName();
     }

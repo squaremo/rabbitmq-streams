@@ -12,7 +12,7 @@ import com.rabbitmq.streams.plugin.websubscriber._
 import com.fourspaces.couchdb._
 import scala.collection.jcl.Conversions._
 
-class websubscriber(config : JSONObject) extends Server(config) {
+class websubscriber() extends Server() {
 
     val dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id), privateDb)
     dispatcher.start

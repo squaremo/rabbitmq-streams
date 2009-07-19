@@ -1,4 +1,5 @@
 import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
@@ -21,7 +22,7 @@ public class socket_destination extends Server {
   public final Server.ServerInputReader input = new Server.ServerInputReader() {
 
       @Override
-      public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
+      public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException {
         List<SocketDestination> dests = terminalMap.get(key);
         if (null != dests) {
           for (SocketDestination dest : dests) {
@@ -29,9 +30,9 @@ public class socket_destination extends Server {
           }
         }
         try {
-          socket_destination.this.ack(tag);
+          ack.ack();
         }
-        catch (IOException e) {
+        catch (Exception e) {
           throw new PluginException(e);
         }
       }
@@ -68,9 +69,8 @@ public class socket_destination extends Server {
     }
   }
 
-  public socket_destination(JSONObject config) throws IOException {
-    super(config);
-    registerHandler("input", input);
+  public void configure(JSONObject config) {
+    registerInput(input);
   }
 
   private final class SocketDestination implements Runnable {
