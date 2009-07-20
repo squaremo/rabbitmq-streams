@@ -287,7 +287,7 @@ class TestWiring(object):
             if isinstance(sleeps, basestring): sleeps = [sleeps]
             elif isinstance(sleeps, (int, float)): sleeps = [repr(sleeps)]
             for s in sleeps: time.sleep(secondify(s))
-        assert set(kwargs) == set(self.inputs)
+        assert not (set(kwargs) - set(self.inputs))
         kwargs = self._normalize_kwargs(kwargs)
         for in_name, to_say in kwargs.items():
             for cant in to_say:
