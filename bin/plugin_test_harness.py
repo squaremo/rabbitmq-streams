@@ -107,15 +107,20 @@ class Failure(object):
     def __init__(self, expected, obtained):
         self.expected, self.obtained = expected, obtained
     def __repr__(self):
-        return "Failure(expected=%r, obtained=%r)" % (self.expected, self.obtained)
+        return "Failure(expected=%r,\n        obtained=%r)\n" % (self.expected, self.obtained)
 
-Success = lambda obtained:obtained
+class Success(object):
+    def __init__(self, obtained):
+        self.obtained = obtained
+    def __repr__(self):
+        return "Success(obtained=%r)\n" % (self.obtained,)
+
 
 class TestOutputter(object):
 
     def __init__(self, channel_names, format_output=None):
         self.channel_names = channel_names
-        self.outputs = []
+        self.outputs = [{}]
         self.results = []
         self.attempted = 0
         self.failed = 0
@@ -123,25 +128,45 @@ class TestOutputter(object):
     def make_output_callback(self, channel_name):
         assert channel_name in self.channel_names
         def output_concer(msg):
-            self.outputs[-1].setdefault(channel_name, []).append(Msg(msg.body))
+            self.outputs[-1].setdefault(str(channel_name), []).append(Msg(msg.body))
         return output_concer
 
     def expect(self, **kwargs):
-        self.outputs.append({})
         assert not (set(kwargs) - set(self.channel_names))
         expected, obtained = kwargs, self.outputs[-1]
         self.attempted += 1
+        ## print >>sys.stderr, "###DEBUG", expected, obtained
         ok = expected == obtained
-        if not ok:
+        if ok:
             self.results.append(Success(obtained=obtained))
         else:
             self.results.append(Failure(expected=expected, obtained=obtained))
             self.failed += 1
+        self.outputs.append({})
 
     def flush(self): pass
 
     def __str__(self):
-        return "<%s failed=%d, attempted=%d>" % (type(self), self.failed, self.attempted)
+        filename = sys.stdin.name # FIXME(alexander): horrible HACK
+        ans = []
+        for r in self.results:
+            if isinstance(r, Failure):
+                first_lineno = min(getattr(msg, 'lineno', sys.maxint)
+                                   for msgs in r.expected.values()
+                                   for msg in msgs)
+                if sorted(r.expected.keys()) != sorted(r.obtained.keys()):
+                    expectations, obtainments = r.expected, r.obtained
+                    ans.append("%s:%s: Test Failure:\nexpected:%s\nobtained:%s\n" % (
+                        filename, first_lineno, r.expected, r.obtained))
+                else:
+                    for k in r.expected.keys():
+                        if r.expected[k] != r.obtained[k]:
+                            ans.append("%s:%s: Test Failure:\nexpected:%s\nobtained:%s\n" %
+                                       (filename, getattr((r.expected[k] or [None])[0],
+                                                          'lineno', first_lineno),
+                                        r.expected[k], r.obtained[k]))
+        return "%sTotals for %s:  failed=%d, attempted=%d" % (
+            "\n".join(ans+[]), filename, self.failed, self.attempted)
 
 
 
@@ -267,6 +292,7 @@ class TestWiring(object):
         for in_name, to_say in kwargs.items():
             for cant in to_say:
                 self.talkers[in_name](cant.body, rk=cant.rk, config=cant.config)
+        time.sleep(1) # FIXME HORRIBLE HACK
         self.outputter.flush()
 
     def teardown(self):
@@ -299,7 +325,11 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
             sys.exit(BAD_SYSTEM_STATE)
 
 def setup_everything(plugindir, config_json, Outputter):
-    instance_config = json.loads(config_json)
+    try:
+        instance_config = json.loads(config_json)
+    except ValueError:
+        print >> sys.stderr, OUT+"ERROR\tExpected a valid json dictionary, got: %r" % (config_json,)
+        sys.exit(255)
 
     info(IN + "PLUGIN_INSTANCE_CONFIG%s%s" % (SEP, json_repr(instance_config)))
 
@@ -613,6 +643,7 @@ if __name__ == '__main__':
             if field != IN+"PLUGIN_INSTANCE_CONFIG":
                 print >> sys.stderr, "First line of stdin must be the PLUGIN_INSTANCE_CONFIG"
                 sys.exit(255)
+            verbosity = 0
         else:
             is_valid_channel=lambda t, c: t==IN and (c in wiring.inputs or c == "SLEEP")
             Outputter = StdoutOutputter if not opts.py else BatchedOutputter
@@ -633,12 +664,14 @@ if __name__ == '__main__':
                               send=send,
                               expect=make_expect(wiring),
                               is_valid_channel=is_valid_channel)
+                if opts.test:
+                    time.sleep(1)
+                    if opts.test and opts.verbose:
+                        print wiring.outputter
+                    sys.exit(255*bool(repl_exit) or min(254, wiring.outputter.failed))
+                else:
+                    sys.exit(repl_exit)
             finally:
                 if hasattr(sys, "stdin_bak"):
                     sys.stdin = sys.stdin_bak
-            if opts.test:
-                time.sleep(1)
-                sys.exit(255*bool(repl_exit) or min(254, wiring.outputter.failed))
-            else:
-                sys.exit(repl_exit)
 
