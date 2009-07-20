@@ -31,19 +31,19 @@ public abstract class Plugin {
   }
 
 // <editor-fold defaultstate="collapsed" desc="Mutators for the harness">
-  void setId(String id) {
+  public void setId(String id) {
     this.id = id;
   }
 
-  void setStateResource(StateResource state) {
+  public void setStateResource(StateResource state) {
     this.stateResource = state;
   }
 
-  void setTerminalsDatabase(DatabaseResource db) {
+  public void setTerminalsDatabase(DatabaseResource db) {
     this.terminalsDatabase = db;
   }
 
-  void setMessageChannel(MessageChannel channel) {
+  public void setMessageChannel(MessageChannel channel) {
     this.messageChannel = channel;
   }
 
@@ -54,7 +54,6 @@ public abstract class Plugin {
   public void setDatabase(DatabaseResource database) {
     privateDb = database;
   }// </editor-fold>
-
 
   /**
    * For plugins to set their state
