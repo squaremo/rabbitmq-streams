@@ -11,19 +11,14 @@ import com.fourspaces.couchdb.Document;
 import scala.collection.mutable.Map
 import scala.collection.jcl.Conversions._
 
-object lastvalue
-{
-  val CachedValue = "cachedValue"
-}
-
 class lastvalue(config: JSONObject) extends PipelineComponent(config) {
 
   // FIXME: AMQP has no byte type, so we can't put this in headers; likewise, CouchDB
   // wouldn't care for it either (except as an attachment perhaps).  So we make
   // it a string.
-    private var cachedValue: String = null;
+  private var cachedValue: String = null;
     
-    val cache = new InputReader() {
+    val value = new InputReader() {
       override def handleBody(body: Array[Byte])
       {
         cachedValue = new String(body);
@@ -76,5 +71,8 @@ class lastvalue(config: JSONObject) extends PipelineComponent(config) {
                 throw new PluginException(e);
             }
       }
-    }    
+    }
+
+  registerHandler("input", input)
+  registerHandler("value", value)
 }

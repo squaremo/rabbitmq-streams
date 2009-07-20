@@ -9,7 +9,7 @@
     "global_configuration_specification": [],
     "configuration_specification": [],
 
-    "inputs_specification": [{"name": "value", "label": "Values"},
+    "inputs_specification": [{"name": "value", "label": "Cache values"},
                              {"name": "input", "label": "Input"}],
     "outputs_specification": [{"name": "output", "label": "Output"}]
 }
