@@ -35,7 +35,7 @@ public class xslt extends PipelineComponent {
 
   public xslt(final JSONObject config) throws IOException {
     super(config);
-    String xsltSrc = config.getString("stylesheet_url");
+    String xsltSrc = config.getJSONObject("configuration").getString("stylesheet_url");
     URLConnection xsltConn = new URL(xsltSrc).openConnection();
     xsltConn.connect();
     InputStream xsltFileContent = (InputStream) xsltConn.getContent();
