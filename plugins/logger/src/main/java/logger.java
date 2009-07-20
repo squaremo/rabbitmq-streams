@@ -11,7 +11,7 @@ import java.io.InputStreamReader;
 
 public class logger extends PipelineComponent {
 
-  public final InputReader input = new InputReader() {
+  private InputReader input = new InputReader() {
 
     @Override
     public void handleMessage(InputMessage msg) throws PluginException {
@@ -30,7 +30,7 @@ public class logger extends PipelineComponent {
         throw new PluginException(ex);
       }
 
-      logger.this.log.debug(sb.toString());
+      logger.this.log.debug(sb.length() > 0 ? sb.substring(0, sb.length()-1) : sb.toString());
     }
   };
 
