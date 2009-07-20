@@ -76,7 +76,6 @@ public abstract class Server extends Plugin {
 
   public static abstract class ServerInputReader implements InputHandler {
 
-    @Override
     public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
       handleBodyForTerminal(delivery.getBody(), delivery.getEnvelope().getRoutingKey(), delivery.getEnvelope().getDeliveryTag());
     }
@@ -86,7 +85,6 @@ public abstract class Server extends Plugin {
 
   private final InputHandler command = new InputHandler() {
 
-    @Override
     public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
 
       String serverIdterminalId = delivery.getEnvelope().getRoutingKey();
