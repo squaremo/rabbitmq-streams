@@ -15,23 +15,25 @@ import scala.collection.jcl.Conversions._
 
 import com.fourspaces.couchdb._
 
-class archive(config : JSONObject) extends Server(config) {
+class archive() extends Server() {
 
-    val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
-    val dispatcher = new Dispatcher(log, couch)
-    dispatcher.start
+  val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
+  val dispatcher = new Dispatcher(log, couch)
+  dispatcher.start
 
-    object input extends Server.ServerInputReader {
-        override def handleBodyForTerminal(body : Array[Byte], key : String, tag : Long) {
-            log.debug("Input received: " + new String(body))
-            dispatcher ! Entry(body, key, () => ack(tag))
+  override def configure(config : JSONObject) {
+    object input extends InputReader {
+        override def handleMessage(msg : InputMessage) {
+            log.debug("Input received: " + new String(msg.body))
+            dispatcher ! Entry(msg.body, msg.routingKey, () => msg.ack())
         }
     }
 
-    registerHandler("input", input)
+    registerInput(input)
+  }
 
-    override def terminalStatusChange(destination : String, configs : java.util.List[JSONObject], active : Boolean) {
-        dispatcher ! DestinationStatusChange(destination, List(configs:_*), active)
-    }
+  override def terminalStatusChange(destination : String, configs : java.util.List[JSONObject], active : Boolean) {
+    dispatcher ! DestinationStatusChange(destination, List(configs:_*), active)
+  }
 
 }

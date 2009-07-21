@@ -48,11 +48,15 @@ class Dispatcher(log : Logger, conn : PubSubManager) extends Actor {
             }
             catch {
                 case e : XMPPException if (e.getXMPPError.getCode == 404) => {
-                        log.info("Node " + nodeId + " not found.  Creating.")
-                        val opts = new ConfigureForm(FormType.submit)
-                        opts.setAccessModel(AccessModel.open)
-                        conn.createNode(nodeId, opts)
-                        conn.getNode(nodeId)
+                        log.error("Node " + nodeId + " not found.")
+                        throw e
+                        // TODO: Make this a configuration option, perhaps.
+                        // ...   In the meantime, it's safer to not arbitrarily create nodes.
+                        // ...   So: the uneccessary catch block remains.
+                        // val opts = new ConfigureForm(FormType.submit)
+                        // opts.setAccessModel(AccessModel.open)
+                        // conn.createNode(nodeId, opts)
+                        // conn.getNode(nodeId)
                     }
             }
         }

@@ -149,9 +149,7 @@ run: run-core run-orchestrator
 
 run-core: run-couch run-rabbit
 
-stop-core-nox: stop-couch-nox stop-rabbit-nox
-
-stop-core: stop-core-nox unlisten-core
+stop-core: stop-couch stop-rabbit
 
 unlisten-core: unlisten-couch unlisten-rabbit
 
@@ -182,7 +180,7 @@ listen-orchestrator-nox: create-var-dirs
 
 
 
-start-orchestrator-nox: stop-orchestrator-nox
+start-orchestrator: stop-orchestrator
 	mkfifo $(ORCHESTRATOR_FIFO)
 	( cat $(ORCHESTRATOR_FIFO) | \
 	  ( $(MAKE) COUCH_SERVER=$(COUCH_SERVER) CONFIG_DOC=$(CONFIG_DOC) -C orchestrator run ; \
@@ -191,7 +189,7 @@ start-orchestrator-nox: stop-orchestrator-nox
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
 	sleep 6
 
-run-orchestrator: listen-orchestrator start-orchestrator-nox
+run-orchestrator: listen-orchestrator start-orchestrator
 
 listen-couch: create-var-dirs
 	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -206,7 +204,7 @@ listen-couch-nox: create-var-dirs
 	$(SCREEN) -X screen -t couch_listener sh -c "$(LISTEN_COUCH)"
 
 
-start-couch-nox: stop-couch-nox
+start-couch: stop-couch
 	mkfifo $(COUCH_FIFO)
 	( cat $(COUCH_FIFO) | \
 	  ( $(OPT_COUCH)/bin/couchdb -i ; \
@@ -215,7 +213,7 @@ start-couch-nox: stop-couch-nox
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-couch: listen-couch start-couch-nox
+run-couch: listen-couch start-couch
 
 listen-rabbit: create-var-dirs
 	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -232,7 +230,7 @@ listen-rabbit-nox: create-var-dirs
 	$(SCREEN) -X screen -t rabbit_listener sh -c "$(LISTEN_RABBIT)"
 
 
-start-rabbit-nox: stop-rabbit-nox
+start-rabbit: stop-rabbit
 	mkfifo $(RABBIT_FIFO)
 	( cat $(RABBIT_FIFO) | \
 	  ( ./start-feedshub-rabbit.sh ; \
@@ -241,7 +239,7 @@ start-rabbit-nox: stop-rabbit-nox
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-rabbit: listen-rabbit start-rabbit-nox
+run-rabbit: listen-rabbit start-rabbit
 
 listen-core: listen-couch listen-rabbit
 
@@ -263,10 +261,10 @@ listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rab
 	@echo '2.  couchDB'
 	@echo '3.  rabbitMQ'
 
-start-core-nox: start-couch-nox start-rabbit-nox
+start-core: start-couch start-rabbit
 	sleep 3
 
-start-all-nox: start-core-nox start-orchestrator-nox
+start-all: start-core start-orchestrator
 	sleep 3
 
 
@@ -282,33 +280,24 @@ log-wipe-all: log-wipe-orchestrator log-wipe-couch log-wipe-rabbit
 sleeper:
 	sleep 2
 
-stop-orchestrator-nox:
+stop-orchestrator:
 	echo -e "\nok.\nq()." >> $(ORCHESTRATOR_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
 	- pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)"
 	rm -f $(ORCHESTRATOR_FIFO)
 
-stop-couch-nox:
+stop-couch:
 	echo -e "\nok.\nq()." >> $(COUCH_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
 	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
 	rm -f $(COUCH_FIFO)
 
-stop-rabbit-nox:
+stop-rabbit:
 	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)& sleep 3; (kill $$! 2>/dev/null || true)
 	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
 	rm -f $(RABBIT_FIFO)
 
-stop-core-nox:
-	echo -e "\nok.\nq()." >> $(RABBIT_FIFO)
-	echo -e "\nok.\nq()." >> $(COUCH_FIFO)
-	sleep 3
-	- pkill -x -f "nc localhost $(LISTEN_RABBIT_PORT)"
-	- pkill -x -f "nc localhost $(LISTEN_COUCH_PORT)"
-	rm -f $(RABBIT_FIFO)
-	rm -f $(COUCH_FIFO)
+stop-all: stop-orchestrator stop-core
 
-stop-all-nox: stop-orchestrator-nox stop-core-nox
-
-full-reset-core-nox: stop-core-nox cleandb start-core-nox create-fresh-accounts
+full-reset-core: stop-core cleandb start-core create-fresh-accounts
 
 ###########################################################################
 # CouchDB
@@ -430,23 +419,30 @@ build/opt/rabbitmq-erlang-client:
 ###########################################################################
 # Demos
 
-demo-test: listen-all full-reset-core-nox start-orchestrator-nox
+demo-test: listen-all full-reset-core start-orchestrator
 	sleep 5
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/test
-	$(MAKE) start-orchestrator-nox
+	$(MAKE) start-orchestrator
 
-demo-showandtell: full-reset-core-nox demo-showandtell-stop start-orchestrator-nox
+demo-showandtell: full-reset-core demo-showandtell-stop start-orchestrator
 	@echo 'Running show and tell demo'
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
 		echo $$! > $(SHOWANDTELL_PIDSFILE)
 	sleep 1
-	$(MAKE) start-orchestrator-nox
+	$(MAKE) start-orchestrator
 	xterm -T 'Show&tell Producer' -g 80x24 -fg white -bg '#dd4400' -e 'while true; do nc localhost 45678 && sleep 1; done' & \
 		echo $$! >> $(SHOWANDTELL_PIDSFILE)
 
-demo-showandtell-stop: stop-orchestrator-nox
+demo-showandtell-stop: stop-orchestrator
 	-kill `cat $(SHOWANDTELL_PIDSFILE)`
 	-rm -f $(SHOWANDTELL_PIDSFILE)
 
 
+test-plugins:
+	@for d in plugins/*/tests; \
+	   do echo "Testing plugin `dirname $${d}`"; \
+	   for f in $${d}/*.io; \
+	     do python bin/plugin_test_harness.py `dirname $${d}` -v --test $${f}; \
+	   done \
+	done

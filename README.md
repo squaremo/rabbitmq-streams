@@ -1,7 +1,8 @@
 # What is this?
 
 "RabbitMQ Streams" is our name for the open source project developed
-with the BBC to power the "BBC Feeds Hub".
+with the BBC to power the "BBC Feeds Hub".  It is a **data streams
+management system**.
 
 For background information, see
 

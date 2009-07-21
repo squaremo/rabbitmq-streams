@@ -23,21 +23,4 @@ public class PluginTestingTools {
     return res;
   }
 
-  static class NoopPlugin extends Plugin {
-    public NoopPlugin() {
-      super(minimalConfig());
-    }
-
-    public NoopPlugin(JSONObject config) {
-      super(config);
-    }
-
-    @Override
-    public InputReaderRunnable handlerRunnable(String name) {
-      throw new UnsupportedOperationException("Not supported yet.");
-    }
-  }
-
-
-
 }

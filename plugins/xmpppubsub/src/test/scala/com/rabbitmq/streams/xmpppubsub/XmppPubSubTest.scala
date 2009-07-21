@@ -8,7 +8,8 @@ class XmppPubSubTest extends Specification with JUnit {
   "xmpppubsub" should {
     "read simple configuration from json" in {
       {
-      val server = new XmppPubSubServer(hostAndPort)
+      val server = new XmppPubSubServer()
+      server.configure(hostAndPort)
       ()
       } must throwAn[net.sf.json.JSONException]
     }

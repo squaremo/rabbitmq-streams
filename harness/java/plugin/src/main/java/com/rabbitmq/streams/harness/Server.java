@@ -1,53 +1,63 @@
 package com.rabbitmq.streams.harness;
 
-import com.fourspaces.couchdb.Database;
-import com.fourspaces.couchdb.Document;
-import com.fourspaces.couchdb.Session;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
- * A superclass for gateways (ho ho). These have predefined inputs and
+ * A superclass for gateways. These have predefined inputs and
  * outputs, rather than having them specified, and don't enforce transactions.
  */
 public abstract class Server extends Plugin {
-  final protected Database terminalsDatabase;
-  final protected String serverId;
-
-  public Server(JSONObject config) throws IOException {
-    super(config);
-    this.serverId = config.getString("server_id");
-    String terminalsDbStr = config.getString("terminals_database");
-    URL terminalsDbUrl = new URL(terminalsDbStr);
-
-    Session couchSession = new Session(terminalsDbUrl.getHost(), terminalsDbUrl.getPort(), "", "");
-    String path = terminalsDbUrl.getPath();
-    int loc;
-    if (path.endsWith("/")) {
-      loc = path.substring(0, path.length() - 1).lastIndexOf('/');
-    }
-    else {
-      loc = path.lastIndexOf('/');
-    }
-    String terminalsDbName = path.substring(loc);
-    terminalsDatabase = couchSession.getDatabase(terminalsDbName);
-
-    registerHandler("command", command);
-  }
 
   @Override
-  public InputReaderRunnable handlerRunnable(String name) {
-    return new DefaultInputReaderRunnable();
+  public void configure(JSONObject staticConfig) {
+    this.messageChannel.consume("command", command);
   }
 
-  protected final void publishToDestination(byte[] body, String destination) throws IOException {
-    getPublisher("output").publish(body, destination);
+  public void registerInputHandler(ServerInputReader handler) {
+    this.messageChannel.consume("input", handler);
+  }
+
+  private class ServerMessage implements Message {
+    private final byte[] body;
+    private final String routingKey;
+    private final Map headers;
+
+    ServerMessage(final byte[] body, final String destination, final Map<String, Object> headers) {
+      this.body = body;
+      this.routingKey = destination;
+      this.headers = headers;
+    }
+
+    ServerMessage(final byte[] body, final String destination) {
+      this(body, destination, Collections.EMPTY_MAP);
+    }
+
+    public Map<String, Object> headers() {
+      return headers;
+    }
+
+    public byte[] body() {
+      return body;
+    }
+
+    public String routingKey() {
+      return routingKey;
+    }
+  }
+
+  protected final void publishToDestination(byte[] body, String destination) throws IOException, MessagingException {
+    this.messageChannel.publish("output", new ServerMessage(body, destination));
+  }
+
+  protected final void publishToDestination(byte[] body, String destination, Map<String, Object> headers) throws IOException, MessagingException {
+    this.messageChannel.publish("output", new ServerMessage(body, destination, headers));
   }
 
   /**
@@ -58,47 +68,48 @@ public abstract class Server extends Plugin {
    * @throws IOException if unable to get configuration documents from database.
    */
   protected final List<JSONObject> terminalConfigs(String terminalId) throws IOException {
-    Document wholeConfig = this.terminalsDatabase.getDocument(terminalId);
+    JSONObject wholeConfig = this.terminalsDatabase.getDocument(terminalId);
     JSONArray servers = wholeConfig.getJSONArray("servers");
     ArrayList<JSONObject> configs = new ArrayList<JSONObject>();
     for (int i = 0; i < servers.size(); i++) {
       JSONObject config = servers.getJSONObject(i);
-      if (this.serverId.equals(config.getString("server"))) {
+      if (this.getId().equals(config.getString("server"))) {
         configs.add(config);
       }
     }
     return configs;
   }
 
-  protected final Document terminalStatus(String terminalId) throws IOException {
+  protected final JSONObject terminalStatus(String terminalId) throws IOException {
     return this.terminalsDatabase.getDocument(terminalId + "_status");
   }
 
   public static abstract class ServerInputReader implements InputHandler {
 
-    @Override
-    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
-      handleBodyForTerminal(delivery.getBody(), delivery.getEnvelope().getRoutingKey(), delivery.getEnvelope().getDeliveryTag());
+    public void handleMessage(InputMessage msg, JSONObject config) throws PluginException {
+      handleBodyForTerminal(msg.body(), msg.routingKey(), msg);
     }
 
-    abstract public void handleBodyForTerminal(byte[] body, String key, long tagToAck) throws PluginException;
+    abstract public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException;
+  }
+
+  protected void registerInput(InputHandler handler) {
+    this.messageChannel.consume("input", handler);
   }
 
   private final InputHandler command = new InputHandler() {
 
-    @Override
-    public void handleDelivery(Delivery delivery, JSONObject config) throws PluginException {
-
-      String serverIdterminalId = delivery.getEnvelope().getRoutingKey();
+    public void handleMessage(InputMessage message, JSONObject config) throws PluginException {
+      String serverIdterminalId = message.routingKey();
       int loc = serverIdterminalId.lastIndexOf('.');
       String serverIds = serverIdterminalId.substring(0, loc);
       String terminalId = serverIdterminalId.substring(loc + 1);
 
       try {
         List<JSONObject> terminalConfigs = Server.this.terminalConfigs(terminalId);
-        Document terminalStatus = Server.this.terminalStatus(terminalId);
+        JSONObject terminalStatus = Server.this.terminalStatus(terminalId);
 
-        if (!serverIds.contains(Server.this.serverId)) {
+        if (!serverIds.contains(Server.this.getId())) {
           Server.this.log.error(
             "Received a terminal status change " +
               "message which was not routed for us: " +
@@ -120,7 +131,13 @@ public abstract class Server extends Plugin {
         Server.this.terminalStatusChange(terminalId,
           terminalConfigs,
           terminalStatus.getBoolean("active"));
-        Server.this.ack(delivery);
+        try {
+          message.ack();
+        }
+        catch (MessagingException me) {
+          log.error("Unable to ack message");
+          // FIXME rollback?
+        }
       }
       catch (IOException ex) {
         throw new PluginException("Unable to handle delivery.", ex);

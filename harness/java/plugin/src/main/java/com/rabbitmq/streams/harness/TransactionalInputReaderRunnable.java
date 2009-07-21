@@ -1,11 +1,14 @@
 package com.rabbitmq.streams.harness;
 
+import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
+import com.rabbitmq.client.impl.ChannelN;
 import java.io.IOException;
+import net.sf.json.JSONObject;
 
 /**
- * This reader ensures that the reading of messages is syncronised.
+ * This reader ensures that the reading of messages is synchronised.
  *
  * We may have many input queues, so to avoid interleaving transactions, we have to choose either to have a channel for each, or serialise the
  * message handing. Since there are a maximum of 15 channels, we choose to serialise message handling by way of this mutex.
@@ -13,38 +16,37 @@ import java.io.IOException;
  * Note: Transactions are only on outgoing messages, so it doesn't matter that two or more threads could receive messages before one
  * acquires the lock; the transaction will be complete or abandoned before another consumer can start sending anything.
  */
-public class TransactionalInputReaderRunnable extends InputReaderRunnable {
+class TransactionalInputReaderRunnable extends AMQPInputConsumer {
 
-  public TransactionalInputReaderRunnable(Object lock) {
-    super();
+  TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Object lock) {
+    super(consumer, handler, config);
     this.lock = lock;
   }
 
   public void run() {
-    while (channel.isOpen()) {
+    while (consumer.getChannel().isOpen()) {
       try {
         Delivery delivery = consumer.nextDelivery();
         synchronized (lock) {
           try {
             try {
-              handler.handleDelivery(delivery, mergeConfigWithHeaders(staticConfiguration, delivery.getProperties().headers));
+              InputMessage msg = new AMQPMessage(consumer.getChannel(), delivery);
+              handler.handleMessage(msg, mergeConfigWithHeaders(delivery.getProperties().headers));
+              msg.ack();
             }
             catch (Exception e) {
-              log.error("Cannot handle delivery of message");
-              log.error(e);
+              // FIXME report this!
               return;
             }
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            channel.txCommit();
-
+            consumer.getChannel().txCommit();
           }
           catch (IOException ex) {
             try {
-              log.error(ex);
-              channel.txRollback();
+              // FIXME log.error(ex);
+              consumer.getChannel().txRollback();
             }
             catch (IOException e) {
-              log.error(e);
+              // FIXME log.error(e);
             }
           }
         }

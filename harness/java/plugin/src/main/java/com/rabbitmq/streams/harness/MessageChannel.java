@@ -1,0 +1,17 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+package com.rabbitmq.streams.harness;
+
+import java.io.IOException;
+
+/**
+ *
+ * @author mikeb@lshift.net
+ */
+public interface MessageChannel {
+  public void consume(String channelName, InputHandler handler);
+  public void publish(String channelName, Message msg) throws IOException, MessagingException;
+}

@@ -267,7 +267,7 @@ init([]) ->
                                       rabbitmq_admin_user = RUser,
                                       rabbitmq_admin_password = RPassword}}
         = startup_couch_scan(),
-    AmqpConnectionPid = amqp_connection:start_link(RUser, RPassword, RHost),
+    AmqpConnectionPid = amqp_connection:start_link(RUser, RPassword, RHost, 5672),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch, LogCh),

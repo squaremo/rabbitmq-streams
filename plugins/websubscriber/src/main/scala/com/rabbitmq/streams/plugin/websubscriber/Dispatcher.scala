@@ -8,10 +8,7 @@ import scala.actors.Actor
 import scala.actors.Actor._
 
 import net.sf.json.JSONObject
-import com.fourspaces.couchdb.Session
 import com.rabbitmq.streams.harness._
-import com.rabbitmq.client.QueueingConsumer.Delivery;
-import com.fourspaces.couchdb.{Database, Document}
 
 import net.liftweb.util.Helpers.hexDigest
 
@@ -19,7 +16,7 @@ import scala.collection.mutable.Map
 
 case class StatusChange(subscription: String, configs: Seq[JSONObject], active: Boolean)
 
-class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Database) extends Actor {
+class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : DatabaseResource) extends Actor {
     private val subscriptions : Map[String, List[Subscription]] = Map()
 
     def publishAsTerminal(terminalId : String)(message : String) {
@@ -61,7 +58,7 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Databa
         }
     }
 
-    private def populateDocFromState(doc : Document, state : State) {
+    private def populateDocFromState(doc : JSONObject, state : State) {
         doc.put("currentUrl", state.currentUrl)
         doc.put("originalUrl", state.originalUrl)
         doc.put("etag", state.etag getOrElse null)
@@ -73,7 +70,7 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Databa
     // Merge the state from a document with a config.
     // Prefer the document's values -- this is used when starting a Subscription,
     // so it will either be a blank document or from the last time it was started.
-    private def stateFromDoc(stateDoc : Document, config : JSONObject) : State = {
+    private def stateFromDoc(stateDoc : JSONObject, config : JSONObject) : State = {
         new State(stateDoc.optString("currentUrl", config.getString("url")),
                   config.getString("url"),
                   stateDoc.optLong("lastUpdated", 0),
@@ -96,9 +93,9 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Databa
         terminalId + extra
     }
 
-    def getSubscriptionStateDoc(docName : String) : Document = {
-        couch.getDocument(docName) match {
-            case null => {val d = new Document; d.setId(docName); d}
+    def getSubscriptionStateDoc(docName : String) : JSONObject = {
+        couch.getDocument(docName) match { // FIXME don't rely on _idxs
+            case null => {val d = new JSONObject; d.put("_id", docName); d}
             case doc => doc
         }
     }
@@ -107,6 +104,6 @@ class Dispatcher(log : Logger, publish: (String, String) => Unit, couch : Databa
         log.debug("Saving state : " + state)
         val doc = getSubscriptionStateDoc(docName)
         populateDocFromState(doc, state)
-        couch.saveDocument(doc)
+        couch.saveDocument(doc, docName)
     }
 }
