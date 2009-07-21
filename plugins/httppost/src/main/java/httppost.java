@@ -1,6 +1,6 @@
 
 import com.rabbitmq.streams.harness.MessagingException;
-import com.rabbitmq.streams.harness.PluginException;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.Server;
 import net.reversehttp.*;
 import net.sf.json.JSONObject;
@@ -23,7 +23,7 @@ public class httppost extends Server implements RequestHandler {
     private Thread httpdThread;
 
     @Override
-    public void configure(JSONObject config) throws PluginException {
+    public void configure(JSONObject config) throws PluginBuildException {
         super.configure(config);
         //FIXME: make use of host
         //String host = (String) configuration.get("http_server_host");
@@ -50,7 +50,7 @@ public class httppost extends Server implements RequestHandler {
         }
         catch (IOException ioe) {
           log.fatal("Could not bind to address and port");
-          throw new PluginException("Could not bind to configured port", ioe);
+          throw new PluginBuildException("Could not bind to configured port", ioe);
         }
     }
 

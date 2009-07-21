@@ -16,7 +16,7 @@ import java.util.Map;
 public abstract class Server extends Plugin {
 
   @Override
-  public void configure(JSONObject staticConfig) {
+  public void configure(JSONObject staticConfig) throws PluginBuildException {
     this.messageChannel.consume("command", command);
   }
 

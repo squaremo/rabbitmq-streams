@@ -1,6 +1,7 @@
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
@@ -33,7 +34,7 @@ public class xslt extends PipelineComponent {
     }
   };
 
-  public void configure(final JSONObject config) throws PluginException {
+  public void configure(final JSONObject config) throws PluginBuildException {
     try {
       String xsltSrc = config.getString("stylesheet_url");
       URLConnection xsltConn = new URL(xsltSrc).openConnection();
@@ -49,7 +50,7 @@ public class xslt extends PipelineComponent {
       catch (TransformerConfigurationException e) {
         log.fatal(e);
         transTmp = null;
-        System.exit(1);
+        throw new PluginBuildException("Cannot compile configured stylesheet", e);
       }
       final Transformer trans = transTmp;
       trans.setErrorListener(xsltErrorLogger);
@@ -77,7 +78,7 @@ public class xslt extends PipelineComponent {
       registerInput("input", input);
     }
     catch (Exception ex) {
-      throw new PluginException(ex);
+      throw new PluginBuildException("Cannot fetch or cannot compile stylesheet", ex);
     }
   }
 }

@@ -9,7 +9,7 @@ package com.rabbitmq.streams.harness;
  *
  * @author mikeb@lshift.net
  */
-class PluginBuildException extends Exception {
+public class PluginBuildException extends Exception {
 
   public PluginBuildException(String msg) {
     super(msg);

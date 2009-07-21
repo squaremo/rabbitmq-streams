@@ -3,7 +3,6 @@ import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.InputMessage;
 import net.sf.json.JSONObject;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;

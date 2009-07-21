@@ -21,7 +21,7 @@ public abstract class Plugin {
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
   protected MessageChannel messageChannel;
 
-  public abstract void configure(final JSONObject staticConfig) throws PluginException;
+  public abstract void configure(final JSONObject staticConfig) throws PluginBuildException;
   
   public String getId() {
     return id;
