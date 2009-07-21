@@ -13,8 +13,9 @@ import com.rabbitmq.streams.harness.Server
 
 class NotificationServer(config: JSONObject) extends Server(config) {
 
+
   // Alias this, as a paper-thin abstraction
-  private val connection = messageServerConnection
+  //private val connection = messageServerConnection
 
   private val terms: Map[String, Receiver] = Map()
 
@@ -34,23 +35,23 @@ class NotificationServer(config: JSONObject) extends Server(config) {
 
   class Receiver(terminal: String, bindingKeys: Seq[String], conn: Connection) extends Actor {
     override def act {
-      val channel = conn.createChannel
-      val queue = channel.queueDeclare().getQueue
-      bindingKeys.foreach(bk => channel.queueBind(queue, "feedshub/log", bk))
-      val consumer = new QueueingConsumer(channel)
-      channel.basicConsume(queue, true, consumer);
-      log.debug("Starting listener for " + terminal + " using " + bindingKeys + " on queue" + queue)
-
-      loop {
-        try {
-          val delivery = consumer.nextDelivery
-          log.debug("New delivery: " + new String(delivery.getBody))
-          Publisher ! new Notification(terminal, delivery.getBody)
-        }
-        catch {
-          case e: InterruptedException =>; // try again
-        }
-      }
+//      val channel = conn.createChannel
+//      val queue = channel.queueDeclare().getQueue
+//      bindingKeys.foreach(bk => channel.queueBind(queue, "feedshub/log", bk))
+//      val consumer = new QueueingConsumer(channel)
+//      channel.basicConsume(queue, true, consumer);
+//      log.debug("Starting listener for " + terminal + " using " + bindingKeys + " on queue" + queue)
+//
+//      loop {
+//        try {
+//          val delivery = consumer.nextDelivery
+//          log.debug("New delivery: " + new String(delivery.getBody))
+//          Publisher ! new Notification(terminal, delivery.getBody)
+//        }
+//        catch {
+//          case e: InterruptedException =>; // try again
+//        }
+//      }
     }
 
   }
@@ -65,16 +66,17 @@ class NotificationServer(config: JSONObject) extends Server(config) {
 
     if(active) {
       maybeStopTerminal(terminalId)
-      val receiver = new Receiver(terminalId, configs.map(conf => conf.getJSONObject("source").getString("bindingkey")), connection)
-      terms += (terminalId -> receiver)
-      receiver.start
-      log.debug("Start listening to " + terminalId)
-      log.debug("Now listening to " + terms)
+//      val receiver = new Receiver(terminalId, configs.map(conf => conf.getJSONObject("source").getString("bindingkey")), connection)
+//      terms += (terminalId -> receiver)
+//      receiver.start
+//      log.debug("Start listening to " + terminalId)
+//      log.debug("Now listening to " + terms)
     }
     else {
       maybeStopTerminal(terminalId)
       log.debug("Stop listening to " + terminalId)
     }
   }
+
 
 }
