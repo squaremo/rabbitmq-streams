@@ -15,6 +15,7 @@ public abstract class Plugin {
   protected Logger log;
   protected DatabaseResource privateDb;
   protected DatabaseResource terminalsDatabase;
+  protected Notifier notifier;
 
   private final Map<String, AMQPPublisher> outputs = new HashMap<String, AMQPPublisher>();
   private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
@@ -49,6 +50,10 @@ public abstract class Plugin {
 
   public void setLog(Logger log) {
     this.log = log;
+  }
+
+  public void setNotifier(Notifier notifier) {
+    this.notifier = notifier;
   }
 
   public void setDatabase(DatabaseResource database) {

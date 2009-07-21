@@ -1,0 +1,57 @@
+# This is a makefile for running performance tests
+
+# FIXME: download
+GRINDER_HOME=~/Desktop/grinder-3.2
+JYTHON_HOME=/usr/share/jython
+
+# Must be absolute
+TMP_DIR=$(CURDIR)/tmp
+PYTHON_CACHEDIR=${TMP_DIR}/python/cachedir
+LOG_DIR=$(TMP_DIR)/logs
+
+JAVA_CMD=java
+CLASSPATH=${GRINDER_HOME}/lib/grinder.jar
+
+JVM_ARGS=-Dgrinder.logDirectory=$(LOG_DIR)
+
+GRINDER_JVM_ARGS="-Dpython.cachedir=${PYTHON_CACHEDIR} \
+	-Dpython.home=${JYTHON_HOME}"
+
+JAVA_ARGS=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
+
+GRINDER_CMD=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
+
+
+run-perf-test: create-cachedir init-perf-test
+	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
+		test/load/sender.properties &
+
+create-cachedir:
+	mkdir -p ${PYTHON_CACHEDIR}
+	chmod a+rw ${PYTHON_CACHEDIR}
+
+grinder-console:
+	${GRINDER_CMD} net.grinder.Console &
+
+start-grinder-receiver: create-cachedir
+	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
+		test/load/receiver.properties &
+
+stop-grinder-receiver:
+	# TODO: Variable to tidy  up, and catch error for non-existant process
+	pkill -fx  -P \
+		`pgrep -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"` \
+		".*net.grinder.engine.process.WorkerProcessEntryPoint"
+
+	pkill -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"
+
+init-test:
+	make stop-core-nox 
+	make cleandb
+	make start-core-nox
+	make create-fresh-accounts
+	make start-orchestrator-nox
+
+init-perf-test: 
+	sbin/import_config.py test/load/config
+	make start-orchestrator-nox 

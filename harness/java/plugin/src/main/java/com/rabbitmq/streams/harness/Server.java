@@ -1,6 +1,5 @@
 package com.rabbitmq.streams.harness;
 
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
@@ -101,7 +100,6 @@ public abstract class Server extends Plugin {
   private final InputHandler command = new InputHandler() {
 
     public void handleMessage(InputMessage message, JSONObject config) throws PluginException {
-
       String serverIdterminalId = message.routingKey();
       int loc = serverIdterminalId.lastIndexOf('.');
       String serverIds = serverIdterminalId.substring(0, loc);

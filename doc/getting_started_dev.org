@@ -92,7 +92,7 @@ sure you follow the instructions exactly):
    each component
 #+HTML: (<font color="#400000"><b>RabbitMQ</b></font> </font>,
 #+HTML: <font color="#004000"><b>CouchDB</b></font> </font>,
-#+HTML: <font color="#000040"><b>Orchestrator</b></font>)
+#+HTML: <font color="#000040"><b>Orchestrator</b></font>):
 #+BEGIN_SRC sh
 make listen-all
 #+END_SRC
@@ -101,37 +101,44 @@ make listen-all
     run the 3 listeners in a single (GNU) =screen= session, but this is really only
     recommended in that specific case or for =screen= aficionados.]
 
-2. Start all the core components, rabbitmq and couchdb
-   (=start-core-nox=; this will also get close any existing
-   instances), clean the CouchDB and RabbitMQ broker (=cleandb=, after
-   which they need to be restarted), re-initialize the user/admin
-   accounts (=create-fresh-accounts=), then start the orchestrator
-   (=start-orchestrator-nox=) and install the test configuration
-   (=sbin/import_config.py examples/test=) and get everthing up and
-   running with the new config (=start-orchestrator-nox=):
+2. Re-initialize the state of and (re)start couchdb and rabbitmq
+   (=full-reset-core=) and start the orchestrator (=start-orchestrator=) then
+   import a simple test configuration (=import_config.py=) into couchdb (which
+   is running on =localhost= on the default port, =5984=). Finally restart the
+   orchestrator (=start-orchestrator=):
 
 #+BEGIN_SRC sh
-make cleandb start-core-nox create-fresh-accounts start-orchestrator-nox
-python sbin/import_config.py http://127.0.0.1:5984  examples/test
-make start-orchestrator-nox
+make full-reset-core start-orchestrator
+python sbin/import_config.py --couchdb http://127.0.0.1:5984  examples/test
+make start-orchestrator
 #+END_SRC
 
-   The first line may also be replaced by the equivalent
-   =make full-reset-core_nox start-orchestrator-nox=.
+3. Finally, to shutdown everything type:
 
-* TODO FIXME change Makefile so =start_orchestrator_nox= is only needed once
-   Note that if you already got a system install of couchDB or RabbitMQ etc.
-   you should make sure that they are either currently not running or using
-   different ports than the local versions that feedshub installs.
-
-In general, =Makefile= targets that end in =_nox= (/No X/) will not
-start new xterms.
+#+BEGIN_SRC sh
+make stop-core stop-orchestrator unlisten all=
+#+END_SRC
 
 All three components are normal Erlang shells (though due to
 forwarding outputs over =nc=, the command history features are
 lost). Thus to quit any of the components, enter =q()= and press
 return in the shells. The Makefile targets take care of stopping the
 components as necessary.
+
+Note that if you already got a system install of couchDB or RabbitMQ etc. you
+should make sure that they are either currently not running or using different
+ports than the local versions that feedshub installs.
+
+
+*** Further notes (can be ignored on first reading)
+    =make start-couchdb start-rabbit create-fresh-accounts= is equivalent to
+    =make full-reset-core=. Generally for every =start-...= command there is
+    an equivalent =stop-...= command. Both are idempotent and =stop-...= is in
+    fact called by =start-...= to bring down a potentially already running
+    service before (re)starting it (possibly activation a new configuration).
+    Furthermore there are also individual =(un)listen-...= commands for each
+    component.
+
 
 * Developing
 
@@ -262,18 +269,95 @@ stage.
          threads or processes (this is the shutdown protocol; misbehaving
          plugins that fail to shutdown if requested will be killed by
          sending a signal to the PID obtained in step 2).
-***** testing Plugins
+***** TODO testing Plugins (*FIXME* channel is wrong)
 The =plugin_test_harness.py= script allows one to run a plugin in isolation
 for testing purposes. It loads up the plugin with a configuration file,
 creates a dummy database and defines a simple protocol for sending data to
-channels by writing to stdout. Here is an example:
+channels by writing to stdout. Here is an example (a =regexp_replace= that
+reads text from channel =input= and writes the regexp substituion to channel
+=positive= if therere is a match and the unmodified string to =negative= if
+there isn't):
 
 #+BEGIN_SRC sh
-make start-all-nox # make sure everying is up
-
-python bin/plugin_test_harness.py plugins/regexp_replace <(echo -E '
- {"regexp": "(.\\1\\1)", "replacement": "[3 x \"\\1\"]",
+make listen-all start-all # make sure everying is up
+python bin/plugin_test_harness.py --verbose plugins/regexp_replace <(echo -E '
+ {"regexp": "(.)\\1\\1", "replacement": "[3 x \"\\1\"]",
   "multiline": false, "dotall": false, "caseinsensitive": false }' )
+#+END_SRC
+
+Then type in the following (*NB* although it is not visible note that the left
+and right columns are seperated by a tab, not (just) spaces):
+
+#+BEGIN_SRC io
+>input	no tripples in this line
+...	or this one
+...	here we end, still no tripples
+
+>input	next come some tttrrriiippples
+#+END_SRC
+
+You should see the following on the screen:
+#+BEGIN_SRC io
+input	no tripples in this line
+...	or this one
+...	here we end, still no tripples
+
+<negative	no tripples in this line
+...         	or this one
+...         	here we end, still no tripples
+input	next come some tttrrriiippples
+
+<positive	next come some [3 x "t"][3 x "r"][3 x "i"][3 x "p"]les
+#+END_SRC
+
+The input format is simple:
+ - a line starting with =#= is treated as a comment and ignored
+ - a line starting with =>CHANNEL_NAME= followed by an optional =json=
+   dictionary (see below) and optional spaces and finally a tab then some
+   =text= is the begin of a message to input-channel =CHANNEL_NAME= (the =>=
+   may be omitted but an output-channel message always starts with =<=).
+ - a line starting with =...=, optional spaces and a tab, followed by
+   =more-text= continues the message on the previous line (the =...= may be
+   omitted)
+ - an empty line on its own sends of all the accumulated inputs to the
+   respective channels
+ - in the text part (after the tab) all whitespace, special characters etc.
+   are preserved verbatim (so any possible text, including binary can be
+   input), but the ultimate newline of each message part is omitted (otherwise
+   there would be no way to write input that didn't end in a newline).
+
+
+
+: >input	start of text
+: ...   	one more line
+: ...   	final line, but this newline will
+
+   is analogous to the following python string definition:
+#+BEGIN_SRC python
+input = """start of text
+one more line
+final line, but no trailing newline"""
+#+END_SRC
+
+******* Writing unittests for plugins
+You can create and run a unittest by pasting the contents of a
+=plugin_test_harness.py= session by pasting the contents of the session into a
+file (say =test_transcript.io=) and executing the following command:
+
+=python bin/plugin_test_harness.py -v plugins/my_plugin --test plugins/my_plugin/test_transcript.io=
+
+This will check that the inputs give the same outputs as those listen in the
+transcript and show testfailures otherwise (thanks to the =-v= or =--verbose=
+flag).
+
+=make test-plugins= will automatically run all files of the form
+=plugins/*/tests/*.io= as unittests.
+
+Emacs users might want to investigate =share/emacs/io-mode.el= which provides
+syntax-highlighting and other facilities for manually writing =.io= files.
+
+
+
 #+END_SRC
 *** Writing Harnesses to add Plugin support for new languages
 Each environment (e.g., Java, Python) in which plugins run needs a
@@ -430,6 +514,9 @@ each instance. The orchestrator provides the name of this database in
 the initialisation configuration.
 
 TODO safe ways of exposing this to the plugin developer.
+***** Testing plugins with =bin/plugin_test_harness.py=
+It is often convenient to interactively test a given plugin on its own without
+
 *** TODO The Feedshub Architecture in more detail
 #+CAPTION: Information flow (the almost full picture)
 #+LABEL:   fig:flow

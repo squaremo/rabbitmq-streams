@@ -124,13 +124,23 @@ public class PluginBuilder {
   }
 
   private Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
-    AMQPLogger log = new AMQPLogger((ChannelN) connection.createChannel(), logRoutingKey(configuration));
+    AMQPLogger log = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration));
     Thread logThread = new Thread(log);
     logThread.setDaemon(true);
     logThread.start();
     log.info("Harness starting up...");
     plugin.setLog(log);
     return log;
+  }
+
+  private void connectNotifierToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
+    Notifier notifier = new Notifier((ChannelN) connection.createChannel(), routingKey(configuration));
+    Thread thread = new Thread(notifier);
+    thread.setDaemon(true);
+    thread.start();
+
+    log.info("Harness notifier starting up...");
+    plugin.setNotifier(notifier);
   }
 
   protected void configureServer(Plugin plugin, JSONObject configuration) throws Exception {
@@ -174,8 +184,8 @@ public class PluginBuilder {
     }
   }
 
-  private String logRoutingKey(JSONObject config) {
-    if (pluginIsServer(config)) {
+  private String routingKey(JSONObject config) {
+    if (config.containsKey("server_id")) {
       return "." + config.getString("server_id") + "." + config.getString("plugin_name");
     }
     return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");

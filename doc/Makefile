@@ -6,7 +6,7 @@ setup:
 	sudo aptitude install emacs-snapshot emacs-goodies js2-mode graphicsmagick dia
 
 getting_started_dev.html: getting_started_dev.org stylesheet.css
-	$(EMACS) --batch -l org --visit getting_started_dev.org --funcall org-export-as-html-batch
+	$(EMACS) --batch -l ../share/emacs/io-mode.el -l org --visit getting_started_dev.org --funcall org-export-as-html-batch
 
 bitmaps: *.dia
 	for f in $?; do \

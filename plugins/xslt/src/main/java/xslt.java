@@ -40,7 +40,6 @@ public class xslt extends PipelineComponent {
       xsltConn.connect();
       InputStream xsltFileContent = (InputStream) xsltConn.getContent();
       StreamSource xsltSource = new StreamSource(xsltFileContent);
-
       TransformerFactory transFact = TransformerFactory.newInstance();
       transFact.setErrorListener(xsltErrorLogger);
       Transformer transTmp;
