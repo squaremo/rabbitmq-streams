@@ -47,18 +47,6 @@ public class loggerTest {
     public void tearDown() {
     }
 
-  /**
-   * Test of configure method, of class logger.
-   */
-  @Test
-  public void testConfigure() {
-    System.out.println("configure");
-    JSONObject config = null;
-    logger instance = new logger();
-    instance.configure(config);
-    // TODO review the generated test code and remove the default call to fail.
-    fail("The test case is a prototype.");
-  }
 
   @Test
   public void testHandleMessage() throws Exception {
