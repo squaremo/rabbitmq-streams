@@ -298,14 +298,14 @@ and right columns are seperated by a tab, not (just) spaces):
 
 You should see the following on the screen:
 #+BEGIN_SRC io
-input	no tripples in this line
+>input	no tripples in this line
 ...	or this one
 ...	here we end, still no tripples
 
 <negative	no tripples in this line
 ...         	or this one
 ...         	here we end, still no tripples
-input	next come some tttrrriiippples
+>input	next come some tttrrriiippples
 
 <positive	next come some [3 x "t"][3 x "r"][3 x "i"][3 x "p"]les
 #+END_SRC
@@ -539,9 +539,6 @@ each instance. The orchestrator provides the name of this database in
 the initialisation configuration.
 
 TODO safe ways of exposing this to the plugin developer.
-***** Testing plugins with =bin/plugin_test_harness.py=
-It is often convenient to interactively test a given plugin on its own without
-
 *** TODO The Feedshub Architecture in more detail
 #+CAPTION: Information flow (the almost full picture)
 #+LABEL:   fig:flow
