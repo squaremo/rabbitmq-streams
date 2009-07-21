@@ -326,23 +326,42 @@ The input format is simple:
    input), but the ultimate newline of each message part is omitted (otherwise
    there would be no way to write input that didn't end in a newline).
 
-
-
 : >input	start of text
 : ...   	one more line
 : ...   	final line, but this newline will
 
    is analogous to the following python string definition:
+
 #+BEGIN_SRC python
 input = """start of text
 one more line
 final line, but no trailing newline"""
 #+END_SRC
+******* Magic channels
+Channels with ALLCAPS names are reserved for magic pseudochannels. An example
+is
+#+BEGIN_SRC io
+>SLEEP	3s
+#+END_SRC
+which will sleep 3 seconds before continuing. This is useful for testing
+timing sensitive plugins, such as =../plugins/data_timeout=.
+
+The pseudo-channel =>PLUGIN_INSTANCE_CONFIG= is used to specify the
+configuration of the plugin for tests; currently it has to occur in the first
+line.
+******* TODO Json config params
+It is possible to effect =config= changes and modify the routing key for a
+channel to a message by specifying a json-dictionary of the form:
+#+BEGIN_SRC io
+>input{"config": {"regexp": ...}, "rk": ...}	some message
+#+END_SRC
+Note that the json must be on a single line.
 
 ******* Writing unittests for plugins
 You can create and run a unittest by pasting the contents of a
-=plugin_test_harness.py= session by pasting the contents of the session into a
-file (say =test_transcript.io=) and executing the following command:
+=plugin_test_harness.py= session by pasting the contents of the session
+(you'll probably want to run without =--verbose== though) into a file (say
+=test_transcript.io=) and executing the following command:
 
 =python bin/plugin_test_harness.py -v plugins/my_plugin --test plugins/my_plugin/test_transcript.io=
 
@@ -350,13 +369,19 @@ This will check that the inputs give the same outputs as those listen in the
 transcript and show testfailures otherwise (thanks to the =-v= or =--verbose=
 flag).
 
+*NB:* you need to make sure that the first-line of your =.io= file contains
+the plugin-instance-configuration, i.e. it must look something like this
+(where =...= denotes truncation):
+#BEGIN_SRC io
+>PLUGIN_INSTANCE_CONFIG	{"dotall": false, "regexp": "(.)\\1\\1", ...
+#END_SRC
+
 =make test-plugins= will automatically run all files of the form
-=plugins/*/tests/*.io= as unittests.
+=plugins/*/tests/*.io= as unittests. See e.g.
+[[../plugins/regexp_replace/tests/test_regexp_replace.io]] for an example.
 
 Emacs users might want to investigate =share/emacs/io-mode.el= which provides
 syntax-highlighting and other facilities for manually writing =.io= files.
-
-
 
 #+END_SRC
 *** Writing Harnesses to add Plugin support for new languages
