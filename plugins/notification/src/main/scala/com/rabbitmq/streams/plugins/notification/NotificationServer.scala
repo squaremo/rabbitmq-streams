@@ -11,11 +11,10 @@ import com.rabbitmq.client.{QueueingConsumer}
 
 import com.rabbitmq.streams.harness.Server
 
-class NotificationServer(config: JSONObject) extends Server(config) {
+class NotificationServer() extends Server() {
 
-
-  // Alias this, as a paper-thin abstraction
-  //private val connection = messageServerConnection
+  override def configure(config : JSONObject) {
+  }
 
   private val terms: Map[String, Receiver] = Map()
 
