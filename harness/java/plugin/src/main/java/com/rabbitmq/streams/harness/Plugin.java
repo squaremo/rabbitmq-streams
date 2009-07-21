@@ -16,6 +16,7 @@ public abstract class Plugin {
 
   private ChannelN messageServerChannel; // TODO consider encapsulating this and moving to the harness
   protected Logger log;
+  protected Notifier notifier;
   protected Database privateDb;
 
   final protected JSONObject pluginType;
@@ -71,6 +72,10 @@ public abstract class Plugin {
 
   public void setLog(Logger log) {
     this.log = log;
+  }
+
+  public void setNotifier(Notifier notifier) {
+    this.notifier = notifier;
   }
 
   public void setDatabase(Database database) {

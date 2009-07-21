@@ -98,6 +98,7 @@ public class Harness implements Runnable {
     plugin.setMessageServerChannel(messageServerChannel); // TODO this is needed for the command channel can this be pulled out of server somehow?
     connectLoggerToPlugin();
     connectDatabaseToPlugin();
+    connectNotifierToPlugin();
 
     constructPluginOutputs(configuration.getJSONObject("outputs"));
     constructPluginInputs(configuration.getJSONObject("inputs"));
@@ -133,7 +134,7 @@ public class Harness implements Runnable {
   }
 
   private void connectLoggerToPlugin() throws IOException {
-    log = new Logger((ChannelN) messageServerConnection.createChannel(), logRoutingKey(configuration));
+    log = new Logger((ChannelN) messageServerConnection.createChannel(), routingKey(configuration));
     Thread logThread = new Thread(log);
     logThread.setDaemon(true);
     logThread.start();
@@ -141,7 +142,17 @@ public class Harness implements Runnable {
     plugin.setLog(log);
   }
 
-  private String logRoutingKey(JSONObject config) {
+  private void connectNotifierToPlugin() throws IOException {
+    Notifier notifier = new Notifier((ChannelN) messageServerConnection.createChannel(), routingKey(configuration));
+    Thread thread = new Thread(log);
+    thread.setDaemon(true);
+    thread.start();
+
+    log.info("Harness notifier starting up...");
+    plugin.setNotifier(notifier);
+  }
+
+  private String routingKey(JSONObject config) {
     if (config.containsKey("server_id")) {
       return "." + config.getString("server_id") + "." + config.getString("plugin_name");
     }
