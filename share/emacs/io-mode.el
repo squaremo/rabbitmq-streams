@@ -1,5 +1,6 @@
 ;; Author: Alexander Schmolck, LShift LDT
 (require 'cl)
+(require 'whitespace)
 (defconst io-font-lock-keywords
   `(("^#.*$" 0 font-lock-comment-face)
     ("^<\\([^\t]+\\) *\t" 1 font-lock-constant-face)
@@ -14,7 +15,7 @@
 
 (unless io-mode-syntax-table
   (setq io-mode-syntax-table (make-syntax-table))
-  (modify-syntax-entry ?\#  "<"     j-mode-syntax-table) ; punct, not bracket
+  (modify-syntax-entry ?\#  "<" io-mode-syntax-table) ; punct, not bracket
   )
 ;; (define-derived-mode io-mode fundamental-mode "IO Test"
 ;;     "Major mode for writing input/output test files."
@@ -49,4 +50,5 @@
   (set-syntax-table io-mode-syntax-table))
 
 
+;(add-to-list auto-mode-alist '("\\.io$" . io-mode))
 (provide 'io-mode)
