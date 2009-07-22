@@ -284,9 +284,13 @@ class TestWiring(object):
         """
         if 'SLEEP' in kwargs:
             sleeps = kwargs.pop('SLEEP')
-            if isinstance(sleeps, basestring): sleeps = [sleeps]
-            elif isinstance(sleeps, (int, float)): sleeps = [repr(sleeps)]
-            for s in sleeps: time.sleep(secondify(s))
+            if isinstance(sleeps, basestring): sleeps = [Msg(sleeps)]
+            elif isinstance(sleeps, (int, float)): sleeps = [Msg(repr(sleeps))]
+            for s in sleeps:
+                if isinstance(s, (int, float)): s = Msg(repr(s))
+                elif isinstance(s, basestring): s = Msg(s)
+                print >>sys.stderr, "#DEBUG sleeping %s" % s.body
+                time.sleep(secondify(s.body))
         assert not (set(kwargs) - set(self.inputs))
         kwargs = self._normalize_kwargs(kwargs)
         for in_name, to_say in kwargs.items():
