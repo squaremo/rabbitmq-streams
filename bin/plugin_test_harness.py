@@ -324,6 +324,9 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
                 req, ans.status, ans_s))
             sys.exit(BAD_SYSTEM_STATE)
 
+def is_server(spec):
+    return spec['subtype']=='server'
+
 def setup_everything(plugindir, config_json, Outputter):
     try:
         instance_config = json.loads(config_json)
@@ -338,10 +341,14 @@ def setup_everything(plugindir, config_json, Outputter):
 
     info("## Plugin descriptor:")
     info("#", json_repr(plugin_specs))
-
+    inputspec = [{"name": "input"},
+                 {"name": "command"}] if is_server(plugin_specs) \
+                                      else plugin_specs['inputs_specification']
+    outputspec = [{'name': 'output'}] if is_server(plugin_specs) \
+                                      else plugin_specs['outputs_specification']
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
-                        inputspec=plugin_specs['inputs_specification'],
-                        outputspec=plugin_specs['outputs_specification'],
+                        inputspec=inputspec,
+                        outputspec=outputspec,
                         Outputter=Outputter)
 
     init_couch_state()
@@ -404,6 +411,10 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
         "state":  posixpath.join(plugin_test_doc_url, statedocname),
         "database": plugin_test_doc_url
     }
+    if (is_server(plugin_specs)):
+        init['server_id'] = init['node_id']
+        # TODO: make this a dummy terminal database
+        init['terminals_database'] = "http://%s:%d/feedshub_status/" % tuple(COUCH_HOST_PORT)
     harnessdir = os.path.join(HARNESS_BASE_DIR, init['harness_type'])
     harness = os.path.join(harnessdir, 'run_plugin.sh')
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
