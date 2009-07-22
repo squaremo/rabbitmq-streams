@@ -126,7 +126,7 @@ public class PluginBuilderTest {
     PluginBuilder instance = new PluginBuilder(log, factory);
     StateResource res = mock(StateResource.class);
     when(factory.getStateResource(TEST_STATE_URL)).thenReturn(res);
-    instance.setStateResourceOnPlugin(c, plugin);
+    instance.setStateResourceOnPlugin(plugin, c);
     verify(factory).getStateResource(TEST_STATE_URL);
     verify(plugin).setStateResource(res);
   }
@@ -144,6 +144,21 @@ public class PluginBuilderTest {
     when(factory.getDatabase(TEST_DB_URL)).thenReturn(db);
     pb.connectDatabaseToPlugin(p, dbconfig);
     verify(p).setDatabase(db);
+    verify(factory).getDatabase(TEST_DB_URL);
+    verifyNoMoreInteractions(p, factory);
+  }
+
+  @Test
+  public void testConnectTerminalDatabaseToPlugin() throws Exception {
+    JSONObject dbconfig = new JSONObject();
+    dbconfig.put("terminals_database",TEST_DB_URL);
+    dbconfig.put("server_id", "test_server");
+    PluginBuilder pb = new PluginBuilder(log, factory);
+    Plugin p = mock(Plugin.class);
+    DatabaseResource db = mock(DatabaseResource.class);
+    when(factory.getDatabase(TEST_DB_URL)).thenReturn(db);
+    pb.connectTerminalsDatabase(p, dbconfig);
+    verify(p).setTerminalsDatabase(db);
     verify(factory).getDatabase(TEST_DB_URL);
     verifyNoMoreInteractions(p, factory);
   }

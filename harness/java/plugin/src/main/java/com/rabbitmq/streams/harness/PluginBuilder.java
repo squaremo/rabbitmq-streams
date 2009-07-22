@@ -99,7 +99,6 @@ public class PluginBuilder {
     Connection messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
     Channel messageServerChannel = messageServerConnection.createChannel();
     String id = idForPlugin(configuration);
-    setStateResourceOnPlugin(configuration, plugin);
     connectDatabaseToPlugin(plugin, configuration);
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
@@ -138,7 +137,6 @@ public class PluginBuilder {
     Thread thread = new Thread(notifier);
     thread.setDaemon(true);
     thread.start();
-
     log.info("Harness notifier starting up...");
     plugin.setNotifier(notifier);
   }
@@ -150,6 +148,7 @@ public class PluginBuilder {
 
   protected void configurePipelineComponent(Plugin plugin, JSONObject configuration) throws Exception {
     configurePlugin(plugin, configuration);
+    setStateResourceOnPlugin(plugin, configuration);
   }
 
   private void constructPluginOutputs(JSONObject configuration, MessageResource channel) {
@@ -180,7 +179,7 @@ public class PluginBuilder {
       return config.getString("server_id");
     }
     else {
-      return config.getString("feed_id") + "_" + config.getString("node_id");
+      return config.getString("feed_id") + "." + config.getString("node_id");
     }
   }
 
@@ -191,7 +190,7 @@ public class PluginBuilder {
     return "." + config.getString("feed_id") + "." + config.getString("plugin_name") + "." + config.getString("node_id");
   }
 
-  protected void setStateResourceOnPlugin(JSONObject configuration, Plugin plugin) throws PluginBuildException {
+  protected void setStateResourceOnPlugin(Plugin plugin, JSONObject configuration) throws PluginBuildException {
     plugin.setStateResource(resources.getStateResource(configuration.getString("state")));
   }
 
@@ -204,9 +203,10 @@ public class PluginBuilder {
     }
   }
 
-  private void connectTerminalsDatabase(Plugin plugin, JSONObject config) throws Exception {
+  protected void connectTerminalsDatabase(Plugin plugin, JSONObject config) throws Exception {
     String serverId = config.getString("server_id");
     String terminalsDbStr = config.getString("terminals_database");
+    log.debug("Terminals database for " + serverId + ": " + terminalsDbStr);
     plugin.setTerminalsDatabase(resources.getDatabase(terminalsDbStr));
   }
 

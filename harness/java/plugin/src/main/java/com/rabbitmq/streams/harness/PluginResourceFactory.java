@@ -16,9 +16,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.sf.json.JSONObject;
+
 
 /**
  *
@@ -26,19 +25,24 @@ import net.sf.json.JSONObject;
  */
 public class PluginResourceFactory {
   private final Connection connection;
+  private final SessionFactory sessionFactory;
 
-  public PluginResourceFactory(Connection connection) {
+  public PluginResourceFactory(Connection connection, SessionFactory dbSessionFactory) {
     this.connection = connection;
+    this.sessionFactory = dbSessionFactory;
   }
 
   public DatabaseResource getDatabase(String connectionString) throws IOException {
+    if (connectionString.endsWith("/")) {
+      connectionString = connectionString.substring(0, connectionString.length()-1);
+    }
     URL url = new URL(connectionString);
-      Session session = new Session(url.getHost(), url.getPort(), "", "");
-      String name = url.getPath().substring(1 + url.getPath().lastIndexOf('/'));
-      // We do this in two steps, since if the DB already exists, couchdb4j will get a 412 (precondition failed) and return null.
-      session.createDatabase(name);
-      Database database = session.getDatabase(name);
-      return new CouchDbDatabaseResource(database);
+    Session session = sessionFactory.createSession(url.getHost(), url.getPort(), "", "");
+    String name = url.getPath().substring(1 + url.getPath().lastIndexOf('/'));
+    // We do this in two steps, since if the DB already exists, couchdb4j will get a 412 (precondition failed) and return null.
+    session.createDatabase(name);
+    Database database = session.getDatabase(name);
+    return new CouchDbDatabaseResource(database);
   }
 
   public MessageResource getMessageResource(JSONObject config) throws IOException {
@@ -63,112 +67,117 @@ public class PluginResourceFactory {
     }
   }
 
-  protected static class CouchDbDatabaseResource implements DatabaseResource {
-    private final Database database;
+}
+class CouchDbDatabaseResource implements DatabaseResource {
+  private final Database database;
 
-    public CouchDbDatabaseResource(Database db) {
-      database = db;
+  public CouchDbDatabaseResource(Database db) {
+    database = db;
+  }
+
+  public JSONObject getDocument(String id) throws IOException {
+    return database.getDocument(id).getJSONObject();
+  }
+
+  public void saveDocument(JSONObject doc, String id) throws IOException {
+    Document d = new Document(doc);
+    database.saveDocument(d, id);
+  }
+
+  public String getName() {
+    return database.getName();
+  }
+}
+
+
+class AMQPMessageChannel implements MessageResource {
+  private final Channel channel;
+  private Map<String, AMQPPublisher> outputs;
+  private Map<String, String> inputs;
+  protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
+  private final JSONObject config;
+
+  AMQPMessageChannel(Channel channel, JSONObject config) {
+    this.channel = channel;
+    this.config = config;
+    this.outputs = new HashMap(1);
+    this.inputs = new HashMap(1);
+  }
+
+  public void declareExchange(String name, String exchange) {
+    outputs.put(name, new AMQPPublisher(exchange, channel));
+  }
+
+  public void declareQueue(String name, String queue) {
+    inputs.put(name, queue);
+  }
+
+  public void consume(String channelName, InputHandler handler) throws MessagingException {
+    String queue = inputs.get(channelName);
+    if (null == queue) {
+      throw new MessagingException("No such input " + channelName);
     }
-
-    public JSONObject getDocument(String id) throws IOException {
-      return database.getDocument(id).getJSONObject();
-    }
-
-    public void saveDocument(JSONObject doc, String id) throws IOException {
-      Document d = new Document(doc);
-      database.saveDocument(d, id);
-    }
-
-    public String getName() {
-      return database.getName();
+    QueueingConsumer queuer = new QueueingConsumer(channel);
+    AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
+    Thread consumerThread = new Thread(consumer);
+    consumerThread.setDaemon(true);
+    consumerThread.start();
+    try {
+      channel.basicConsume(queue, queuer);
+    } catch (IOException ex) {
+      throw new MessagingException("IOException on consume", ex);
     }
   }
 
-  protected static class AMQPMessageChannel implements MessageResource {
-    private final Channel channel;
-    private Map<String, AMQPPublisher> outputs;
-    private Map<String, String> inputs;
-    protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
-    private final JSONObject config;
-
-    AMQPMessageChannel(Channel channel, JSONObject config) {
-      this.channel = channel;
-      this.config = config;
-      this.outputs = new HashMap(1);
-      this.inputs = new HashMap(1);
-    }
-
-    public void declareExchange(String name, String exchange) {
-      outputs.put(name, new AMQPPublisher(exchange, channel));
-    }
-
-    public void declareQueue(String name, String queue) {
-      inputs.put(name, queue);
-    }
-
-    public void consume(String channelName, InputHandler handler) throws MessagingException {
-      String queue = inputs.get(channelName);
-      if (null==queue) {
-        throw new MessagingException("No such input " + channelName);
-      }
-      QueueingConsumer queuer = new QueueingConsumer(channel);
-      AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
-      Thread consumerThread = new Thread(consumer);
-      consumerThread.setDaemon(true);
-      consumerThread.start();
+  public void publish(String channelName, Message msg) throws MessagingException {
+    AMQPPublisher p = outputs.get(channelName);
+    if (null != p) {
       try {
-        channel.basicConsume(queue, queuer);
+        p.publish(msg);
       } catch (IOException ex) {
-        throw new MessagingException("IOException on consume", ex);
+        throw new MessagingException("IOException on publish", ex);
       }
+    } else {
+      throw new MessagingException("No such channel: " + channelName);
     }
+  }
+}
 
-    public void publish(String channelName, Message msg) throws MessagingException {
-      AMQPPublisher p = outputs.get(channelName);
-      if (null!=p) {
-        try {
-          p.publish(msg);
-        } catch (IOException ex) {
-          throw new MessagingException("IOException on publish", ex);
-        }
-      }
-      else {
-        throw new MessagingException("No such channel: " + channelName);
-      }
-    }
+class CouchDbStateResource implements StateResource {
 
+  private final Database database;
+  private final String docId;
 
+  public CouchDbStateResource(Database db, String id) {
+    this.database = db;
+    this.docId = id;
   }
 
-  protected static class CouchDbStateResource implements StateResource {
-    private final Database database;
-    private final String docId;
-
-    public CouchDbStateResource(Database db, String id) {
-      this.database = db;
-      this.docId = id;
+  public void setState(Map<String, Object> state) throws IOException {
+    Document doc = database.getDocument(docId);
+    if (null == doc) {
+      doc = new Document();
+      doc.setId(docId);
     }
+    doc.clear();
+    doc.putAll(state);
+    database.saveDocument(doc, docId);
+  }
 
-    public void setState(Map<String, Object> state) throws IOException {
-      Document doc = database.getDocument(docId);
-      if (null==doc) {
-        doc = new Document();
-        doc.setId(docId);
-      }
-      doc.clear();
-      doc.putAll(state);
-      database.saveDocument(doc, docId);
+  public Map<String, Object> getState() throws IOException {
+    Document doc = database.getDocument(docId);
+    if (null == doc) {
+      return new JSONObject();
+    } else {
+      return doc.getJSONObject();
     }
+  }
+}
 
-    public Map<String, Object> getState() throws IOException {
-      Document doc = database.getDocument(docId);
-      if (null==doc) {
-        return new JSONObject();
-      }
-      else {
-        return doc.getJSONObject();
-      }
-    }
+class SessionFactory {
+
+  Session createSession(String host, int port, String user, String passwd) {
+    return new Session(host, port, user, passwd);
   }
 
 }

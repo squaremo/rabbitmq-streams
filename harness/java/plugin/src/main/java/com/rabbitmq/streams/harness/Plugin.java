@@ -3,7 +3,6 @@ package com.rabbitmq.streams.harness;
 import net.sf.json.JSONObject;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 
 public abstract class Plugin {
@@ -11,14 +10,12 @@ public abstract class Plugin {
   public static final String newline = System.getProperty("line.separator");
 
   protected String id;
-  private StateResource stateResource;
+  protected StateResource stateResource;
   protected Logger log;
   protected DatabaseResource privateDb;
   protected DatabaseResource terminalsDatabase;
   protected Notifier notifier;
 
-  private final Map<String, AMQPPublisher> outputs = new HashMap<String, AMQPPublisher>();
-  private final Map<String, InputHandler> handlers = new HashMap<String, InputHandler>();
   protected MessageChannel messageChannel;
 
   public abstract void configure(final JSONObject staticConfig) throws PluginBuildException;
