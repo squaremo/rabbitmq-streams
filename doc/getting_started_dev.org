@@ -1,4 +1,4 @@
-#+TITLE:     Getting Started with Feedshub
+#+TITLE:     Getting Started with RabbitMQ Streams
 #+DATE:      2009-05-22 Fri
 #+LANGUAGE:  en
 #+STARTUP:   odd
@@ -19,14 +19,15 @@
 
 * General Overview
 
-Feedshub is a stream based-architecture conceived to bring more order and
-manageability to the BBC's massive feed infrastructure (see [[http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml][this BBC radiolabs
-blog entry]]; the BBC have tasked us at [[http://www.lshift.net][LShift]] with some of the design and
-development work and you can find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift blog]]).
+RabbitMQ Streams is a stream based-architecture (surprisingly enough)
+conceived to bring more order and manageability to the BBC's massive feed
+infrastructure (see [[http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml][this BBC radiolabs blog entry]]; the BBC have tasked us at
+[[http://www.lshift.net][LShift]] with some of the design and development work for their Feedshub project
+and you can find more background and updates on the [[http://www.lshift.net/blog/tag/feedshub][LShift blog]]).
 
-However the framework is very general and not limited to working with
+However the Streams framework is very general and not limited to working with
 Atom/RSS/... Feeds (for example binary data can be handled efficiently as
-well). In a way you could think of Feedshub as a distributed, robust,
+well). In a way you could think of Streams as a distributed, robust,
 scalable, secure, user-friendly and manageable version of Unix pipes.
 
 The basic logical building blocks are /Sources/ and /Sinks/ (=Servers=) of
@@ -36,7 +37,7 @@ data and /Feeds/ (*NB:* Feed in this sense has nothing to do with RSS/Atom/etc.;
 feed entries) merge and transform the data in arbitrary ways (e.g. by applying
 xslt transforms), as depicted below:
 
-#+CAPTION: Flow of Information in Feedshub (simplified excerpt).
+#+CAPTION: Flow of Information in RabbitMQ Streams (simplified excerpt).
 #+LABEL:   fig:flow-simplified
     [[./flow-simplified.png]]
 
@@ -49,7 +50,7 @@ protocol).
 
 Robustness, scalability etc. are achieved through the "plumbing" layer which
 is transparent to Plugin authors and (mostly) consists of the
-Feedshub-specific =Orchestrator= (which takes care setting up all the wiring
+Streams-specific =Orchestrator= (which takes care setting up all the wiring
 between components) as well as two proven off-the-shelf [[http://www.rabbitmq.com][RabbitMQ]] (the
 messaging broker which provides high-performance, fault-tolerant queued
 communication between components) and Apache's [[http://couchdb.apache.org/][CouchDB]] (which
@@ -68,7 +69,7 @@ make setup
   this is restricted to a small, easily replicated section of build
   dependencies (the targets ending in =-debs=). Currently a couple of packages
   (e.g. CouchDB and RabbitMQ) will be locally installed from sources in the
-  Feedshub directory, but in the future Feedshub will likely offer more
+  Streams directory, but in the future Streams will likely offer more
   flexibility in this regard; just be aware of possible conflicts with
   system-wide installs.
 
@@ -142,13 +143,13 @@ ports than the local versions that feedshub installs.
 
 * Developing
 
-Although many of the core components of Feedshub are written in Erlang, relax!
+Although many of the core components of Streams are written in Erlang, relax!
 No Erlang skills are required for the most common development task: writing
 additional Sources/Sinks/Transformers ([[*Plugins][=Plugins=]]). The same is true for
 extending the set of languages that plugins can be written by writing
 additional [[*Harnesses][=Harnesses=]].
 
-For those who want to dig deeper into the [[*Feeshub Architecture][architecture of Feedshub]] it is
+For those who want to dig deeper into the [[*Feeshub Architecture][architecture of Streams]] it is
 useful to gain some familiarity with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (and [[http://www.rabbitmq.com][RabbitMQ]] in
 particular); [[http://couchdb.apache.org/][CouchDB]] and [[http://erlang.org][Erlang]] skills would also help. The links have
 pointers to more in-depth info, but the following links are useful to hit the
@@ -539,7 +540,7 @@ each instance. The orchestrator provides the name of this database in
 the initialisation configuration.
 
 TODO safe ways of exposing this to the plugin developer.
-*** TODO The Feedshub Architecture in more detail
+*** TODO The Streams Architecture in more detail
 #+CAPTION: Information flow (the almost full picture)
 #+LABEL:   fig:flow
     [[./flow.png]]
