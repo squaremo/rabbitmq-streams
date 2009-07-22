@@ -50,7 +50,10 @@ DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
 	elinks python-simplejson cvs zip default-jdk \
 	ant maven2 screen
 
-
+# Pin down 3rd party libs we get out of repos to a specific revision
+RABBITMQ_HG_TAG=rabbitmq_v1_6_0
+ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
+RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
 
 
 default-target:
@@ -323,7 +326,7 @@ install-erlang-rfc4627: build/src/erlang-rfc4627 build/opt/erlang-rfc4627
 
 update-erlang-rfc4627: build/src/erlang-rfc4627
 	rm -rf build/opt/erlang-rfc4627
-	(cd build/src/erlang-rfc4627 && hg pull && hg update)
+	(cd build/src/erlang-rfc4627 && hg pull -r $(ERLANG_RFC4627_HG_TAG) && hg update)
 	$(MAKE) build/opt/erlang-rfc4627
 
 build/src/erlang-rfc4627:
@@ -372,13 +375,13 @@ install-rabbitmq: \
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
-	(cd build/src/rabbitmq-codegen && hg pull && hg update -C default)
-	(cd build/src/rabbitmq-server && hg pull && hg update -C default)
+	(cd build/src/rabbitmq-codegen && hg pull -r $(RABBITMQ_HG_TAG) && hg update -C default)
+	(cd build/src/rabbitmq-server && hg pull -r $(RABBITMQ_HG_TAG) && hg update -C default)
 	$(MAKE) build/opt/rabbitmq
 
 update-rabbitmq-erlang-client: build/src/rabbitmq-erlang-client
 	rm -rf build/opt/rabbitmq-erlang-client
-	(cd build/src/rabbitmq-erlang-client && hg pull && hg update)
+	(cd build/src/rabbitmq-erlang-client && hg pull -r $(RABBITMQ_CLIENT_HG_TAG) && hg update)
 	ln -sf `pwd`/build/src/rabbitmq-server build/src/rabbitmq_server
 	(ERL_LIBS=`pwd`/build/src; export ERL_LIBS; $(MAKE) build/opt/rabbitmq-erlang-client)
 
