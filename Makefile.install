@@ -95,8 +95,8 @@ prepare-rabbit:
 	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/include
 
 #### Package everything else ####
-JAVA_PLUGINS := regexp_split socket_source relay xslt socket_destination logger javascript
-PYTHON_PLUGINS := regexp_replace webfeed rsspoll
+JAVA_PLUGINS := websubscriber javascript regexp_split socket_source notification httppost relay xslt xmpppubsub archive socket_destination logger
+PYTHON_PLUGINS := regexp_replace webfeed data_timeout
 
 build-plugins: prepare-plugins
 	for j in $(JAVA_PLUGINS); \
