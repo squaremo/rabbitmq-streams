@@ -23,7 +23,7 @@ open_channel() ->
 
 %%---------------------------------------------------------------------------
 
--record(root_config, {rabbitmq_host, rabbitmq_admin_user, rabbitmq_admin_password}).
+-record(root_config, {rabbitmq_host, rabbitmq_port, rabbitmq_admin_user, rabbitmq_admin_password}).
 
 setup_core_messaging(Ch, LogCh) ->
     #'exchange.declare_ok'{} =
@@ -99,9 +99,11 @@ read_root_config() ->
         {ok, ?FEEDSHUB_VERSION} ->
             {ok, RMQ} = rfc4627:get_field(RootConfig, "rabbitmq"),
             {ok, RHost} = rfc4627:get_field(RMQ, "host"),
+            {ok, RPort} = rfc4627:get_field(RMQ, "port"),
             {ok, RUser} = rfc4627:get_field(RMQ, "user"),
             {ok, RPassword} = rfc4627:get_field(RMQ, "password"),
             {ok, #root_config{rabbitmq_host = binary_to_list(RHost),
+                              rabbitmq_port = RPort,
                               rabbitmq_admin_user = binary_to_list(RUser),
                               rabbitmq_admin_password = binary_to_list(RPassword)}};
         {ok, Other} ->
@@ -264,10 +266,11 @@ server_started_callback(RootPid) ->
 
 init([]) ->
     {ok, Configuration = #root_config{rabbitmq_host = RHost,
+                                      rabbitmq_port = RPort,
                                       rabbitmq_admin_user = RUser,
                                       rabbitmq_admin_password = RPassword}}
         = startup_couch_scan(),
-    AmqpConnectionPid = amqp_connection:start_link(RUser, RPassword, RHost, 5672),
+    AmqpConnectionPid = amqp_connection:start_network_link(RUser, RPassword, RHost, RPort),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch, LogCh),
