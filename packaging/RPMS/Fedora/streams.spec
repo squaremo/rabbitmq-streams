@@ -1,7 +1,7 @@
 Summary: RabbitMQ Streams orchestrator - message exchange
 Name: rabbitmq-streams
 Version: 0.1
-Release: 1
+Release: 2
 Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
