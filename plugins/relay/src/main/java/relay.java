@@ -1,6 +1,7 @@
 import com.rabbitmq.streams.harness.PluginException;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import net.sf.json.JSONObject;
 
 import java.util.HashSet;
@@ -40,7 +41,8 @@ public class relay extends Server {
   };
   
   @Override
-  public void configure(JSONObject config) {
+  public void configure(JSONObject config) throws PluginBuildException {
+    super.configure(config);
     registerInput(input);
   }
 }

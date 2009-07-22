@@ -1,5 +1,5 @@
-import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
@@ -69,7 +69,9 @@ public class socket_destination extends Server {
     }
   }
 
-  public void configure(JSONObject config) {
+  @Override
+  public void configure(JSONObject config) throws PluginBuildException {
+    super.configure(config);
     registerInput(input);
   }
 

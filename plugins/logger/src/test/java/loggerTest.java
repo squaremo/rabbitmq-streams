@@ -70,7 +70,7 @@ public class loggerTest {
       handlers.put(channelName, handler);
     }
 
-    public void publish(String channelName, Message msg) throws IOException, MessagingException {
+    public void publish(String channelName, Message msg) throws MessagingException {
       throw new UnsupportedOperationException("Not supported yet.");
     }
 

@@ -1,6 +1,4 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
  */
 
 package com.rabbitmq.streams.harness;
@@ -17,7 +15,7 @@ import static org.mockito.Mockito.*;
 
 /**
  *
- * @author mikeb
+ * @author mikeb@lshift.net
  */
 public class PluginBuilderTest {
   public static final String TEST_STATE_URL = "http://example.com/database/state";

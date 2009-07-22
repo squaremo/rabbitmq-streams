@@ -13,9 +13,6 @@ import com.rabbitmq.streams.harness.Server
 
 class NotificationServer() extends Server() {
 
-  override def configure(config : JSONObject) {
-  }
-
   private val terms: Map[String, Receiver] = Map()
 
   case class Notification(terminal: String, message: Array[Byte])

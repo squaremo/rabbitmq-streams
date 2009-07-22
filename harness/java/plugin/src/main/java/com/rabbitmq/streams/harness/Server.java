@@ -98,8 +98,13 @@ public abstract class Server extends Plugin {
     abstract public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException;
   }
 
-  protected void registerInput(InputHandler handler) throws MessagingException {
-    this.messageChannel.consume("input", handler);
+  protected void registerInput(InputHandler handler) throws PluginBuildException {
+    try {
+      this.messageChannel.consume("input", handler);
+    }
+    catch (MessagingException ex) {
+      throw new PluginBuildException("Unable to register input handler", ex);
+    }
   }
 
   private final InputHandler command = new InputHandler() {

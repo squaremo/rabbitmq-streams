@@ -1,6 +1,7 @@
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
@@ -35,7 +36,7 @@ public class logger extends PipelineComponent {
   };
 
   @Override
-  public void configure(JSONObject config) {
+  public void configure(JSONObject config) throws PluginBuildException {
     registerInput("input", input);
   }
 }
