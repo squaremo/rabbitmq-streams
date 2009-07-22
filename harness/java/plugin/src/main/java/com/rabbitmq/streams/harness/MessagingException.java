@@ -4,13 +4,11 @@
 
 package com.rabbitmq.streams.harness;
 
-import java.io.IOException;
-
 /**
  *
  * @author mikeb
  */
-public class MessagingException extends Exception {
+public class MessagingException extends PluginException {
 
   MessagingException(String msg) {
     super(msg);

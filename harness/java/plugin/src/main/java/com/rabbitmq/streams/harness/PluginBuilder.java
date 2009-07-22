@@ -98,16 +98,16 @@ public class PluginBuilder {
   protected void configurePlugin(Plugin plugin, JSONObject configuration) throws Exception {
     Connection messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
     Channel messageServerChannel = messageServerConnection.createChannel();
-    plugin.configure(mergedStaticConfiguration(configuration));
     String id = idForPlugin(configuration);
     setStateResourceOnPlugin(configuration, plugin);
     connectDatabaseToPlugin(plugin, configuration);
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
-    MessageResource mr = resources.getMessageResource(configuration.getJSONObject("configuration"));
+    MessageResource mr = resources.getMessageResource(configuration);
     constructPluginOutputs(configuration, mr);
     constructPluginInputs(configuration, mr);
     plugin.setMessageChannel(mr);
+    plugin.configure(mergedStaticConfiguration(configuration));
   }
 
   protected static JSONObject mergedStaticConfiguration(JSONObject configuration) {
@@ -124,13 +124,13 @@ public class PluginBuilder {
   }
 
   private Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
-    AMQPLogger log = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration));
-    Thread logThread = new Thread(log);
+    AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration));
+    Thread logThread = new Thread(logger);
     logThread.setDaemon(true);
     logThread.start();
-    log.info("Harness starting up...");
-    plugin.setLog(log);
-    return log;
+    logger.info("Harness starting up...");
+    plugin.setLog(logger);
+    return logger;
   }
 
   private void connectNotifierToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
@@ -172,7 +172,7 @@ public class PluginBuilder {
   }
 
   private boolean pluginIsServer(JSONObject config) {
-    return config.getJSONObject("plugin_type").getString("type").equals("server");
+    return config.getJSONObject("plugin_type").getString("subtype").equals("server");
   }
 
   private String idForPlugin(JSONObject config) {
@@ -180,7 +180,7 @@ public class PluginBuilder {
       return config.getString("server_id");
     }
     else {
-      return config.getString("feed_id") + config.getString("node_id");
+      return config.getString("feed_id") + "_" + config.getString("node_id");
     }
   }
 

@@ -16,6 +16,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 
 /**
@@ -104,16 +106,31 @@ public class PluginResourceFactory {
       inputs.put(name, queue);
     }
 
-    public void consume(String channelName, InputHandler handler) {
+    public void consume(String channelName, InputHandler handler) throws MessagingException {
+      String queue = inputs.get(channelName);
+      if (null==queue) {
+        throw new MessagingException("No such input " + channelName);
+      }
       QueueingConsumer queuer = new QueueingConsumer(channel);
       AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
-      new Thread(consumer).start();
+      Thread consumerThread = new Thread(consumer);
+      consumerThread.setDaemon(true);
+      consumerThread.start();
+      try {
+        channel.basicConsume(queue, queuer);
+      } catch (IOException ex) {
+        throw new MessagingException("IOException on consume", ex);
+      }
     }
 
-    public void publish(String channelName, Message msg) throws IOException, MessagingException {
+    public void publish(String channelName, Message msg) throws MessagingException {
       AMQPPublisher p = outputs.get(channelName);
       if (null!=p) {
-        p.publish(msg);
+        try {
+          p.publish(msg);
+        } catch (IOException ex) {
+          throw new MessagingException("IOException on publish", ex);
+        }
       }
       else {
         throw new MessagingException("No such channel: " + channelName);

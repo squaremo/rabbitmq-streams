@@ -19,6 +19,8 @@ public class AMQPConnection {
         String password = config.getString("password");
 
         ConnectionParameters connParams = new ConnectionParameters();
+        // no heartbeat -- useful for debugging
+        // connParams.setRequestedHeartbeat(0);
         connParams.setVirtualHost(virt);
         connParams.setUsername(userid);
         connParams.setPassword(password);

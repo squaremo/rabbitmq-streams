@@ -1,6 +1,7 @@
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
@@ -15,7 +16,7 @@ public class regexp_split extends PipelineComponent {
   private final static String POSITIVE = "positive";
   private final static String NEGATIVE = "negative";
 
-  public void configure(final JSONObject config) {
+  public void configure(final JSONObject config) throws PluginBuildException {
 
     String regexp = config.getString("regexp");
     int flags = (config.getBoolean("multiline") ? Pattern.MULTILINE : 0)

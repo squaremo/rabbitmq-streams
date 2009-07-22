@@ -17,10 +17,15 @@ public abstract class Server extends Plugin {
 
   @Override
   public void configure(JSONObject staticConfig) throws PluginBuildException {
-    this.messageChannel.consume("command", command);
+    try {
+      this.messageChannel.consume("command", command);
+    }
+    catch (Exception ex) {
+      throw new PluginBuildException("Could not consume from command channel", ex);
+    }
   }
 
-  public void registerInputHandler(ServerInputReader handler) {
+  public void registerInputHandler(ServerInputReader handler) throws MessagingException {
     this.messageChannel.consume("input", handler);
   }
 
@@ -93,7 +98,7 @@ public abstract class Server extends Plugin {
     abstract public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException;
   }
 
-  protected void registerInput(InputHandler handler) {
+  protected void registerInput(InputHandler handler) throws MessagingException {
     this.messageChannel.consume("input", handler);
   }
 

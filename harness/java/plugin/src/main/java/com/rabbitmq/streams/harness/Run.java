@@ -15,6 +15,11 @@ public class Run {
     // FIXME Yuck, we shouldn't have to care here
     Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
     AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), config.getString("plugin_name"));
+    // TODO: why does this need to run in a thread, rather than just being synchronous
+    // TODO: encapsulate this
+    Thread logThread = new Thread(buildlog);
+    logThread.setDaemon(true);
+    logThread.start();
 
     PluginResourceFactory factory = new PluginResourceFactory(conn);
     PluginBuilder builder = new PluginBuilder(buildlog, factory);
