@@ -4,7 +4,7 @@ import atexit
 from functools import partial
 import hashlib
 import httplib
-from optparse import OptionParser, make_option as opt
+from optparse import OptionParser, OptionGroup, make_option as opt
 import os
 import posixpath
 import re
@@ -18,7 +18,6 @@ here = os.path.dirname(os.path.abspath(sys.argv[0]))
 sys.path.insert(0, os.path.join(here, '../harness/python'))
 sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
-
 import amqplib.client_0_8 as amqp
 
 from feedshub import json, plugin_config_header as PLUGIN_CONFIG_HEADER
@@ -30,8 +29,6 @@ CONT = "..."
 MODS = frozenset('sleep rk config headers'.split())
 
 class ReplError(Exception): pass
-
-
 
 
 # TODO(alexander): remove hardwired config
@@ -327,7 +324,10 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
                 req, ans.status, ans_s))
             sys.exit(BAD_SYSTEM_STATE)
 
-def setup_everything(plugindir, config_json, Outputter):
+def is_server(spec):
+    return spec['subtype']=='server'
+
+def setup_everything(plugindir, config_json, env, Outputter):
     try:
         instance_config = json.loads(config_json)
     except ValueError:
@@ -335,16 +335,22 @@ def setup_everything(plugindir, config_json, Outputter):
         sys.exit(255)
 
     info(IN + "PLUGIN_INSTANCE_CONFIG%s%s" % (SEP, json_repr(instance_config)))
+    info("## Environment")
+    info("# %r" % env)
 
     with open(os.path.join(plugindir, 'plugin.js')) as f:
         plugin_specs = json.loads(f.read())
 
     info("## Plugin descriptor:")
     info("#", json_repr(plugin_specs))
-
+    inputspec = [{"name": "input"},
+                 {"name": "command"}] if is_server(plugin_specs) \
+                                      else plugin_specs['inputs_specification']
+    outputspec = [{'name': 'output'}] if is_server(plugin_specs) \
+                                      else plugin_specs['outputs_specification']
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
-                        inputspec=plugin_specs['inputs_specification'],
-                        outputspec=plugin_specs['outputs_specification'],
+                        inputspec=inputspec,
+                        outputspec=outputspec,
                         Outputter=Outputter)
 
     init_couch_state()
@@ -362,7 +368,7 @@ def setup_everything(plugindir, config_json, Outputter):
             config = instance_config.copy()
             config.update(kwargs)
         spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs,
-                     instance_config=config,
+                     instance_config=config, env=env,
                      inputs=wiring.inputs, outputs=wiring.outputs,
                      rabbit_params=RABBIT_CONNECTION_PARAMS)
 
@@ -379,7 +385,7 @@ def setup_everything(plugindir, config_json, Outputter):
 
 
 
-def spawn_plugin(plugindir, plugin_specs, instance_config,
+def spawn_plugin(plugindir, plugin_specs, instance_config, env,
                  inputs, outputs,
                  rabbit_params=RABBIT_CONNECTION_PARAMS,
                  ):
@@ -407,10 +413,15 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
         "state":  posixpath.join(plugin_test_doc_url, statedocname),
         "database": plugin_test_doc_url
     }
+    if (is_server(plugin_specs)):
+        init['server_id'] = init['node_id']
+        # TODO: make this a dummy terminal database
+        init['terminals_database'] = "http://%s:%d/feedshub_status/" % tuple(COUCH_HOST_PORT)
     harnessdir = os.path.join(HARNESS_BASE_DIR, init['harness_type'])
     harness = os.path.join(harnessdir, 'run_plugin.sh')
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                                   stdout=subprocess.PIPE, # TODO(alexander):
+                                  env=env,
                                   stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
     info("## Harness PID", pluginproc.stdout.readline())
     info("## Initialising plugin with:")
@@ -421,7 +432,6 @@ def spawn_plugin(plugindir, plugin_specs, instance_config,
     # python2.6 has a Popen.kill but for 2.5 we need this:
     # whack all lingering plugin processes
     __processes_to_kill.append(pluginproc)
-
     return pluginproc
 
 
@@ -606,7 +616,8 @@ def repl(lines, send, expect=False, is_valid_channel=lambda *_: True, lineno=1):
 
 
 if __name__ == '__main__':
-    opts, args = OptionParser("""%prog [OPTIONS] PLUGINPATH [PLUGIN_CONFIG]
+
+    parser = OptionParser("""%prog [OPTIONS] PLUGINPATH [PLUGIN_CONFIG]
 
     Test a plugin by sending input and observing its output.
     """,
@@ -615,10 +626,24 @@ if __name__ == '__main__':
                                opt(None, "--selftest", action="store_true",
                                    help="Run a basic selftest."),
                                opt(None, "--test", action="store_true",
-                                   help="Treat stdin as Input/ExpectedOuptput pairings"),
+                                   help="Treat stdin as Input/ExpectedOutput pairings"),
                                opt('-v', "--verbose", action="store_true", default=False,
                                    help="Print out additional info.")
-                               ]).parse_args()
+                               ])
+    parser.add_option('-D', action="append", dest="env", default=[], help="An environment variable assignment to pass along to the harness")
+    parser.add_option("--couchdb",
+                      default="http://localhost:5984/",
+                      dest="couchdb",
+                      help="CouchDB holding configuration")
+    
+    amqpoptions = OptionGroup(parser, "AMQP connection parameters")
+    amqpoptions.add_option("--amqp-host", default="localhost:5672")
+    amqpoptions.add_option("--amqp-user", default="guest")
+    amqpoptions.add_option("--amqp-passwd", default="guest")
+    amqpoptions.add_option("--amqp-vhost", default="/")
+    parser.add_option_group(amqpoptions)
+
+    opts, args = parser.parse_args()
     if opts.selftest:
         import doctest
         print doctest.testmod()
@@ -630,7 +655,6 @@ if __name__ == '__main__':
 
         plugin_path = args.pop(0)
         filename = args.pop(0) if args else None
-
 
         if opts.test:
             is_valid_channel=lambda t, c: (
@@ -654,8 +678,11 @@ if __name__ == '__main__':
             verbosity = 1 + opts.verbose
             config_json = open(filename).read() if filename else "{}"
 
+        env = [e.partition("=") for e in opts.env]
+        env = dict((k,v) for (k,s,v) in env)
         setup_args = dict(plugindir=os.path.abspath(plugin_path),
                           config_json=config_json,
+                          env=env,
                           Outputter=Outputter)
 
         wiring, reconfigure_plugin, config = setup_everything(**setup_args)

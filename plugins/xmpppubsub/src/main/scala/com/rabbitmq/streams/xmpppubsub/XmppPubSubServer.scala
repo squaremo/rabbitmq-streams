@@ -14,10 +14,10 @@ class XmppPubSubServer() extends Server() {
   var dispatcher : com.rabbitmq.streams.xmpppubsub.Dispatcher = null
 
   override def configure(config: JSONObject) {
-    super.configure(config)
     val conn = managerFromConfig(config)
     dispatcher = new Dispatcher(log, conn)
     dispatcher.start
+    super.configure(config)
 
     object input extends Server.ServerInputReader {
       override def handleBodyForTerminal(body : Array[Byte], terminalId : String, msg : InputMessage) {

@@ -5,8 +5,8 @@
 >input	1
 ...	3
 
-<positive	1
-...	uno2tres
+<negative	1
+...	3
 input	13
 
 <negative	13

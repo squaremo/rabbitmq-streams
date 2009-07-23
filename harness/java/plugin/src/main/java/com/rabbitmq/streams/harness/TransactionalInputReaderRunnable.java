@@ -3,7 +3,6 @@ package com.rabbitmq.streams.harness;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-import com.rabbitmq.client.impl.ChannelN;
 import java.io.IOException;
 import net.sf.json.JSONObject;
 
@@ -15,11 +14,13 @@ import net.sf.json.JSONObject;
  * <p/>
  * Note: Transactions are only on outgoing messages, so it doesn't matter that two or more threads could receive messages before one
  * acquires the lock; the transaction will be complete or abandoned before another consumer can start sending anything.
+ * 
+ * QUESTION: Where does 15 come from?
  */
 class TransactionalInputReaderRunnable extends AMQPInputConsumer {
 
-  TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Object lock) {
-    super(consumer, handler, config);
+  TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
+    super(consumer, handler, config, log);
     this.lock = lock;
   }
 

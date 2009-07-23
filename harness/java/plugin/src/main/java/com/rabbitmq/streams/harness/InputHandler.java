@@ -15,6 +15,6 @@ import net.sf.json.JSONObject;
  */
 public interface InputHandler {
 
-  public void handleMessage(InputMessage m, JSONObject config) throws Exception;
+  public void handleMessage(InputMessage m, JSONObject config) throws PluginException;
 
 }

@@ -25,10 +25,6 @@ public abstract class Server extends Plugin {
     }
   }
 
-  public void registerInputHandler(ServerInputReader handler) throws MessagingException {
-    this.messageChannel.consume("input", handler);
-  }
-
   private class ServerMessage implements Message {
     private final byte[] body;
     private final String routingKey;
@@ -72,7 +68,7 @@ public abstract class Server extends Plugin {
    * @return a list of JSONObject representing the configuration for this server.
    * @throws IOException if unable to get configuration documents from database.
    */
-  protected final List<JSONObject> terminalConfigs(String terminalId) throws IOException {
+  protected List<JSONObject> terminalConfigs(String terminalId) throws IOException {
     JSONObject wholeConfig = this.terminalsDatabase.getDocument(terminalId);
     JSONArray servers = wholeConfig.getJSONArray("servers");
     ArrayList<JSONObject> configs = new ArrayList<JSONObject>();
@@ -85,7 +81,7 @@ public abstract class Server extends Plugin {
     return configs;
   }
 
-  protected final JSONObject terminalStatus(String terminalId) throws IOException {
+  protected JSONObject terminalStatus(String terminalId) throws IOException {
     return this.terminalsDatabase.getDocument(terminalId + "_status");
   }
 
@@ -116,8 +112,12 @@ public abstract class Server extends Plugin {
       String terminalId = serverIdterminalId.substring(loc + 1);
 
       try {
-        List<JSONObject> terminalConfigs = Server.this.terminalConfigs(terminalId);
         JSONObject terminalStatus = Server.this.terminalStatus(terminalId);
+        if (null==terminalStatus) {
+          Server.this.log.error("Terminal does not exist " + terminalId);
+          return;
+        }
+        List<JSONObject> terminalConfigs = Server.this.terminalConfigs(terminalId);
 
         if (!serverIds.contains(Server.this.getId())) {
           Server.this.log.error(

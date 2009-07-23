@@ -173,7 +173,9 @@ handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 				  {ok, PUC} -> {ok, PUC};
 				  not_found -> {ok, {obj, []}}
 			      end,
-
+    
+    StateDb = "server_" ++ ServerId ++ "_state",
+    couchapi:createdb(StateDb),
     ConfigDoc = {obj,
                  [{"harness_type", HarnessTypeBin},
                   {"plugin_name", ServerTypeBin},
@@ -191,7 +193,7 @@ handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
                           ]}},
                   {"inputs", Inputs},
                   {"outputs", Outputs},
-                  {"database", list_to_binary(couchapi:expand("server_" ++ ServerId ++ "_state"))},
+                  {"database", list_to_binary(couchapi:expand(StateDb))},
                   {"terminals_database", list_to_binary(couchapi:expand(?FEEDSHUB_STATUS_DBNAME))}
 		 ]},
     Subproc = orchestrator_subprocess:start({?MODULE, ServerType, ServerId},

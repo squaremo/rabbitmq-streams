@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 public class PluginResourceFactoryTest {
   private Connection connection;
   private SessionFactory sessionFactory;
+  private Logger log;
 
   public PluginResourceFactoryTest() {
   }
@@ -40,6 +41,7 @@ public class PluginResourceFactoryTest {
     public void setUp() {
       connection = mock(Connection.class);
       sessionFactory = mock(SessionFactory.class);
+      log = mock(Logger.class);
     }
 
     @After
@@ -52,7 +54,7 @@ public class PluginResourceFactoryTest {
   @Test
   public void testGetDatabase() throws Exception {
     final String dbUrl = "http://localhost:9999/database";
-    PluginResourceFactory pf = new PluginResourceFactory(connection, sessionFactory);
+    PluginResourceFactory pf = new PluginResourceFactory(connection, sessionFactory, log);
     Session s = mock(Session.class);
     Database d = mock(Database.class);
     when(d.getName()).thenReturn("database");
@@ -65,14 +67,26 @@ public class PluginResourceFactoryTest {
   }
 
   @Test
+  public void testNonexistantDocument() throws Exception {
+    Session s = mock(Session.class);
+    Database d = mock(Database.class);
+    when(d.getDocument(anyString())).thenReturn(null); // null == doesn't exist
+    when(s.getDatabase(anyString())).thenReturn(d);
+    when(sessionFactory.createSession(anyString(), anyInt(), anyString(), anyString())).thenReturn(s);
+    PluginResourceFactory pf = new PluginResourceFactory(connection, sessionFactory, log);
+    DatabaseResource db = pf.getDatabase("http://example.com/");
+    assertNull(db.getDocument("anything"));
+  }
+
+  @Test
   public void testGetDatabaseTrailingSlash() throws Exception {
     final String dbUrl = "http://localhost:9999/database/";
-    PluginResourceFactory pf = new PluginResourceFactory(connection, sessionFactory);
     Session s = mock(Session.class);
     Database d = mock(Database.class);
     when(d.getName()).thenReturn("database");
     when(s.getDatabase("database")).thenReturn(d);
     when(sessionFactory.createSession(anyString(), anyInt(), anyString(), anyString())).thenReturn(s);
+    PluginResourceFactory pf = new PluginResourceFactory(connection, sessionFactory, log);
     DatabaseResource db = pf.getDatabase(dbUrl);
     assertNotNull(db);
     verify(s).getDatabase("database");

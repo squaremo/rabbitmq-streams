@@ -14,11 +14,16 @@ import scala.collection.jcl.Conversions._
 
 class websubscriber() extends Server() {
 
-    val dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id), privateDb)
-    dispatcher.start
+  var dispatcher : Dispatcher = null
 
-    override def terminalStatusChange(terminalId: String, configs : java.util.List[JSONObject], active : Boolean) {
-        dispatcher ! StatusChange(terminalId, List(configs:_*), active)
-    }
+  override def configure(config : JSONObject) {
+    dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id), privateDb)
+    dispatcher.start
+    super.configure(config)
+  }
+
+  override def terminalStatusChange(terminalId: String, configs : java.util.List[JSONObject], active : Boolean) {
+    dispatcher ! StatusChange(terminalId, List(configs:_*), active)
+  }
 
 }
