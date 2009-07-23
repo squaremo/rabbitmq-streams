@@ -1,9 +1,5 @@
 package com.rabbitmq.streams.harness;
 
-import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 /**
  * A superclass for pipeline components. THis does a bit more work than its
  * superclass, Plugin; in particular, in wrapping a transaction around

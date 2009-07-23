@@ -3,7 +3,7 @@
     "author": {"name": "Alexander Schmolck", "email": "alexander@lshift.net"},
 
     "type": "plugin-specification",
-    "harness": "python",
+    "harness": "java",
     "subtype": "pipeline_component",
 
     "global_configuration_specification": [],

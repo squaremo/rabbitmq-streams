@@ -61,7 +61,7 @@ def json_repr(py_obj):
     return json.dumps(py_obj, indent=None).replace('\n', '\n' + SEP)
 
 def newname():
-    return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
+    return 'test-' + hashlib.sha1(os.urandom(8)).hexdigest()
 
 def format_output(channel_name, msg):
     line_sep = "\n%s%s%s" % (CONT, ' ' * (len(OUT)+len(channel_name)), SEP)
@@ -223,7 +223,7 @@ class TestWiring(object):
             self.subscribe(name="log", exchange="feedshub/log", key='#',
                            mk_callback=partial(format_output, "log"))
 
-        self.subscribe(name="log", exchange="feedshub/log", key='#',
+        self.subscribe(name="log", exchange="feedshub/notify", key='#',
                        mk_callback=partial(format_output, "notify"))
 
         self.talkers = dict((name, self.make_talker(queue))

@@ -5,8 +5,6 @@
 
 package com.rabbitmq.streams.harness;
 
-import java.io.IOException;
-
 /**
  *
  * @author mikeb@lshift.net
