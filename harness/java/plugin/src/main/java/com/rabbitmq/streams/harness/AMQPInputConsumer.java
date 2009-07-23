@@ -10,7 +10,7 @@ import net.sf.json.JSONArray;
 
 import java.util.Map;
 
-abstract class AMQPInputConsumer implements Runnable {
+public abstract class AMQPInputConsumer implements Runnable {
 
   public static final String PLUGIN_VALUES_HEADER = "x-streams-plugin-values";
 
