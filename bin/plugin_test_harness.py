@@ -226,6 +226,9 @@ class TestWiring(object):
             self.subscribe(name="log", exchange="feedshub/log", key='#',
                            mk_callback=partial(format_output, "log"))
 
+        self.subscribe(name="log", exchange="feedshub/log", key='#',
+                       mk_callback=partial(format_output, "notify"))
+
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
 
