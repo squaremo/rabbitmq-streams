@@ -43,6 +43,8 @@
     <module>notification</module>
     <module>httppost</module>
     <module>javascript</module>
+    <module>data_empty</module>
+    <module>data_not_changed</module>
   </modules>
 
   <build>
