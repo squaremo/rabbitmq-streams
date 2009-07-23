@@ -61,7 +61,7 @@ def json_repr(py_obj):
     return json.dumps(py_obj, indent=None).replace('\n', '\n' + SEP)
 
 def newname():
-    return 'test/' + hashlib.sha1(os.urandom(8)).hexdigest()
+    return 'test-' + hashlib.sha1(os.urandom(8)).hexdigest()
 
 def format_output(channel_name, msg):
     line_sep = "\n%s%s%s" % (CONT, ' ' * (len(OUT)+len(channel_name)), SEP)
