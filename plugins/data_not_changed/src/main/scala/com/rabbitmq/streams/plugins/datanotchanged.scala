@@ -25,7 +25,7 @@ class DataNotChanged() extends PipelineComponent() {
           lastMessage = msg.body
           state.put("lastMessage", lastMessage)
           setState(state)
-          // publishToChannel("nag", msg.withBody("###DEBUG got you!"))
+          publishToChannel("nag", msg.withBody("###DEBUG got you!"))
         }
       }
       registerInput("input", input)
