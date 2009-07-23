@@ -36,7 +36,9 @@ public class XsltProcessor extends PipelineComponent {
   };
 
   public void configure(final JSONObject config) throws PluginBuildException {
-    if(null == config) throw new PluginBuildException("Cannot build plugin with null configuration");
+    if (null == config) {
+      throw new PluginBuildException("Cannot build plugin with null configuration");
+    }
 
     String xsltUrl = config.getString("stylesheet_url");
     InputStream content;
@@ -69,7 +71,7 @@ public class XsltProcessor extends PipelineComponent {
   InputReader input = new InputReader() {
 
     @Override
-    public void handleMessage(InputMessage msg, JSONObject config) throws PluginException {
+    public void handleMessage(InputMessage msg) throws PluginException {
       StreamSource xmlSource = new StreamSource(new ByteArrayInputStream(msg.body()));
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       StreamResult result = new StreamResult(output);
@@ -78,9 +80,10 @@ public class XsltProcessor extends PipelineComponent {
         transformer.transform(xmlSource, result);
         XsltProcessor.this.publishToChannel("output", msg.withBody(output.toString()));
       }
-      catch (Exception e) {
-        throw new PluginException(e);
+      catch (TransformerException e) {
+        throw new PluginException("Unable to transform document", e);
       }
+
     }
 
   };
