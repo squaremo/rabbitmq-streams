@@ -14,12 +14,13 @@ import com.fourspaces.couchdb._
 
 class archive() extends Server() {
 
-  val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
-  val dispatcher = new Dispatcher(log, couch)
-  dispatcher.start
+  var dispatcher : Dispatcher = null
 
   override def configure(config : JSONObject) {
-    super.configure(config)
+  val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
+  dispatcher = new Dispatcher(log, couch)
+  dispatcher.start
+  super.configure(config)
     
     object input extends InputReader {
         override def handleMessage(msg : InputMessage) {
