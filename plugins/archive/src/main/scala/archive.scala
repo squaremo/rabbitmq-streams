@@ -1,8 +1,5 @@
 /*
  * archive.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
  */
 
 import com.rabbitmq.streams.harness._
@@ -22,6 +19,8 @@ class archive() extends Server() {
   dispatcher.start
 
   override def configure(config : JSONObject) {
+    super.configure(config)
+    
     object input extends InputReader {
         override def handleMessage(msg : InputMessage) {
             log.debug("Input received: " + new String(msg.body))
