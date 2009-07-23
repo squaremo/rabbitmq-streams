@@ -204,6 +204,34 @@ public class PluginBuilderTest {
     instance.constructPlugin(cloader, pluginName);
   }
 
+  @Test
+  public void testIdIsSetForPipelineComponent() throws Exception {
+    Plugin p = mock(Plugin.class);
+    JSONObject conf = new JSONObject();
+    JSONObject ptype = new JSONObject();
+    ptype.put("subtype", "pipeline-component");
+    conf.put("plugin_type", ptype);
+    conf.put("feed_id", "testfeed");
+    conf.put("node_id", "testnode");
+    conf.put("plugin_name", "testplugin");
+    PluginBuilder instance = new PluginBuilder(log, factory);
+    instance.setIdForPlugin(p, conf);
+    verify(p).setId("testfeed.testnode");
+  }
+
+    @Test
+  public void testIdIsSetForServer() throws Exception {
+    Plugin p = mock(Plugin.class);
+    JSONObject conf = new JSONObject();
+    JSONObject ptype = new JSONObject();
+    ptype.put("subtype", "server");
+    conf.put("plugin_type", ptype);
+    conf.put("server_id", "testserver");
+    PluginBuilder instance = new PluginBuilder(log, factory);
+    instance.setIdForPlugin(p, conf);
+    verify(p).setId("testserver");
+  }
+
   public static class NoDefaultConstructorPlugin extends Plugin {
 
     private NoDefaultConstructorPlugin() {}

@@ -22,7 +22,7 @@ public class Run {
     logThread.start();
 
     SessionFactory sf = new SessionFactory();
-    PluginResourceFactory factory = new PluginResourceFactory(conn, sf);
+    PluginResourceFactory factory = new PluginResourceFactory(conn, sf, buildlog);
     PluginBuilder builder = new PluginBuilder(buildlog, factory);
     builder.buildPlugin(config);
 

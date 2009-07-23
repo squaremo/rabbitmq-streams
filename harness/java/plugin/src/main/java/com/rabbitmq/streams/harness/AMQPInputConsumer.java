@@ -18,8 +18,10 @@ abstract class AMQPInputConsumer implements Runnable {
   protected final InputHandler handler;
   private final JSONObject originalConfiguration;
   private JSONObject staticConfiguration;
+  protected final Logger log;
 
-  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
+  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log) {
+    this.log = log;
     this.consumer = consumer;
     this.handler = handler;
     this.originalConfiguration = config.getJSONObject("configuration");

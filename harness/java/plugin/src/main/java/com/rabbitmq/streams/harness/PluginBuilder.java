@@ -38,11 +38,15 @@ public class PluginBuilder {
       if (pluginIsServer(configuration)) {
         Server p = constructPlugin(ucl, pluginName);
         configureServer(p, configuration);
+        // We very much want this to happen last
+        p.configure(mergedStaticConfiguration(configuration));
         return p;
       }
       else {
         PipelineComponent p = constructPlugin(ucl, pluginName);
         configurePipelineComponent(p, configuration);
+        // We very much want this to happen last
+        p.configure(mergedStaticConfiguration(configuration));
         return p;
       }
     }
@@ -98,7 +102,7 @@ public class PluginBuilder {
   protected void configurePlugin(Plugin plugin, JSONObject configuration) throws Exception {
     Connection messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
     Channel messageServerChannel = messageServerConnection.createChannel();
-    String id = idForPlugin(configuration);
+    setIdForPlugin(plugin, configuration);
     connectDatabaseToPlugin(plugin, configuration);
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
@@ -106,7 +110,6 @@ public class PluginBuilder {
     constructPluginOutputs(configuration, mr);
     constructPluginInputs(configuration, mr);
     plugin.setMessageChannel(mr);
-    plugin.configure(mergedStaticConfiguration(configuration));
   }
 
   protected static JSONObject mergedStaticConfiguration(JSONObject configuration) {
@@ -120,6 +123,11 @@ public class PluginBuilder {
     }
     mergedConfig.putAll(staticConfig);
     return mergedConfig;
+  }
+
+  protected void setIdForPlugin(Plugin plugin, JSONObject configuration) {
+    String id = idForPlugin(configuration);
+    plugin.setId(id);
   }
 
   private Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {

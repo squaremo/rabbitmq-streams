@@ -6,8 +6,8 @@ import net.sf.json.JSONObject;
 
 class DefaultInputConsumer extends AMQPInputConsumer {
 
-  DefaultInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config) {
-    super(consumer, handler, config);
+  DefaultInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log) {
+    super(consumer, handler, config, log);
   }
 
   public void run() {
@@ -21,7 +21,7 @@ class DefaultInputConsumer extends AMQPInputConsumer {
         // Carry on and try fetching again
       }
       catch (Exception ex) {
-        // FIXME maybe we do need logging of this after all
+        log.error(ex);
       }
     }
   }

@@ -21,37 +21,39 @@ import net.sf.json.JSONObject;
 
 /**
  *
- * @author mikeb
+ * @author mikeb@lshift.net
  */
-public class PluginResourceFactory {
+class PluginResourceFactory {
   private final Connection connection;
   private final SessionFactory sessionFactory;
+  private final Logger log;
 
-  public PluginResourceFactory(Connection connection, SessionFactory dbSessionFactory) {
+  PluginResourceFactory(Connection connection, SessionFactory dbSessionFactory, Logger log) {
     this.connection = connection;
     this.sessionFactory = dbSessionFactory;
+    this.log = log;
   }
 
-  public DatabaseResource getDatabase(String connectionString) throws IOException {
-    if (connectionString.endsWith("/")) {
-      connectionString = connectionString.substring(0, connectionString.length()-1);
-    }
-    URL url = new URL(connectionString);
+  protected String stripTrailingSlash(String url) {
+        return (url.endsWith("/")) ? url.substring(0, url.length()-1) : url;
+  }
+
+  public DatabaseResource getDatabase(String connectionString) throws IOException, PluginBuildException {
+    URL url = new URL(stripTrailingSlash(connectionString));
     Session session = sessionFactory.createSession(url.getHost(), url.getPort(), "", "");
     String name = url.getPath().substring(1 + url.getPath().lastIndexOf('/'));
-    // We do this in two steps, since if the DB already exists, couchdb4j will get a 412 (precondition failed) and return null.
-    session.createDatabase(name);
     Database database = session.getDatabase(name);
+    if (null==database) throw new PluginBuildException("Database " + url + " does not exist");
     return new CouchDbDatabaseResource(database);
   }
 
   public MessageResource getMessageResource(JSONObject config) throws IOException {
-    return new AMQPMessageChannel(connection.createChannel(), config);
+    return new AMQPMessageChannel(connection.createChannel(), config, log);
   }
 
   public StateResource getStateResource(String stateString) throws PluginBuildException {
     try {
-      URL dbURL = new URL(stateString);
+      URL dbURL = new URL(stripTrailingSlash(stateString));
       String path = dbURL.getPath();
       int loc = path.lastIndexOf('/'); // minus document
       String db = path.substring(0, loc);
@@ -76,7 +78,8 @@ class CouchDbDatabaseResource implements DatabaseResource {
   }
 
   public JSONObject getDocument(String id) throws IOException {
-    return database.getDocument(id).getJSONObject();
+    Document d = database.getDocument(id);
+    return (null == d) ? null : d.getJSONObject();
   }
 
   public void saveDocument(JSONObject doc, String id) throws IOException {
@@ -90,18 +93,21 @@ class CouchDbDatabaseResource implements DatabaseResource {
 }
 
 
+
 class AMQPMessageChannel implements MessageResource {
   private final Channel channel;
   private Map<String, AMQPPublisher> outputs;
   private Map<String, String> inputs;
   protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
   private final JSONObject config;
+  private final Logger log;
 
-  AMQPMessageChannel(Channel channel, JSONObject config) {
+  AMQPMessageChannel(Channel channel, JSONObject config, Logger log) {
     this.channel = channel;
     this.config = config;
     this.outputs = new HashMap(1);
     this.inputs = new HashMap(1);
+    this.log = log;
   }
 
   public void declareExchange(String name, String exchange) {
@@ -118,7 +124,7 @@ class AMQPMessageChannel implements MessageResource {
       throw new MessagingException("No such input " + channelName);
     }
     QueueingConsumer queuer = new QueueingConsumer(channel);
-    AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config);
+    AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config, log);
     Thread consumerThread = new Thread(consumer);
     consumerThread.setDaemon(true);
     consumerThread.start();
@@ -142,7 +148,6 @@ class AMQPMessageChannel implements MessageResource {
     }
   }
 }
-
 class CouchDbStateResource implements StateResource {
 
   private final Database database;
@@ -174,6 +179,8 @@ class CouchDbStateResource implements StateResource {
   }
 }
 
+// Abstraction of the creation of database sessions; mainly so we can inject this
+// for unit testing purposes.
 class SessionFactory {
 
   Session createSession(String host, int port, String user, String passwd) {
