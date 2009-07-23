@@ -20,8 +20,12 @@
 
 # ONLY Mavenised plugins get things in lib/ through Maven
 ^plugins/archive/(lib|dist)/
+^plugins/data_empty/(lib|dist)/
+^plugins/data_not_changed/(lib|dist)/
 ^plugins/httppost/(lib|dist)/
+^plugins/lastvalue/(lib|dist)/
 ^plugins/logger/(lib|dist)/
+^plugins/notification/(lib|dist)/
 ^plugins/regexp_split/(lib|dist)/
 ^plugins/relay/(lib|dist)/
 ^plugins/socket_destination/(lib|dist)/
