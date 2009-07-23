@@ -1,3 +1,5 @@
-// XXX some weird boiler-plate that's apparently needed
-class dataempty() extends DataEmpty() {
+
+import com.rabbitmq.streams.plugins.dataempty.DataEmptyPlugin
+
+class data_empty() extends DataEmptyPlugin() {
 }

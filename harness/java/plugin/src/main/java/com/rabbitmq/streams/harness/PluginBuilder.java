@@ -105,6 +105,7 @@ public class PluginBuilder {
     setIdForPlugin(plugin, configuration);
     connectDatabaseToPlugin(plugin, configuration);
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
+    connectNotifierToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
     MessageResource mr = resources.getMessageResource(configuration);
     constructPluginOutputs(configuration, mr);
@@ -130,7 +131,7 @@ public class PluginBuilder {
     plugin.setId(id);
   }
 
-  private Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
+  protected Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
     AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration));
     Thread logThread = new Thread(logger);
     logThread.setDaemon(true);
@@ -140,7 +141,7 @@ public class PluginBuilder {
     return logger;
   }
 
-  private void connectNotifierToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
+  protected void connectNotifierToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
     Notifier notifier = new Notifier((ChannelN) connection.createChannel(), routingKey(configuration));
     Thread thread = new Thread(notifier);
     thread.setDaemon(true);

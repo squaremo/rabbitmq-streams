@@ -1,3 +1,6 @@
-// XXX some weird boiler-plate that's apparently needed
-class datanotchanged() extends DataNotChanged() {
+
+
+import com.rabbitmq.streams.plugins.DataNotChangedPlugin
+
+class data_not_changed() extends DataNotChangedPlugin() {
 }

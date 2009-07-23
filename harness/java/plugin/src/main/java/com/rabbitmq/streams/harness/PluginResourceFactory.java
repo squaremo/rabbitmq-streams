@@ -164,7 +164,7 @@ class CouchDbStateResource implements StateResource {
       doc = new Document();
       doc.setId(docId);
     }
-    doc.clear();
+    //doc.clear();
     doc.putAll(state);
     database.saveDocument(doc, docId);
   }

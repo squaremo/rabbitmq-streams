@@ -2,6 +2,7 @@
 
 -define(FEEDSHUB_CONFIG_XNAME, <<"feedshub/config">>).
 -define(FEEDSHUB_LOG_XNAME, <<"feedshub/log">>).
+-define(FEEDSHUB_NOTIFY_XNAME, <<"feedshub/notify">>).
 
 -define(FEEDSHUB_STATUS_DBNAME, "feedshub_status/").
 
