@@ -45,8 +45,7 @@ public class SocketSourceServerTest {
 
     server.terminalStatusChange("socket_source_server", terminals, true);
     writeToSocket(SAUSAGES);
-    Message message = mock(Message.class);
-    ArgumentMatcher<Message> matcher = new IsMessageThatMatchesContent(SAUSAGES);
+    @SuppressWarnings({"unchecked"}) ArgumentMatcher<Message> matcher = new IsMessageThatMatchesContent(SAUSAGES);
     verify(channel).publish(eq("output"), argThat(matcher));
   }
 
