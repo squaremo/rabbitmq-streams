@@ -16,6 +16,10 @@ MSG_RATE = grinder.properties.getDouble("streams.test.msg_rate", 0)
 
 log = grinder.logger.output
 
+log("URL: %s" % URL)
+log("Message size: %i bytes" % MSG_SIZE)
+log("Message rate: %i tps" % MSG_RATE)
+
 sleepTime = 0
 if MSG_RATE > 0:
     sleepTimeSec = 1 / MSG_RATE
