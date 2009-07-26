@@ -37,7 +37,9 @@ for dir_to_import in dirs_to_import:
         sys.exit(44)
     print 'Processing', dir_to_import
     for dbdir in glob.glob(os.path.join(dir_to_import, "*")):
+        if not(os.path.isdir(dbdir)): continue
         dbname = os.path.split(dbdir)[1]
+        print 'Database %s' % dbname
         try:
             db = server.create(dbname)
         except couchdb.PreconditionFailed:
@@ -46,9 +48,9 @@ for dir_to_import in dirs_to_import:
             docid = string.replace(os.path.splitext(os.path.basename(docfilename))[0], '.', '_')
             d = json.load(open(docfilename))
             if docid in db:
-                print 'Updating', docid
+                print '  Updating', docid
                 d['_id'] = db[docid]['_id']
                 d['_rev'] = db[docid]['_rev']
             else:
-                print 'Inserting', docid
+                print '  Inserting', docid
             db[docid] = d
