@@ -9,13 +9,13 @@
 	      "type": "logger"
 	    },
 	    "the_replacer": {
-	        "type": "regexp_replace",
-		"configuration": {"regexp": "(ra)bbit",
-				  "replacement": "\\1dical",
-                                  "multiline": false,
-				  "caseinsensitive": true,
-				  "dotall": false
-				 }
+	      "type": "regexp_replace",
+	      "configuration": {"expressions": [{"regexp": "(ra)bbit",
+				                 "replacement": "\\1dical",
+                                                 "multiline": false,
+				                 "caseinsensitive": true,
+				                 "dotall": false}]
+			       }
 	    },
 	    "the_archiver": {
 	      "terminal": "archive_destination"
@@ -32,10 +32,8 @@
 	   "to":   {"node": "the_logger", "channel": "input"}},
           {"from": {"node": "the_input1"},
 	   "to":   {"node": "the_replacer", "channel": "input"}},
-          {"from": {"node": "the_replacer", "channel": "positive"},
+          {"from": {"node": "the_replacer", "channel": "output"},
 	   "to":   {"node": "the_relay"}},
-          {"from": {"node": "the_replacer", "channel": "negative"},
-	   "to":   {"node": "the_socket_output"}},
 	  {"from": {"node": "the_relay"},
 	   "to":   {"node": "the_archiver"}}
 	]

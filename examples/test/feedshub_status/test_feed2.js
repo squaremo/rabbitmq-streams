@@ -3,7 +3,7 @@
     "wiring": {
 	"nodes": {
 	    "the_input": {
-		"type": "rsspoll",
+		"type": "websubscriber",
 		"configuration": {"href": "http://www.lshift.net/blog/feed",
                                   "interval": 30}
 	    },
@@ -21,12 +21,12 @@
 	    },
 	    "the_replacer": {
 	        "type": "regexp_replace",
-		"configuration": {"regexp": "(ra)bbit",
-				  "replacement": "\\1dical",
-                                  "multiline": false,
-				  "caseinsensitive": true,
-				  "dotall": false
-				 }
+	      "configuration": {"expressions": [{"regexp": "(ra)bbit",
+				                 "replacement": "\\1dical",
+                                                 "multiline": false,
+				                 "caseinsensitive": true,
+				                 "dotall": false
+				                }]}
 	    },
 	    "the_output_pos": {
 		"type": "webfeed",
@@ -53,13 +53,10 @@
             {"from": {"node": "the_regexp", "channel": "negative"},
              "to":   {"node": "the_output_neg", "channel": "input"}},
 
-            {"from": {"node": "the_replacer", "channel": "positive"},
+            {"from": {"node": "the_replacer", "channel": "output"},
              "to":   {"node": "the_output_pos", "channel": "input"}},
 
-            {"from": {"node": "the_replacer", "channel": "negative"},
-             "to":   {"node": "the_output_neg", "channel": "input"}},
-
-            {"from": {"node": "the_replacer", "channel": "positive"},
+            {"from": {"node": "the_replacer", "channel": "output"},
              "to":   {"node": "a_logger", "channel": "input"}}
 	]
     }
