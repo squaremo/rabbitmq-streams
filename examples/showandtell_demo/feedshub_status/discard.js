@@ -10,20 +10,18 @@
             },
           "prepend": {
 	    "type": "regexp_replace",
-	    "configuration": {"regexp": "^",
-			      "replacement": "Discard: ",
-                              "multiline": false,
-			      "caseinsensitive": true,
-			      "dotall": false
+	    "configuration": {"expressions": [{"regexp": "^",
+			                       "replacement": "Discard: ",
+                                               "multiline": false,
+			                       "caseinsensitive": true,
+			                       "dotall": false}]
 			     }
           }
 	},
 	"edges": [
 	  {"from": {"node": "the_input1"},
 	   "to":   {"node": "prepend", "channel": "input"}},
-          {"from": {"node": "prepend", "channel": "positive"},
-	   "to":   {"node": "archiver"}},
-	  {"from": {"node": "prepend", "channel": "negative"},
+          {"from": {"node": "prepend", "channel": "output"},
 	   "to":   {"node": "archiver"}}
 	]
     }
