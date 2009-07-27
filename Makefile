@@ -50,8 +50,11 @@ DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
 	elinks python-simplejson cvs zip default-jdk \
 	ant maven2 screen
 
-
-
+# Pin down 3rd party libs we get out of repos to a specific revision
+RABBITMQ_HG_TAG=rabbitmq_v1_6_0
+ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
+RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
+IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
 
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
@@ -323,7 +326,7 @@ install-erlang-rfc4627: build/src/erlang-rfc4627 build/opt/erlang-rfc4627
 
 update-erlang-rfc4627: build/src/erlang-rfc4627
 	rm -rf build/opt/erlang-rfc4627
-	(cd build/src/erlang-rfc4627 && hg pull && hg update)
+	(cd build/src/erlang-rfc4627 && hg pull -r $(ERLANG_RFC4627_HG_TAG) && hg update)
 	$(MAKE) build/opt/erlang-rfc4627
 
 build/src/erlang-rfc4627:
@@ -346,13 +349,14 @@ install-ibrowse: build/src/ibrowse build/opt/ibrowse
 
 update-ibrowse: build/src/ibrowse
 	rm -rf build/opt/ibrowse
-	(cd build/src/ibrowse && git fetch; git rebase origin)
+	(cd build/src/ibrowse && git fetch; git checkout $(IBROWSE_GIT_TAG))
 	$(MAKE) build/opt/ibrowse
 
 build/src/ibrowse:
 	@echo checking out ibrowse
 	(mkdir -p build/src && cd build/src && \
-	 git clone git://github.com/cmullaparthi/ibrowse.git) > build/logs/clone-ibrowse.txt 2>&1
+	 git clone -n git://github.com/cmullaparthi/ibrowse.git && \
+         cd ibrowse && git checkout $(IBROWSE_GIT_TAG)) > build/logs/clone-ibrowse.txt 2>&1
 
 build/opt/ibrowse:
 	(cd build/src/ibrowse/ && $(MAKE)) > build/logs/build-ibrowse.txt 2>&1
@@ -372,29 +376,32 @@ install-rabbitmq: \
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
-	(cd build/src/rabbitmq-codegen && hg pull && hg update -C default)
-	(cd build/src/rabbitmq-server && hg pull && hg update -C default)
+	(cd build/src/rabbitmq-codegen && hg pull -r $(RABBITMQ_HG_TAG) && hg update -C default)
+	(cd build/src/rabbitmq-server && hg pull -r $(RABBITMQ_HG_TAG) && hg update -C default)
 	$(MAKE) build/opt/rabbitmq
 
 update-rabbitmq-erlang-client: build/src/rabbitmq-erlang-client
 	rm -rf build/opt/rabbitmq-erlang-client
-	(cd build/src/rabbitmq-erlang-client && hg pull && hg update)
+	(cd build/src/rabbitmq-erlang-client && hg pull -r $(RABBITMQ_CLIENT_HG_TAG) && hg update)
 	ln -sf `pwd`/build/src/rabbitmq-server build/src/rabbitmq_server
 	(ERL_LIBS=`pwd`/build/src; export ERL_LIBS; $(MAKE) build/opt/rabbitmq-erlang-client)
 
 build/src/rabbitmq-codegen:
 	@echo Cloning rabbitmq-codegen ...
-	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-codegen) \
+	(mkdir -p build/src && cd build/src && \
+         hg clone -r $(RABBITMQ_HG_TAG) http://hg.rabbitmq.com/rabbitmq-codegen ) \
 		> build/logs/clone-rabbitmq-codegen.txt 2>&1
 
 build/src/rabbitmq-server:
 	@echo Cloning rabbitmq-server ...
-	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-server) \
+	(mkdir -p build/src && cd build/src && \
+	 hg clone -r $(RABBITMQ_HG_TAG) http://hg.rabbitmq.com/rabbitmq-server) \
 		> build/logs/clone-rabbitmq-server.txt 2>&1
 
 build/src/rabbitmq-erlang-client:
 	@echo Cloning rabbitmq-erlang-client ...
-	(mkdir -p build/src && cd build/src && hg clone http://hg.rabbitmq.com/rabbitmq-erlang-client) \
+	(mkdir -p build/src && cd build/src && \
+         hg clone -r $(RABBITMQ_CLIENT_HG_TAG) http://hg.rabbitmq.com/rabbitmq-erlang-client) \
 		> build/logs/clone-rabbitmq-erlang-client.txt 2>&1
 
 build/opt/rabbitmq:
