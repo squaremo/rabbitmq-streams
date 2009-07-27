@@ -15,6 +15,6 @@
     ],
 
     "inputs_specification": [{"name": "input", "label": "Input"}],
-    "outputs_specification": [{"name": "nag"}],
+    "outputs_specification": [],
     "database_specification": {}
 }
