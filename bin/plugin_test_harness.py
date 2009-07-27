@@ -211,20 +211,21 @@ class TestWiring(object):
         amqp_connection, inputspec, outputspec, Outputter = self.args
         self.channel = amqp_connection.channel()
         self.outputs = dict((spec['name'], self.declexchange()) for spec in outputspec)
+        self.outputs['notify'] = 'feedshub/notify' # XXX
+        self.outputs['log'] = 'feedshub/log' # XXX
         self.inputs = dict((spec['name'], self.declqueue()) for spec in inputspec)
-        self.outputter = Outputter([spec['name'] for spec in outputspec])
-
-        # Now, we want to *listen* to the outputs, and *talk* to the inputs
-        for (name, exchange) in self.outputs.items():
-            self.subscribe(name, exchange, )
+        self.outputter = Outputter(self.outputs.keys())
 
         global verbosity
-        if verbosity > 1:
-            self.subscribe(name="log", exchange="feedshub/log", key='#',
-                           mk_callback=partial(format_output, "log"))
+        # Now, we want to *listen* to the outputs, and *talk* to the inputs
+        for (name, exchange) in self.outputs.items():
+            if name not in ('notify', 'log'):
+                self.subscribe(name, exchange)
+            else:
+                if name == 'notify' or verbosity > 1:
+                    self.subscribe(name=name, exchange=exchange, key='#')
 
-        self.subscribe(name="log", exchange="feedshub/notify", key='#',
-                       mk_callback=partial(format_output, "notify"))
+
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -635,7 +636,7 @@ if __name__ == '__main__':
                       default="http://localhost:5984/",
                       dest="couchdb",
                       help="CouchDB holding configuration")
-    
+
     amqpoptions = OptionGroup(parser, "AMQP connection parameters")
     amqpoptions.add_option("--amqp-host", default="localhost:5672")
     amqpoptions.add_option("--amqp-user", default="guest")
