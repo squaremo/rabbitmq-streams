@@ -8,31 +8,21 @@
 	    "the_logger": {
 	      "type": "logger"
 	    },
-	    "detect_iplayer": {
-	        "type": "regexp_replace",
-	      "configuration": {"regexp": "(iplayer)",
-				  "replacement": "\\1",
-                                  "multiline": false,
-				  "caseinsensitive": true,
-				  "dotall": false
-				 }
-	    },
-	    "detect_ylt": {
-	        "type": "regexp_replace",
-	      "configuration": {"regexp": "(you're listening to)",
-				  "replacement": "\\1",
+	    "detect_iplayer_or_ylt": {
+	        "type": "regexp_split",
+	      "configuration": {"regexp": "(^iplayer.*)|(^you're listening to.*)",
                                   "multiline": false,
 				  "caseinsensitive": true,
 				  "dotall": false
 				 }
 	    },
 	    "replace_goonline": {
-	        "type": "regexp_replace",
-	      "configuration": {"regexp": "(g)o online at",
-				  "replacement": "\\1o to",
-                                  "multiline": false,
-				  "caseinsensitive": true,
-				  "dotall": false
+	      "type": "regexp_replace",
+	      "configuration": {"expressions": [{"regexp": "(g)o online at",
+				                 "replacement": "\\1o to",
+                                                 "multiline": false,
+				                 "caseinsensitive": true,
+				                 "dotall": false}]
 				 }
 	    },
 	    "discard": {
@@ -46,20 +36,15 @@
           {"from": {"node": "the_input1"},
 	   "to":   {"node": "the_logger", "channel": "input"}},
           {"from": {"node": "the_input1"},
-	   "to":   {"node": "detect_iplayer", "channel": "input"}},
-          {"from": {"node": "detect_iplayer", "channel": "negative"},
-	   "to":   {"node": "detect_ylt", "channel": "input"}},
-          {"from": {"node": "detect_ylt", "channel": "negative"},
-	   "to":   {"node": "replace_goonline", "channel": "input"}},
-	  {"from": {"node": "replace_goonline", "channel": "positive"},
-	   "to":   {"node": "broadcast"}},
-	  {"from": {"node": "replace_goonline", "channel": "negative"},
-	   "to":   {"node": "broadcast"}},
+	   "to":   {"node": "detect_iplayer_or_ylt", "channel": "input"}},
 
-          {"from": {"node": "detect_iplayer", "channel": "positive"},
+          {"from": {"node": "detect_iplayer_or_ylt", "channel": "negative"},
+	   "to":   {"node": "replace_goonline", "channel": "input"}},
+	  {"from": {"node": "detect_iplayer_or_ylt", "channel": "positive"},
 	   "to":   {"node": "discard"}},
-          {"from": {"node": "detect_iplayer", "channel": "positive"},
-	   "to":   {"node": "discard"}}
+
+	  {"from": {"node": "replace_goonline", "channel": "output"},
+	   "to":   {"node": "broadcast"}}
 	]
     }
 }

@@ -1,12 +1,12 @@
->PLUGIN_INSTANCE_CONFIG	{"dotall": false, "regexp": "^1(.)3$", "multiline": true, "caseinsensitive": false, "replacement": "uno\\1tres"}
+>PLUGIN_INSTANCE_CONFIG	{"expressions": [{"dotall": false, "regexp": "^1(.)3$", "multiline": true, "caseinsensitive": false, "replacement": "uno\\1tres"}]}
 >input	123
 
-<positive	uno2tres
+<output	uno2tres
 >input	1
 ...	3
 
-<negative	1
+<output	1
 ...	3
 input	13
 
-<negative	13
+<output	13
