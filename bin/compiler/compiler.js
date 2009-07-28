@@ -40,5 +40,5 @@ function writeJsonToFile(doc, dir, filename) {
 var outputDir = arguments.shift();
 if (arguments.length < 1) throw "No files supplied";
 print("Compiling " + arguments + " to directory " + outputDir);
-load(arguments);
+for (var i in arguments) load(arguments[i]);
 writeToFiles(outputDir, AST);
