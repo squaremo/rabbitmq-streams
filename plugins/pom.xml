@@ -45,6 +45,8 @@
     <module>javascript</module>
     <module>data_empty</module>
     <module>data_not_changed</module>
+    <module>uniq</module>
+		<module>email_sender</module>
   </modules>
 
   <build>

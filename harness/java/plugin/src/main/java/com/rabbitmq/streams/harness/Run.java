@@ -9,38 +9,55 @@ import java.io.InputStreamReader;
 
 public class Run {
 
-  public static void main(final String[] args) throws IOException, InterruptedException {
-    System.out.println(args[0]);
-    JSONObject config = readConfiguration();
-    // FIXME Yuck, we shouldn't have to care here
-    Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
-    AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), "." + config.getString("plugin_name"));
-    // TODO: why does this need to run in a thread, rather than just being synchronous
-    // TODO: encapsulate this
-    Thread logThread = new Thread(buildlog);
-    logThread.setDaemon(true);
-    logThread.start();
+  private JSONObject config;
 
-    SessionFactory sf = new SessionFactory();
-    PluginResourceFactory factory = new PluginResourceFactory(conn, sf, buildlog);
-    PluginBuilder builder = new PluginBuilder(buildlog, factory);
-    builder.buildPlugin(config);
-
-    try {
-      BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-      while (null != reader.readLine()) {
-      }
-    }
-    catch (Exception e) {
-      buildlog.error(e);
-    }
-    finally {
-      buildlog.shutdown();
-    }
-
+  public void setConfig(JSONObject config) {
+    this.config = config;
   }
 
-  private static JSONObject readConfiguration() {
+  public void runPlugin() throws IOException  {
+    Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
+    try {
+      AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), "." + config.getString("plugin_name"));
+      // TODO: why does this need to run in a thread, rather than just being synchronous
+      // TODO: encapsulate this
+      Thread logThread = new Thread(buildlog);
+      logThread.setDaemon(true);
+      logThread.start();
+
+      SessionFactory sf = new SessionFactory();
+      PluginResourceFactory factory = new PluginResourceFactory(conn, sf, buildlog);
+      PluginBuilder builder = new PluginBuilder(buildlog, factory);
+      builder.buildPlugin(config);
+
+      try {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        while (null != reader.readLine()) {
+        }
+      }
+      catch (IOException e) {
+        buildlog.error(e);
+      }
+      finally {
+        buildlog.shutdown();
+      }
+    }
+    finally {
+      conn.close();
+    }
+  }
+
+  public static void main
+    (
+      final String[] args) throws IOException, InterruptedException {
+    System.out.println(args[0]);
+    Run run = new Run();
+    run.setConfig(readConfiguration());
+    run.runPlugin();
+  }
+
+  private static JSONObject readConfiguration
+    () {
     try {
       return JSONObject.fromObject(new BufferedReader(new InputStreamReader(System.in)).readLine());
     }

@@ -8,7 +8,10 @@ import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessag
                                      NotificationType}
 import net.sf.json.JSONObject
 
-class DataNotChangedPlugin() extends PipelineComponent() {
+//FIXME(alexander): looks like arrays in scala have broken "equals", in
+// any event this doesn't work w/o going thru the indirection of creating
+// strings.
+class UniqPlugin() extends PipelineComponent() {
     override def configure(config : JSONObject) {
       var state = getState()
       var lastMessage:String =
@@ -16,13 +19,12 @@ class DataNotChangedPlugin() extends PipelineComponent() {
           state.get("lastMessage").asInstanceOf[String] }
         else {
           null }
-      val nagMessage = config.getString("message")
-
       object input extends InputReader {
         override def handleMessage(msg : InputMessage) {
           val thisMessage = new String(msg.body)
-          if (thisMessage == lastMessage) {
-            DataNotChangedPlugin.this.notification(NotificationType.BadData, nagMessage)
+          // FIXME(alexander): should (robustly) hash for storage efficiency
+          if (thisMessage != lastMessage) {
+            publishToChannel("output", msg)
             lastMessage = thisMessage
             state.put("lastMessage", lastMessage)
             setState(state)

@@ -77,8 +77,8 @@ public class SocketDestinationServer extends Server {
   private final class SocketDestination implements Runnable {
     final private int port;
     final private InetAddress address;
-    final private Socket socket;
-    final private OutputStream socketOutputStream;
+    private Socket socket;
+    private OutputStream socketOutputStream;
     final private BlockingQueue<byte[]> sendQueue = new LinkedBlockingQueue<byte[]>();
 
     final private Object lockObj = new Object();
@@ -87,6 +87,10 @@ public class SocketDestinationServer extends Server {
     public SocketDestination(JSONObject terminalConfig) throws IOException {
       port = terminalConfig.getInt("port");
       address = InetAddress.getByName(terminalConfig.getString("host"));
+      initialiseSocket();
+    }
+
+    private void initialiseSocket() throws IOException {
       socket = new Socket(address, port);
       socketOutputStream = socket.getOutputStream();
     }
@@ -110,12 +114,19 @@ public class SocketDestinationServer extends Server {
       while (isRunning()) {
         try {
           socketOutputStream.write(sendQueue.take());
-          System.out.println("WRITTEN TO SOCKET");
         }
         catch (InterruptedException ignore) {
         }
         catch (IOException e) {
           SocketDestinationServer.this.log.error(e);
+          synchronized (lockObj)  {
+            try {
+              initialiseSocket();
+            }
+            catch (IOException ex) {
+              SocketDestinationServer.this.log.error(ex);
+            }
+          }
         }
       }
       try {
