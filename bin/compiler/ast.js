@@ -32,51 +32,52 @@ function setActive(item) {
   item.active = true;
 }
 
-function feed(name, nodes, edges) {
-  var feed = {"name": name, "type": "feed", "active": false};
-  AST[name] = feed;
-  var defn = {}; defn.wiring = {};
-  defn.wiring['nodes'] = process_nodes(nodes);
-  defn.wiring['edges'] = edges;
-  feed.definition = defn;
-  return feed;
-}
-
-// We construct the nodes as a pait of name and content; later, the output format is
-// a dictionary, though.
-function process_nodes(nodes) {
-  var res = {};
-  for (ind in nodes) {
-    if (nodes.hasOwnProperty(ind)) {
-      var n = nodes[ind];
-      res[n[0]] = n[1];
-    }
-  }
-  return res;
-}
-
-function terminal(name, serverUses) {
+function declare_terminal(name) {
   var t = {
     "name": name,
     "type": "terminal",
     "active": false,
     "definition": {
-      "servers": serverUses
+      "servers": []
     }
   };
   AST[name] = t;
   return t;
 }
 
-function serverUse(server, source, destination) {
-  return {
-    "server": (typeof server == "string") ? server : server.name,
-    "source": source,
-    "destination": destination
-  };
+function addServerUse(terminal, server, source, destination) {
+  function serverUse(server, source, destination) {
+    return {
+      "server": (typeof server == "string") ? server : server.name,
+      "source": source,
+      "destination": destination
+    };
+  }
+  var servers = terminal["definition"]["servers"];
+  servers.push(serverUse(server, source, destination));
 }
 
-function server(name, plugin, config) {
+// Consume from a server's ingress point -- e.g., a HTTP POST path, to a terminal.
+function consume(server, ingresspoint, terminal) {
+  addServerUse(terminal, server, ingresspoint, {});
+}
+
+// Subscribe a remote resource to a terminal via a server;
+// e.g., subscribe node "pubsub.feedshub.livetext.radio1" on
+// the PushFeeds server to the radio1_livetext terminal.
+function subscribe(server, egresspoint, terminal) {
+  addServerUse(terminal, server, {}, egresspoint);
+}
+
+// Bind a terminal to itself as a relay via server.  Usually we would
+// bind two things together, possibly with some arguments, but in our
+// model currently a terminal serves as both sides of the bind; i.e.,
+// it looks like both a source and a destination.
+function bind(server, terminal) {
+  addServerUse(terminal, server, {}, {});
+}
+
+function create_server(name, plugin, config) {
   var s = {
     "name": name,
     "type": "server",
@@ -90,41 +91,46 @@ function server(name, plugin, config) {
   return s;
 }
 
-// not ideal, we don't really want to have to name these
-function pluginNode(name, pluginname, conf) {
-  return [
-    name, 
-    {
-      "type": pluginname,
-      "configuration": conf
-    }];
+// For creating feeds.  This is somewhat different to the messaging
+// style stuff above; a feed has its own namespace, and things must be
+// "registered" within the namespace, including what are otherwise
+// (unlike terminals) anonymous pipeline components.  For this reason,
+// we gensym names and return them, to be used in feed.connect()
+// afterwards.
+function feed(name) {
+  var feed = {"name": name, "type": "feed", "active": false};
+  AST[name] = feed;
+  var defn = {}; defn.wiring = {};
+  defn.wiring['nodes'] = {};
+  defn.wiring['edges'] = [];
+  feed.definition = defn;
+  var counter = 0;
+
+  var gensym = function(kind) {
+    counter++;
+    return name+'-'+kind+counter
+  };
+
+  var connection = function(from, to) {
+    return {"from": from, "to": to}
+  }
+
+  feed.plugin = function(plugin) {
+    var name = gensym('component');
+    defn.wiring.nodes[name] = plugin;
+    return name;
+  };
+  feed.terminal = function(terminal) {
+    var name = gensym('terminal');
+    defn.wiring.nodes[name] = {'terminal': terminal.name};
+    return name;
+  }
+  feed.connect = function(from, to) {
+    defn.wiring.edges.push(connection(from, to));
+  }
+  return feed;
 }
 
-function terminalNode(name, terminal) {
-  if (typeof terminal == "string") {
-    return [name, {"terminal": terminal}];
-  }
-  else {
-    return [name, {"terminal": terminal.name}]
-  }
-}
-
-function noderef(node) {
-  if (typeof node == "string") {
-    return node;
-  }
-  else {
-    return node[0]; // it's been constructed with pluginNode or terminalNode
-  }
-}
-
-function endpoint() {
-  var args = endpoint.arguments;
-  return (args.length < 2) ?
-    {"node": noderef(args[0])} :
-    {"node": noderef(args[0]), "channel": args[1]};
-}
-
-function edge(from, to) {
-  return {"from": from, "to": to}
+function resource(node, point) {
+  return {"node": node, "channel": point};
 }
