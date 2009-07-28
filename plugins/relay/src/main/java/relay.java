@@ -1,8 +1,9 @@
 import com.rabbitmq.streams.harness.PluginException;
 import com.rabbitmq.streams.harness.Server;
+import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import net.sf.json.JSONObject;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,24 +24,25 @@ public class relay extends Server {
     }
   }
 
-  public final Server.ServerInputReader input = new Server.ServerInputReader() {
+  public Server.ServerInputReader input = new Server.ServerInputReader() {
 
       @Override
-      public void handleBodyForTerminal(byte[] body, String key, long tag) throws PluginException {
+      public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException {
         try {
           if (activeTerminals.contains(key)) {
             relay.this.publishToDestination(body, key);
           }
-          relay.this.ack(tag);
+          ack.ack();
         }
-        catch (IOException ex) {
+        catch (Exception ex) {
           throw new PluginException(ex);
         }
       }
   };
   
-  public relay(JSONObject config) throws IOException {
-    super(config);
-    registerHandler("input", input);
+  @Override
+  public void configure(JSONObject config) throws PluginBuildException {
+    super.configure(config);
+    registerInput(input);
   }
 }

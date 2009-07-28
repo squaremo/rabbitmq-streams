@@ -1,8 +1,5 @@
 /*
  * archive.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
  */
 
 import com.rabbitmq.streams.harness._
@@ -15,23 +12,28 @@ import scala.collection.jcl.Conversions._
 
 import com.fourspaces.couchdb._
 
-class archive(config : JSONObject) extends Server(config) {
+class archive() extends Server() {
 
-    val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
-    val dispatcher = new Dispatcher(log, couch)
-    dispatcher.start
+  var dispatcher : Dispatcher = null
 
-    object input extends Server.ServerInputReader {
-        override def handleBodyForTerminal(body : Array[Byte], key : String, tag : Long) {
-            log.debug("Input received: " + new String(body))
-            dispatcher ! Entry(body, key, () => ack(tag))
+  override def configure(config : JSONObject) {
+  val couch = new Session("localhost", 5984, "", "") // TODO. Get from config.
+  dispatcher = new Dispatcher(log, couch)
+  dispatcher.start
+  super.configure(config)
+    
+    object input extends InputReader {
+        override def handleMessage(msg : InputMessage) {
+            log.debug("Input received: " + new String(msg.body))
+            dispatcher ! Entry(msg.body, msg.routingKey, () => msg.ack())
         }
     }
 
-    registerHandler("input", input)
+    registerInput(input)
+  }
 
-    override def terminalStatusChange(destination : String, configs : java.util.List[JSONObject], active : Boolean) {
-        dispatcher ! DestinationStatusChange(destination, List(configs:_*), active)
-    }
+  override def terminalStatusChange(destination : String, configs : java.util.List[JSONObject], active : Boolean) {
+    dispatcher ! DestinationStatusChange(destination, List(configs:_*), active)
+  }
 
 }

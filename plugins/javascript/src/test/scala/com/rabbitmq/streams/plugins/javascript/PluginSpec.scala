@@ -12,8 +12,8 @@ object PluginSpecRunner extends ConsoleRunner(PluginSpec)
 object PluginSpec extends Specification {
   "JavaScript plugin" should {
     "compile the function it's given" in {
-//      val plugin = new JavaScriptPlugin(new JSONObject())
-      "plugin" must notBeNull
+      val plugin = new JavaScriptPlugin()
+      plugin must notBeNull
     }
   }
 }

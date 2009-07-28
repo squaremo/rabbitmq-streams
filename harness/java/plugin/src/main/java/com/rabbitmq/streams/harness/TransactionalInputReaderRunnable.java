@@ -3,7 +3,6 @@ package com.rabbitmq.streams.harness;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 
-import com.rabbitmq.client.impl.ChannelN;
 import java.io.IOException;
 import net.sf.json.JSONObject;
 
@@ -15,50 +14,40 @@ import net.sf.json.JSONObject;
  * <p/>
  * Note: Transactions are only on outgoing messages, so it doesn't matter that two or more threads could receive messages before one
  * acquires the lock; the transaction will be complete or abandoned before another consumer can start sending anything.
+ * 
+ * QUESTION: Where does 15 come from?
  */
-public class TransactionalInputReaderRunnable extends InputReaderRunnable {
+class TransactionalInputReaderRunnable extends AMQPInputConsumer {
 
-  public TransactionalInputReaderRunnable(Object lock) {
-    super();
+  TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
+    super(consumer, handler, config, log);
     this.lock = lock;
   }
 
-  @Override
-  public void configure(QueueingConsumer consumer, ChannelN channel, InputHandler handler, JSONObject config, Logger log) {
-    super.configure(consumer, channel, handler, config, log);
-    try {
-      channel.txSelect();
-    } catch (IOException ioe) {
-      log.fatal(ioe);
-      // FIXME STOPGAP, until refactoring lands
-    }
-  }
-
   public void run() {
-    while (channel.isOpen()) {
+    while (consumer.getChannel().isOpen()) {
       try {
         Delivery delivery = consumer.nextDelivery();
         synchronized (lock) {
           try {
             try {
-              handler.handleDelivery(delivery, mergeConfigWithHeaders(staticConfiguration, delivery.getProperties().headers));
+              InputMessage msg = new AMQPMessage(consumer.getChannel(), delivery);
+              handler.handleMessage(msg, mergeConfigWithHeaders(delivery.getProperties().headers));
+              msg.ack();
             }
             catch (Exception e) {
-              log.error("Cannot handle delivery of message");
-              log.error(e);
+              // FIXME report this!
               return;
             }
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-            channel.txCommit();
-
+            consumer.getChannel().txCommit();
           }
           catch (IOException ex) {
             try {
-              log.error(ex);
-              channel.txRollback();
+              // FIXME log.error(ex);
+              consumer.getChannel().txRollback();
             }
             catch (IOException e) {
-              log.error(e);
+              // FIXME log.error(e);
             }
           }
         }

@@ -1,5 +1,7 @@
 import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
@@ -10,11 +12,12 @@ import java.io.InputStreamReader;
 
 public class logger extends PipelineComponent {
 
-  public final InputReader input = new InputReader() {
+  private InputReader input = new InputReader() {
+
     @Override
-    public void handleBody(byte[] body) throws PluginException {
+    public void handleMessage(InputMessage msg) throws PluginException {
       BufferedReader br =
-        new BufferedReader(new InputStreamReader(new ByteArrayInputStream(body)));
+        new BufferedReader(new InputStreamReader(new ByteArrayInputStream(msg.body())));
       StringBuilder sb = new StringBuilder();
       try {
         String line = br.readLine();
@@ -28,12 +31,12 @@ public class logger extends PipelineComponent {
         throw new PluginException(ex);
       }
 
-      logger.this.log.debug(sb.toString());
+      logger.this.log.debug(sb.length() > 0 ? sb.substring(0, sb.length()-1) : sb.toString());
     }
   };
 
-  public logger(JSONObject config) throws IOException {
-    super(config);
-    registerHandler("input", input);
+  @Override
+  public void configure(JSONObject config) throws PluginBuildException {
+    registerInput("input", input);
   }
 }

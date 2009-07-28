@@ -25,7 +25,7 @@ public class PluginConfigTest {
   public void testPropertiesWithHeaders() {
     Map<String, Object> hdrs = new HashMap();
     hdrs.put("foo", "bar");
-    BasicProperties props = Publisher.propertiesWithHeaders(hdrs);
+    BasicProperties props = AMQPPublisher.propertiesWithHeaders(hdrs);
     assertNotNull(props);
     assertNotNull(props.headers);
     assertEquals(props.deliveryMode, new Integer(2));
@@ -36,8 +36,8 @@ public class PluginConfigTest {
   public void testSetValues() {
     Map<String, Object> headers = new HashMap();
     JSONObject vals = new JSONObject();
-    InputReaderRunnable.setValuesInHeader(headers, vals);
-    assertEquals(vals, InputReaderRunnable.getValuesFromHeader(headers));
+    AMQPInputConsumer.setValuesInHeader(headers, vals);
+    assertEquals(vals, AMQPInputConsumer.getValuesFromHeader(headers));
   }
 
   /**
@@ -50,7 +50,7 @@ public class PluginConfigTest {
     JSONObject conf = new JSONObject();
     conf.put("interpolated", "$foo");
     conf.put("notinterpolated", "foo");
-    JSONObject interpolateConfig = InputReaderRunnable.interpolateConfig(conf, vals);
+    JSONObject interpolateConfig = AMQPInputConsumer.interpolateConfig(conf, vals);
     assertNotNull(interpolateConfig);
     assertEquals(interpolateConfig.size(), 2);
     assertEquals("bar", interpolateConfig.get("interpolated"));

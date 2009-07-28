@@ -97,9 +97,15 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 
 update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
-all:
+all: all-orchestrator all-harnesses all-plugins
+
+all-orchestrator:
 	$(MAKE) -C orchestrator all
+
+all-harnesses:
 	$(MAKE) -C harness/java all
+
+all-plugins:
 	for p in $(PLUGIN_MAKEFILES); \
 		do $(MAKE) -C $$(dirname $$p) all; \
 	done

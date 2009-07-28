@@ -1,4 +1,6 @@
 
+import com.rabbitmq.streams.harness.MessagingException;
+import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.Server;
 import net.reversehttp.*;
 import net.sf.json.JSONObject;
@@ -17,20 +19,21 @@ public class httppost extends Server implements RequestHandler {
     private final Map<String, List<JSONObject>> terminals = new HashMap<String, List<JSONObject>>();
     private final Map<String, String> paths = new HashMap<String, String>();
 
-    private final HttpServer httpd;
-    private final Thread httpdThread;
+    private HttpServer httpd;
+    private Thread httpdThread;
 
-    public httppost(JSONObject config) throws IOException {
-        super(config);
+    @Override
+    public void configure(JSONObject config) throws PluginBuildException {
+        super.configure(config);
         //FIXME: make use of host
         //String host = (String) configuration.get("http_server_host");
-        JSONObject staticConfiguration = config.getJSONObject("configuration");
-        Object portObj = staticConfiguration.get("http_server_port");
+        Object portObj = config.get("http_server_port");
         if ((portObj == null || !(portObj instanceof Integer))) {
             throw new IllegalArgumentException("Invalid http_server_port configuration value");
         }
         int port =(int) (Integer) portObj;
 
+        try {
         httpd = new NormalHttpServer(port, this);
         httpdThread = new Thread(new Runnable() {
             public void run() {
@@ -44,6 +47,11 @@ public class httppost extends Server implements RequestHandler {
         });
         httpdThread.setDaemon(true);
         httpdThread.start();
+        }
+        catch (IOException ioe) {
+          log.fatal("Could not bind to address and port");
+          throw new PluginBuildException("Could not bind to configured port", ioe);
+        }
     }
 
     protected void terminalStatusChange(String terminalId,
@@ -134,10 +142,15 @@ public class httppost extends Server implements RequestHandler {
                 if (hubMode == null) {
                     try {
                         publishToDestination(req.getBody(), terminalId);
-                    } catch (IOException ioe) {
+                    }
+                    catch (IOException ioe) {
+                      req.setResponse(500, "Internal error publishing message");
+                      log.error(ioe);
+                    }
+                    catch (MessagingException me) {
                         req.setResponse(500, "Internal error publishing message");
-                        log.error(ioe);
-                        dieHorribly();
+                        log.error(me);
+                        //dieHorribly(); // TODO I don't know if we want the server to die
                     }
                     req.setResponse(204, "Message delivered");
                 } else {

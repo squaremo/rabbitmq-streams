@@ -1,19 +1,19 @@
->PLUGIN_INSTANCE_CONFIG	{"dotall": false, "regexp": "(.)\\1\\1", "multiline": false, "caseinsensitive": false, "replacement": "[3 x \"\\1\"]"}
+>PLUGIN_INSTANCE_CONFIG	{"expressions": [{"regexp": "(.)\\1\\1", "replacement": "[3 x \"\\1\"]"}]}
 >input	pooositive
 
-<positive	p[3 x "o"]sitive
+<output	p[3 x "o"]sitive
 
 # something that w/o caseinsensitive shouldn't match
 >input	neeEgative
 
-<negative	neeEgative
+<output	neeEgative
 
 >input	
 ...	
 ...	
 ...	
 
-<negative	
+<output	
 ...	
 ...	
 ...	
