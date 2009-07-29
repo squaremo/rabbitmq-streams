@@ -108,9 +108,9 @@ class PluginBase(object):
                         except:
                             self.error("Could not use config: %r; ignoring message" % config)
                             return
-                        dynamic = self.interpolate(headerConfig)
+                        dynamic = self.interpolate(headerConfig, self._static_config)
                         return fun(msg, dynamic)
-                return fun(msg, self.interpolate({}))
+                return fun(msg, self.interpolate({}, self._static_config))
             return handle
 
         for name, queue in config['inputs'].iteritems():
@@ -122,16 +122,22 @@ class PluginBase(object):
         self.info(pformat({"event": "configured",
                            "args": {"config": settings}}))
 
-    def interpolate(self, values):
+    def interpolateValue(self, values, val):
+        if type(val) in (unicode, str) and val[0] == "$":
+            interp = values.get(val[1:], "")
+            return interp
+        elif type(val)==dict:
+            return self.interpolate(values, val)
+        elif type(val)==list:
+            return list(self.interpolateValue(values, v) for v in val)
+        else:
+            return val
+
+    def interpolate(self, values, conf):
         """Interpolate values in for dynamic config"""
         result = {}
-        for (key, val) in self._static_config.items():
-            if type(val) in (unicode, str) and val[0] == "$":
-                interp = values.get(val[1:], "")
-                #self.debug("Replacing %s with %s" % (val, interp))
-                result[key] = interp
-            else:
-                result[key] = val
+        for (key, val) in conf.items():
+            result[key] = self.interpolateValue(values, val)
         return result
 
     def monitor(self):
