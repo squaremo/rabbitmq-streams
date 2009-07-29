@@ -60,22 +60,42 @@ public abstract class AMQPInputConsumer implements Runnable {
     return result;
   }
 
+
+  protected static Object interpolateValue(Object uninterpolated, Map<String, Object> vals) {
+    if (uninterpolated instanceof String) {
+      String uninterpolatedString = (String) uninterpolated;
+      if (uninterpolatedString.startsWith("$")) {
+        String valKey = uninterpolatedString.substring(1);
+        return vals.containsKey(valKey) ? vals.get(valKey) : "";
+      }
+      return uninterpolated;
+    }
+    else if (uninterpolated instanceof JSONObject) {
+      return interpolateConfig((JSONObject)uninterpolated, vals);
+    }
+    else if (uninterpolated instanceof JSONArray) {
+      JSONArray uninterpolatedArray = (JSONArray) uninterpolated;
+      JSONArray result = new JSONArray();
+      for (Object item : uninterpolatedArray) {
+        result.add(interpolateValue(item, vals));
+      }
+      return result;
+    }
+    else return uninterpolated;
+  }
+
   /**
    * Interpolate values given in the header into the dynamic configuration.
    * This is so that upstream components can pass on calculated values, to
    * be used for handling a particular message.
    */
   protected static JSONObject interpolateConfig(JSONObject uninterpolated, Map<String, Object> vals) {
-    JSONObject result = JSONObject.fromObject(uninterpolated);
+    // This can largely be done statically, but I'm waiting until the harness
+    // is refactored.
+    JSONObject result = new JSONObject();
     for (Object k : uninterpolated.keySet()) {
       String key = k.toString();
-      String uninterpolatedValue = uninterpolated.getString(key);
-      // This can largely be done statically, but I'm waiting until the harness
-      // is refactored.
-      if (uninterpolatedValue.startsWith("$")) {
-        String valKey = uninterpolatedValue.substring(1);
-        result.put(key, vals.containsKey(valKey) ? vals.get(valKey) : "");
-      }
+      result.put(k, interpolateValue(uninterpolated.get(key), vals));
     }
     return result;
   }

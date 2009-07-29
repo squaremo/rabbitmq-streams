@@ -8,6 +8,7 @@ package com.rabbitmq.streams.harness;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import java.util.HashMap;
 import java.util.Map;
+import net.sf.json.JSONArray;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import net.sf.json.JSONObject;
@@ -41,10 +42,10 @@ public class PluginConfigTest {
   }
 
   /**
-   * Test that interpolateConfig
+   * Test that interpolateConfig works in shallow cases
    */
   @Test
-  public void testInterpolateConfig() {
+  public void testSimpleInterpolateConfig() {
     Map<String, Object> vals = new HashMap();
     vals.put("foo", "bar");
     JSONObject conf = new JSONObject();
@@ -55,6 +56,40 @@ public class PluginConfigTest {
     assertEquals(interpolateConfig.size(), 2);
     assertEquals("bar", interpolateConfig.get("interpolated"));
     assertEquals("foo", interpolateConfig.get("notinterpolated"));
+  }
+
+  @Test
+  public void testNestedMapInterpolateConfig() {
+    Map<String, Object> vals = new HashMap();
+    vals.put("foo", "bar");
+    JSONObject conf = new JSONObject();
+    JSONObject subconf = new JSONObject();
+    subconf.put("here", "$foo");
+    conf.put("underhere", subconf);
+    JSONObject result = AMQPInputConsumer.interpolateConfig(conf, vals);
+    assertNotNull(result);
+    Object subresult = result.get("underhere");
+    assertTrue(subresult instanceof JSONObject);
+    JSONObject subresultjson = (JSONObject)subresult;
+    assertEquals("bar", subresultjson.get("here"));
+  }
+
+  @Test
+  public void testArrayInterpolateConfig() {
+    Map<String, Object> vals = new HashMap();
+    vals.put("foo", "bar");
+    JSONObject conf = new JSONObject();
+    JSONArray subconf = new JSONArray();
+    subconf.add("notthis");
+    subconf.add("$foo");
+    conf.put("underhere", subconf);
+    JSONObject result = AMQPInputConsumer.interpolateConfig(conf, vals);
+    assertNotNull(result);
+    Object subresult = result.get("underhere");
+    assertTrue(subresult instanceof JSONArray);
+    JSONArray subresultjson = (JSONArray)subresult;
+    assertEquals("notthis", subresultjson.element(0));
+    assertEquals("bar", subresultjson.element(1));
   }
 
 }
