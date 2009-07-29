@@ -10,15 +10,35 @@ import java.io.InputStreamReader;
 public class Run {
 
   private JSONObject config;
+  private Connection connection;
+  private AMQPLogger buildlog;
+
+  public Run()  {
+    Runtime.getRuntime().addShutdownHook(new Thread(){
+      public void run() {
+        if(buildlog != null)  {
+          buildlog.shutdown();
+        }
+        if(connection != null)  {
+          try {
+            connection.close();
+          }
+          catch (IOException e) {
+            e.printStackTrace();
+          }
+        }
+      }
+    });
+  }
 
   public void setConfig(JSONObject config) {
     this.config = config;
   }
 
   public void runPlugin() throws IOException  {
-    Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
+    connection = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
     try {
-      AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), "." + config.getString("plugin_name"));
+      buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"));
       // TODO: why does this need to run in a thread, rather than just being synchronous
       // TODO: encapsulate this
       Thread logThread = new Thread(buildlog);
@@ -26,7 +46,7 @@ public class Run {
       logThread.start();
 
       SessionFactory sf = new SessionFactory();
-      PluginResourceFactory factory = new PluginResourceFactory(conn, sf, buildlog);
+      PluginResourceFactory factory = new PluginResourceFactory(connection, sf, buildlog);
       PluginBuilder builder = new PluginBuilder(buildlog, factory);
       builder.buildPlugin(config);
 
@@ -43,21 +63,18 @@ public class Run {
       }
     }
     finally {
-      conn.close();
+      connection.close();
     }
   }
 
-  public static void main
-    (
-      final String[] args) throws IOException, InterruptedException {
+  public static void main(final String[] args) throws IOException, InterruptedException {
     System.out.println(args[0]);
     Run run = new Run();
     run.setConfig(readConfiguration());
     run.runPlugin();
   }
 
-  private static JSONObject readConfiguration
-    () {
+  private static JSONObject readConfiguration() {
     try {
       return JSONObject.fromObject(new BufferedReader(new InputStreamReader(System.in)).readLine());
     }
