@@ -332,7 +332,7 @@ def init_couch_state(host=COUCH_HOST_PORT[0], port=COUCH_HOST_PORT[1]):
 def is_server(spec):
     return spec['subtype']=='server'
 
-def setup_everything(plugindir, config_json, env, Outputter):
+def setup_everything(plugindir, id, config_json, env, Outputter):
     try:
         instance_config = json.loads(config_json)
     except ValueError:
@@ -373,6 +373,7 @@ def setup_everything(plugindir, config_json, env, Outputter):
             config = instance_config.copy()
             config.update(kwargs)
         spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs,
+                     plugin_id=id,
                      instance_config=config, env=env,
                      inputs=wiring.inputs, outputs=wiring.outputs,
                      rabbit_params=RABBIT_CONNECTION_PARAMS)
@@ -390,7 +391,7 @@ def setup_everything(plugindir, config_json, env, Outputter):
 
 
 
-def spawn_plugin(plugindir, plugin_specs, instance_config, env,
+def spawn_plugin(plugindir, plugin_id, plugin_specs, instance_config, env,
                  inputs, outputs,
                  rabbit_params=RABBIT_CONNECTION_PARAMS,
                  ):
@@ -402,7 +403,7 @@ def spawn_plugin(plugindir, plugin_specs, instance_config, env,
         "plugin_name": os.path.basename(plugindir),
         "plugin_dir": plugindir,
         "feed_id": "test",
-        "node_id": "plugin",
+        "node_id": plugin_id,
         "plugin_type": plugin_specs, # TODO(alexander): this looks *wrong*
         "global_configuration": {}, # TODO(alexander): excise at some point
         "configuration": instance_config, # this comes from the feeds config, the node in the wiring
@@ -636,6 +637,7 @@ if __name__ == '__main__':
                                    help="Print out additional info.")
                                ])
     parser.add_option('-D', action="append", dest="env", default=[], help="An environment variable assignment to pass along to the harness")
+    parser.add_option('--id', dest='id', default='plugin', help="Supply the ID of the plugin; useful for servers.")
     parser.add_option("--couchdb",
                       default="http://localhost:5984/",
                       dest="couchdb",
@@ -686,6 +688,7 @@ if __name__ == '__main__':
         env = [e.partition("=") for e in opts.env]
         env = dict((k,v) for (k,s,v) in env)
         setup_args = dict(plugindir=os.path.abspath(plugin_path),
+                          id=opts.id,
                           config_json=config_json,
                           env=env,
                           Outputter=Outputter)
