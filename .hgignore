@@ -34,6 +34,7 @@
 ^plugins/websubscriber/(lib|dist)/
 ^plugins/xmpppubsub/(lib|dist)/
 ^plugins/xslt/(lib|dist)/
+^plugins/uniq/(lib|dist)/
 
 (^|/)nb-configuration\.xml$
 
