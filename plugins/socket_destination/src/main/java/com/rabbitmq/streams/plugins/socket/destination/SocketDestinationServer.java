@@ -1,70 +1,49 @@
 package com.rabbitmq.streams.plugins.socket.destination;
-import com.rabbitmq.streams.harness.InputMessage;
-import com.rabbitmq.streams.harness.PluginBuildException;
-import com.rabbitmq.streams.harness.Server;
-import com.rabbitmq.streams.harness.PluginException;
+
+import com.rabbitmq.streams.harness.*;
 import net.sf.json.JSONObject;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 
 public class SocketDestinationServer extends Server {
 
-  private final Map<String, List<SocketDestination>> terminalMap = new HashMap<String, List<SocketDestination>>();
-
+  public final Map<String, List<Destination>> terminalMap = new ConcurrentHashMap<String, List<Destination>>();
   public final Server.ServerInputReader input = new Server.ServerInputReader() {
 
     @Override
     public void handleBodyForTerminal(byte[] body, String key, InputMessage ack) throws PluginException {
-      List<SocketDestination> dests = terminalMap.get(key);
+      List<Destination> dests = terminalMap.get(key);
       if (null != dests) {
-        for (SocketDestination dest : dests) {
-          dest.send(body);
-        }
-      }
-      try {
-        ack.ack();
-      }
-      catch (Exception e) {
-        throw new PluginException(e);
+        Thread thread = new Thread(new SendAndAcknowledge(dests, body, ack));
+        thread.setDaemon(true);
+        thread.start();
       }
     }
   };
 
   protected void terminalStatusChange(String terminalId, List<JSONObject> terminalConfigs, boolean active) {
     if (active) {
-      List<SocketDestination> dests = terminalMap.get(terminalId);
+      List<Destination> dests = terminalMap.get(terminalId);
       if (null == dests || 0 == dests.size()) {
-        try {
-          dests = new ArrayList<SocketDestination>(terminalConfigs.size());
-          for (JSONObject termConfigObject : terminalConfigs) {
-            JSONObject destConfig = termConfigObject.getJSONObject("destination");
-            SocketDestination dest = new SocketDestination(destConfig);
-            dests.add(dest);
-            new Thread(dest).start();
-          }
-          terminalMap.put(terminalId, dests);
+        dests = new ArrayList<Destination>(terminalConfigs.size());
+        for (JSONObject termConfigObject : terminalConfigs) {
+          Destination destination = new Destination(termConfigObject.getJSONObject("destination"));
+          dests.add(destination);
         }
-        catch (IOException e) {
-          SocketDestinationServer.this.log.error(e);
-        }
+        terminalMap.put(terminalId, dests);
       }
+
     }
     else {
-      List<SocketDestination> dests = terminalMap.remove(terminalId);
-      if (null != dests && 0 != dests.size()) {
-        for (SocketDestination dest : dests) {
-          dest.stop();
-        }
-      }
+      terminalMap.remove(terminalId);
     }
   }
 
@@ -74,74 +53,108 @@ public class SocketDestinationServer extends Server {
     registerInput(input);
   }
 
-  private final class SocketDestination implements Runnable {
-    final private int port;
-    final private InetAddress address;
-    private Socket socket;
-    private OutputStream socketOutputStream;
-    final private BlockingQueue<byte[]> sendQueue = new LinkedBlockingQueue<byte[]>();
 
-    final private Object lockObj = new Object();
-    private boolean running = true;
+  private final class SendAndAcknowledge implements Runnable {
+    private final List<Destination> destinations;
+    private final byte[] body;
+    private final InputMessage acknowledge;
 
-    public SocketDestination(JSONObject terminalConfig) throws IOException {
-      port = terminalConfig.getInt("port");
-      address = InetAddress.getByName(terminalConfig.getString("host"));
-      initialiseSocket();
-    }
-
-    private void initialiseSocket() throws IOException {
-      socket = new Socket(address, port);
-      socketOutputStream = socket.getOutputStream();
-    }
-
-    private boolean isRunning() {
-      synchronized (lockObj) {
-        return running;
-      }
-    }
-
-    public void send(byte[] msg) {
-      try {
-        sendQueue.put(msg);
-      }
-      catch (InterruptedException e) {
-        send(msg);
-      }
+    public SendAndAcknowledge(List<Destination> destinations, byte[] body, InputMessage acknowledge) {
+      this.destinations = destinations;
+      this.body = body;
+      this.acknowledge = acknowledge;
     }
 
     public void run() {
-      while (isRunning()) {
+      if (destinations.size() > 0) {
+        CountDownLatch done = new CountDownLatch(destinations.size());
+        ArrayList<DestinationRunner> runners = new ArrayList<DestinationRunner>();
+
+        for (Destination destination : destinations) {
+          DestinationRunner runner = new DestinationRunner(destination, body, done);
+          runners.add(runner);
+          Thread thread = new Thread(runner);
+          thread.setDaemon(true);
+          thread.start();
+        }
         try {
-          socketOutputStream.write(sendQueue.take());
+          done.await();
         }
         catch (InterruptedException ignore) {
         }
-        catch (IOException e) {
-          SocketDestinationServer.this.log.error(e);
-          synchronized (lockObj)  {
-            try {
-              initialiseSocket();
-            }
-            catch (IOException ex) {
-              SocketDestinationServer.this.log.error(ex);
-            }
+        boolean flag = true;
+        for (DestinationRunner runner : runners) {
+          flag = flag && runner.success();
+        }
+        if (flag) {
+          try {
+            acknowledge.ack();
+          }
+          catch (MessagingException ignore) {
           }
         }
+
       }
+    }
+  }
+
+  private final class DestinationRunner implements Runnable {
+    private final Destination destination;
+    private final byte[] body;
+    private final CountDownLatch countDownLatch;
+    private boolean success = false;
+
+    public DestinationRunner(Destination destination, byte[] body, CountDownLatch countDownLatch) {
+      this.destination = destination;
+      this.body = body;
+      this.countDownLatch = countDownLatch;
+    }
+
+    public void run() {
+      success = destination.writeToSocket(body);
+      countDownLatch.countDown();
+    }
+
+    public synchronized boolean success() {
+      return success;
+    }
+  }
+
+  private final class Destination {
+    public Destination(JSONObject config) {
+      port = config.getInt("port");
       try {
-        socket.close();
+        address = InetAddress.getByName(config.getString("host"));
       }
-      catch (IOException e) {
-        SocketDestinationServer.this.log.error(e);
+      catch (UnknownHostException e) {
+        throw new IllegalArgumentException("Unable to resolve host for inet address from configuration: " + config, e);
       }
     }
 
-    public void stop() {
-      synchronized (lockObj) {
-        running = false;
+    private boolean writeToSocket(byte[] body) {
+      try {
+        Socket socket = new Socket(address, port);
+        socket.getOutputStream().write(body);
+        socket.close();
+        return true;
       }
+      catch (IOException e) {
+        e.printStackTrace();
+      }
+      return false;
     }
+
+    public InetAddress getAddress() {
+      return address;
+    }
+
+    public int getPort() {
+      return port;
+    }
+
+    private InetAddress address;
+    private int port;
+
   }
 
 }
