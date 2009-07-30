@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(here, '../harness/python/lib'))
 
 import amqplib.client_0_8 as amqp
 
-from feedshub import json, plugin_config_header as PLUGIN_CONFIG_HEADER
+from feedshub import json, PLUGIN_CONFIG_HEADER, FEEDSHUB_LOG_XNAME, FEEDSHUB_NOTIFY_XNAME
 
 BAD_SYSTEM_STATE, BAD_CONFIG, BAD_CHANNEL, MALFORMED_INPUT = (2**n for n in range(4))
 SEP, IN, OUT = "\t><"
@@ -211,21 +211,17 @@ class TestWiring(object):
         amqp_connection, inputspec, outputspec, Outputter = self.args
         self.channel = amqp_connection.channel()
         self.outputs = dict((spec['name'], self.declexchange()) for spec in outputspec)
-        self.outputs['notify'] = 'feedshub/notify' # XXX
-        self.outputs['log'] = 'feedshub/log' # XXX
         self.inputs = dict((spec['name'], self.declqueue()) for spec in inputspec)
-        self.outputter = Outputter(self.outputs.keys())
+        self.outputlikes = dict(notify=FEEDSHUB_NOTIFY_XNAME, log=FEEDSHUB_LOG_XNAME)
+        self.outputter = Outputter(self.outputs.keys() + self.outputlikes.keys())
 
         global verbosity
         # Now, we want to *listen* to the outputs, and *talk* to the inputs
         for (name, exchange) in self.outputs.items():
-            if name not in ('notify', 'log'):
-                self.subscribe(name, exchange)
-            else:
-                if name == 'notify' or verbosity > 1:
-                    self.subscribe(name=name, exchange=exchange, key='#')
-
-
+            self.subscribe(name, exchange)
+        for (name, exchange) in self.outputlikes.items():
+            if name != 'log' or verbosity > 1:
+                self.subscribe(name, exchange, key='#')
 
         self.talkers = dict((name, self.make_talker(queue))
                             for (name, queue) in self.inputs.items())
@@ -290,7 +286,6 @@ class TestWiring(object):
             for s in sleeps:
                 if isinstance(s, (int, float)): s = Msg(repr(s))
                 elif isinstance(s, basestring): s = Msg(s)
-                print >>sys.stderr, "#DEBUG sleeping %s" % s.body
                 time.sleep(secondify(s.body))
         assert not (set(kwargs) - set(self.inputs))
         kwargs = self._normalize_kwargs(kwargs)
@@ -375,6 +370,9 @@ def setup_everything(plugindir, id, config_json, env, Outputter):
         spawn_plugin(plugindir=plugindir, plugin_specs=plugin_specs,
                      plugin_id=id,
                      instance_config=config, env=env,
+                     # FIXME(alexander): should prob redirect stderr after
+                     # Plugin is refactored, but for the moment we need it so
+                     # as not to lose errors
                      inputs=wiring.inputs, outputs=wiring.outputs,
                      rabbit_params=RABBIT_CONNECTION_PARAMS)
 
@@ -428,7 +426,7 @@ def spawn_plugin(plugindir, plugin_id, plugin_specs, instance_config, env,
     pluginproc = subprocess.Popen([harness], cwd=harnessdir,
                                   stdout=subprocess.PIPE, # TODO(alexander):
                                   env=env,
-                                  stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+                                  stdin=subprocess.PIPE)
     info("## Harness PID", pluginproc.stdout.readline())
     info("## Initialising plugin with:")
     info("#", json.dumps(init))
@@ -533,7 +531,7 @@ class Msg:
 # TODO: a proper state-machine abstraction might be good here...
 def repl(lines, send, expect=False, is_valid_channel=lambda *_: True, lineno=1):
     WANT_CHANNEL, WANT_ANY = 'want_channel', 'want_any'
-    talker_name, msg, state = None, None, WANT_CHANNEL
+    talker_name, msg, group_chan_type, state = None, None, None, WANT_CHANNEL
     exit_code = 0
     io_group = {}
     channel_acc = []
@@ -549,7 +547,7 @@ def repl(lines, send, expect=False, is_valid_channel=lambda *_: True, lineno=1):
             ## print >>sys.stderr, "###DEBUG A'shipped"
             return 0
         except KeyError:
-            print >>sys.stderr, ("ERROR(BAD_CHANNEL)%s%r unknown" %
+            print >>sys.stderr, ('ERROR["BAD_CHANNEL"]%s%r' %
                                  (SEP, talker_name))
             return BAD_CHANNEL
 
@@ -666,7 +664,7 @@ if __name__ == '__main__':
         if opts.test:
             is_valid_channel=lambda t, c: (
                 t==IN  and (c in wiring.inputs or c == "SLEEP") or
-                t==OUT and  c in wiring.outputs)
+                t==OUT and  c in set(wiring.outputs) | set(wiring.outputlikes))
             Outputter = TestOutputter
             verbosity = 1
             if filename is not None:
