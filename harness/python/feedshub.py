@@ -10,8 +10,11 @@ import os
 import sys
 import threading
 
-feedshub_log_xname = 'feedshub/log'
-plugin_config_header = 'x-streams-plugin-values'
+FEEDSHUB_LOG_XNAME = 'feedshub/log'
+FEEDSHUB_NOTIFY_XNAME = 'feedshub/notify'
+PLUGIN_CONFIG_HEADER = 'x-streams-plugin-values'
+NOTIFICATION_TYPES = "Startup Shutdown NoData BadData FatalError StopNotifier".split()
+STARTUP, SHUTDOWN, NO_DATA, BAD_DATA, FATAL_ERROR, STOP_NOTIFIER = NOTIFICATION_TYPES
 
 try:
     import simplejson as json
@@ -76,7 +79,7 @@ class PluginBase(object):
 
         self.__publication_error = False
         self.__log = self.__conn.channel() # a new channel which isn't tx'd
-        self.build_logger(config)
+        self.build_loggers_and_notifier(config)
 
         if 'database' in config and config['database'] is not None:
             self.__db = couch.Database(config['database'])
@@ -87,6 +90,7 @@ class PluginBase(object):
                         for item in config['plugin_type']['global_configuration_specification'])
         settings.update(config['configuration'])
         self._static_config = settings
+        self._instance_config = config['configuration']
 
         for name, exchange in config['outputs'].iteritems():
             if name not in self.OUTPUTS:
@@ -98,8 +102,8 @@ class PluginBase(object):
             def handle(msg):
                 if 'application_headers' in msg.properties:
                     headers = msg.properties['application_headers']
-                    if headers and plugin_config_header in headers:
-                        config = headers[plugin_config_header]
+                    if headers and PLUGIN_CONFIG_HEADER in headers:
+                        config = headers[PLUGIN_CONFIG_HEADER]
                         self.debug("Plugin config found: %r" % config)
                         try:
                             headerConfig = config
@@ -121,6 +125,9 @@ class PluginBase(object):
 
         self.info(pformat({"event": "configured",
                            "args": {"config": settings}}))
+
+    def _build_rk(self, config, prefixes=[]):
+        return ".".join(prefixes + [config[n] for n in self._ROUTING_KEY_PARTS])
 
     def interpolateValue(self, values, val):
         if type(val) in (unicode, str) and val[0] == "$":
@@ -144,16 +151,15 @@ class PluginBase(object):
         return self.__monitor
 
     def _make_exchange_publisher(self, channel, exchange, routing_key):
-        def p(body, **headers):
-            override_routing_key = headers.pop("override_routing_key", None)
+        def p(body, rk_prefixes=[], **headers):
+            rk = headers.pop("override_routing_key", ".".join(rk_prefixes) + routing_key)
             if self.__publication_error:
                 raise Exception("Publishing after publication error")
             message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
             # TODO: treat application_headers specially, and expect a content type
             with self.__monitor:
                 try:
-                    channel.basic_publish(message, exchange,
-                                          override_routing_key or routing_key)
+                    channel.basic_publish(message, exchange, rk)
                 except:
                     self.__publication_error = True
                     raise
@@ -214,23 +220,35 @@ class PluginBase(object):
         with self.__monitor:
             self.__channel.tx_rollback()
 
-    def build_logger(self, config):
+
+    def build_loggers_and_notifier(self, config):
         def logger(level):
-            rk = self._build_log_rk(config, level)
-            publisher = self._make_exchange_publisher(self.__log, feedshub_log_xname, rk)
+            rk = self._build_rk(config, prefixes=[level])
+            publisher = self._make_exchange_publisher(self.__log, FEEDSHUB_LOG_XNAME, rk)
             def log(body, label=None):
                 headers = {"com.rabbitmq.streams.logging.label": label} if label else {}
                 publisher(body, **headers)
             return log
+
         for level in ['debug', 'info', 'warn', 'error', 'fatal']:
      	    setattr(self, level, logger(level))
+
+        def notifier():
+            rk = self._build_rk(config)
+            publisher = self._make_exchange_publisher(self.__log, FEEDSHUB_NOTIFY_XNAME, rk)
+            def notify(kind, body, headers={}):
+                assert kind in NOTIFICATION_TYPES
+                publisher(body, [kind], **headers)
+            return notify
+
+        self.notify = notifier()
 
     def privateDatabase(self):
         return self.__db
 
-    def setting(self, name, defaultValue = None):
+    def setting(self, name, defaultValue=None):
         """Get a configuration setting."""
-        return self.__config.get(name, defaultValue)
+        return self._instance_config.get(name, defaultValue)
 
     def run(self):
         while True:
@@ -244,15 +262,10 @@ class PluginBase(object):
             self.terminate()
 
 class Component(PluginBase):
+    _ROUTING_KEY_PARTS = ['feed_id', 'plugin_name', 'node_id']
     def __init__(self, config):
         super(Component, self).__init__(config)
         self.__stateresource = couch.Resource(None, config['state'])
-
-    def _build_log_rk(self, config, level):
-        feed_id = config['feed_id']
-        plugin_name = config['plugin_name']
-        node_id = config['node_id']
-        return level + '.' + feed_id + '.' + plugin_name + '.' + node_id
 
     def putState(self, state):
         """Record the state of the component"""
@@ -269,15 +282,11 @@ class Component(PluginBase):
             return defaultState
 
 class Server(PluginBase):
+    _ROUTING_KEY_PARTS = ["server_id", "plugin_name"]
     def __init__(self, config):
         super(Server, self).__init__(config)
         self.__server_id = config['server_id']
         self.__terminalsDb = couch.Database(config['terminals_database'])
-
-    def _build_log_rk(self, config, level):
-        server_id = config['server_id']
-        plugin_name = config['plugin_name']
-        return level + '.' + server_id + '.' + plugin_name
 
     def getServerId(self):
         return self.__server_id
@@ -303,3 +312,5 @@ class Server(PluginBase):
                            "args": {"terminal_id": terminal_id,
                                     "terminal_configs": terminal_configs,
                                     "terminal_is_active": terminal_is_active}}))
+
+
