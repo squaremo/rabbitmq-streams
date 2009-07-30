@@ -6,6 +6,7 @@
 \.beam$
 \.pyc$
 \.class$
+\.jar$
 
 # target directories are a Maven thing
 ^sites/[^/]*/target/
