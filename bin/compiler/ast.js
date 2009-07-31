@@ -32,6 +32,12 @@ function setActive(item) {
   item.active = true;
 }
 
+function setAllActive() {
+  for (k in AST) {
+    if (AST.hasOwnProperty(k) ) AST[k].active=true;
+  }
+}
+
 function declare_terminal(name) {
   var t = {
     "name": name,
@@ -111,8 +117,14 @@ function feed(name) {
     return name+'-'+kind+counter
   };
 
+  function node(n) {
+    if (typeof n=='string') {
+      return {"node": n}
+    }
+    else return n
+  }
   var connection = function(from, to) {
-    return {"from": from, "to": to}
+    return {"from": node(from), "to": node(to)}
   }
 
   feed.plugin = function(plugin) {
