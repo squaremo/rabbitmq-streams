@@ -72,11 +72,10 @@ public class email_sender extends Server {
     super.configure(config);
     registerInput(input);
 
-    JSONObject c = config.getJSONObject("configuration");
-    host = c.getString("host");
-    username = c.getString("username");
-    password = c.getString("password");
-    transportProtocol = c.getString("transportProtocol");
+    host = config.getString("host");
+    username = config.getString("username");
+    password = config.getString("password");
+    transportProtocol = config.getString("transportProtocol");
 
     log.info(String.format("Setup config vars, host: %s, username: %s, password: %s, protocol: %s", host, username, password, transportProtocol));
   }
