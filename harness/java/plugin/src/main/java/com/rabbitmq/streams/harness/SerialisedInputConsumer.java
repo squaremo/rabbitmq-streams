@@ -7,7 +7,7 @@ import java.io.IOException;
 import net.sf.json.JSONObject;
 
 /**
- * This reader ensures that the reading of messages is synchronised.
+ * This reader ensures that the processing of messages is serialised.
  *
  * We may have many input queues, so to avoid interleaving transactions, we have to choose either to have a channel for each, or serialise the
  * message handing. Since there are a maximum of 15 channels, we choose to serialise message handling by way of this mutex.
@@ -17,9 +17,9 @@ import net.sf.json.JSONObject;
  * 
  * QUESTION: Where does 15 come from?
  */
-class TransactionalInputReaderRunnable extends AMQPInputConsumer {
+class SerialisedInputConsumer extends AMQPInputConsumer {
 
-  TransactionalInputReaderRunnable(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
+  SerialisedInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
     super(consumer, handler, config, log);
     this.lock = lock;
   }
@@ -36,22 +36,22 @@ class TransactionalInputReaderRunnable extends AMQPInputConsumer {
               msg.ack();
             }
             catch (Exception e) {
-              // FIXME report this!
-              return;
+              log.error(e);
+              throw e;
             }
             consumer.getChannel().txCommit();
           }
-          catch (IOException ex) {
+          catch (Exception ex) {
             try {
-              // FIXME log.error(ex);
+              log.error(ex);
               consumer.getChannel().txRollback();
             }
             catch (IOException e) {
-              // FIXME log.error(e);
+              log.fatal(e); // we cannot continue if we can't use txns
+              return;
             }
           }
         }
-
       }
       catch (InterruptedException ignored) {
       }

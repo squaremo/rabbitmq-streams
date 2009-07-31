@@ -47,6 +47,10 @@ class PluginResourceFactory {
     return new CouchDbDatabaseResource(database);
   }
 
+  public MessageResource getComponentMessageResource(JSONObject config) throws IOException {
+    return new AMQPComponentMessageChannel(connection.createChannel(), config, log);
+  }
+
   public MessageResource getMessageResource(JSONObject config) throws IOException {
     return new AMQPMessageChannel(connection.createChannel(), config, log);
   }
@@ -92,8 +96,6 @@ class CouchDbDatabaseResource implements DatabaseResource {
   }
 }
 
-
-
 class AMQPMessageChannel implements MessageResource {
   private final Channel channel;
   private Map<String, AMQPPublisher> outputs;
@@ -124,16 +126,19 @@ class AMQPMessageChannel implements MessageResource {
       throw new MessagingException("No such input " + channelName);
     }
     QueueingConsumer queuer = new QueueingConsumer(channel);
-    AMQPInputConsumer consumer = new DefaultInputConsumer(queuer, handler, config, log);
+    AMQPInputConsumer consumer = inputConsumer(queuer, handler, config, log);
     Thread consumerThread = new Thread(consumer);
     consumerThread.setDaemon(true);
     consumerThread.start();
     try {
-      channel.basicConsume(queue, queuer);
+      synchronized(channel) {
+        channel.basicConsume(queue, queuer);
+      }
     } catch (IOException ex) {
       throw new MessagingException("IOException on consume", ex);
     }
   }
+
 
   public void publish(String channelName, Message msg) throws MessagingException {
     AMQPPublisher p = outputs.get(channelName);
@@ -147,7 +152,27 @@ class AMQPMessageChannel implements MessageResource {
       throw new MessagingException("No such channel: " + channelName);
     }
   }
+
+  protected AMQPInputConsumer inputConsumer(QueueingConsumer queuer, InputHandler handler, JSONObject config, Logger log) {
+    return new DefaultInputConsumer(queuer, handler, config, log);
+  }
 }
+
+class AMQPComponentMessageChannel extends AMQPMessageChannel {
+  AMQPComponentMessageChannel(Channel channel, JSONObject config, Logger log) throws IOException {
+    super(channel, config, log);
+    synchronized(channel) {
+      channel.txSelect();
+    }
+  }
+
+  private final Object mutex = new Object();
+  @Override
+  protected AMQPInputConsumer inputConsumer(QueueingConsumer queuer, InputHandler handler, JSONObject config, Logger log) {
+    return new SerialisedInputConsumer(queuer, handler, config, log, mutex);
+  }
+}
+
 class CouchDbStateResource implements StateResource {
 
   private final Database database;

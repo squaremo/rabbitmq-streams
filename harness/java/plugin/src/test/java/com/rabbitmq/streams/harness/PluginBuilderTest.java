@@ -107,7 +107,7 @@ public class PluginBuilderTest {
   //@Test Template-generated, disabled for now
   public void testConfigurePipelineComponent() throws Exception {
     System.out.println("configurePipelineComponent");
-    Plugin plugin = null;
+    PipelineComponent plugin = null;
     JSONObject configuration = null;
     PluginBuilder instance = null;
     instance.configurePipelineComponent(plugin, configuration);

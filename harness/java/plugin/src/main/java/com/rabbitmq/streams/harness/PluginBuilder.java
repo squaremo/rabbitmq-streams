@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import net.sf.json.JSONArray;
 
-public class PluginBuilder {
+class PluginBuilder {
   private final Logger log;
   private final PluginResourceFactory resources;
 
@@ -99,7 +99,20 @@ public class PluginBuilder {
   }// </editor-fold>
 
 // <editor-fold defaultstate="expanded" desc="Configuration interpreter">
+  
+  protected void configureServer(Server plugin, JSONObject configuration) throws Exception {
+    configurePlugin(plugin, configuration);
+    connectTerminalsDatabase(plugin, configuration);
+  }
+
+  protected void configurePipelineComponent(PipelineComponent plugin, JSONObject configuration) throws Exception {
+    configurePlugin(plugin, configuration);
+    setStateResourceOnPlugin(plugin, configuration);
+  }
+
   protected void configurePlugin(Plugin plugin, JSONObject configuration) throws Exception {
+    // FIXME this creates two connections, when we only really need one;
+    // we should use the message channel abstraction with the loggers as well.
     Connection messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
     Channel messageServerChannel = messageServerConnection.createChannel();
     setIdForPlugin(plugin, configuration);
@@ -107,7 +120,7 @@ public class PluginBuilder {
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     connectNotifierToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
-    MessageResource mr = resources.getMessageResource(configuration);
+    MessageResource mr = getMessageResource(configuration);
     constructPluginOutputs(configuration, mr);
     constructPluginInputs(configuration, mr);
     plugin.setMessageChannel(mr);
@@ -148,16 +161,6 @@ public class PluginBuilder {
     thread.start();
     log.info("Harness notifier starting up...");
     plugin.setNotifier(notifier);
-  }
-
-  protected void configureServer(Plugin plugin, JSONObject configuration) throws Exception {
-    configurePlugin(plugin, configuration);
-    connectTerminalsDatabase(plugin, configuration);
-  }
-
-  protected void configurePipelineComponent(Plugin plugin, JSONObject configuration) throws Exception {
-    configurePlugin(plugin, configuration);
-    setStateResourceOnPlugin(plugin, configuration);
   }
 
   private void constructPluginOutputs(JSONObject configuration, MessageResource channel) {
@@ -239,6 +242,15 @@ public class PluginBuilder {
       throw new PluginNotFoundException("Cannot find plugin class " + pluginName, ex);
     } catch (NoSuchMethodException ex) {
       throw new PluginNotFoundException("No default constructor for class " + pluginName, ex);
+    }
+  }
+
+  private MessageResource getMessageResource(JSONObject configuration) throws IOException {
+    if (pluginIsServer(configuration)) {
+      return resources.getMessageResource(configuration);
+    }
+    else {
+      return resources.getComponentMessageResource(configuration);
     }
   }
 
