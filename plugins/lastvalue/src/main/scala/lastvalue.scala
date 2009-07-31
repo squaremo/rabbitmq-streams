@@ -61,7 +61,7 @@ class lastvalue() extends PipelineComponent() {
             if (cachedValue != null)
             {
                 //Check message against cachedValue
-                headers += (ValuesHeader -> cachedValue);
+                headers += ("value" -> cachedValue);
             }
             
             //Send on message possibly modified
