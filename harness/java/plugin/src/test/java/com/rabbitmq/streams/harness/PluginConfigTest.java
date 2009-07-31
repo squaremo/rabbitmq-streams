@@ -88,8 +88,8 @@ public class PluginConfigTest {
     Object subresult = result.get("underhere");
     assertTrue(subresult instanceof JSONArray);
     JSONArray subresultjson = (JSONArray)subresult;
-    assertEquals("notthis", subresultjson.element(0));
-    assertEquals("bar", subresultjson.element(1));
+    assertEquals("notthis", subresultjson.get(0));
+    assertEquals("bar", subresultjson.get(1));
   }
 
 }
