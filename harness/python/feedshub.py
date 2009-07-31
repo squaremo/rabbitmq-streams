@@ -130,7 +130,7 @@ class PluginBase(object):
         return ".".join(prefixes + [config[n] for n in self._ROUTING_KEY_PARTS])
 
     def interpolateValue(self, values, val):
-        if type(val) in (unicode, str) and val[0] == "$":
+        if type(val) in (unicode, str) and val.startswith("$"):
             interp = values.get(val[1:], "")
             return interp
         elif type(val)==dict:
