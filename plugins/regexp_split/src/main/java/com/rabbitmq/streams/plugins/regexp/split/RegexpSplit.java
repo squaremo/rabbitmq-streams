@@ -25,9 +25,9 @@ public class RegexpSplit extends PipelineComponent {
     }
 
     String regexp = config.getString("regexp");
-    int flags = (config.getBoolean("multiline") ? Pattern.MULTILINE : 0)
-      | (config.getBoolean("caseinsensitive") ? Pattern.CASE_INSENSITIVE : 0)
-      | (config.getBoolean("dotall") ? Pattern.DOTALL : 0);
+    int flags = (config.optBoolean("multiline", false) ? Pattern.MULTILINE : 0)
+      | (config.optBoolean("caseinsensitive", false) ? Pattern.CASE_INSENSITIVE : 0)
+      | (config.optBoolean("dotall", false) ? Pattern.DOTALL : 0);
     pattern = Pattern.compile(regexp, flags);
     registerInput("input", input);
   }

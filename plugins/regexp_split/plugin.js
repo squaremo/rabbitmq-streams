@@ -14,15 +14,18 @@
       },
       {"label": "Multiline",
        "type": "boolean",
-       "name": "multiline"
+       "name": "multiline",
+       "default": false
       },
       {"label": "Case insensitive",
        "type": "boolean",
        "name": "caseinsensitive"
+       "default": false
       },
       {"label": "Dot all",
        "type": "boolean",
        "name": "dotall"
+       "default": false
       }
     ],
 
