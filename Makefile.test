@@ -65,6 +65,10 @@ init-rabbit-streams:
 run-short-thrash-test:
 	${MAKE} -f Makefile.test TEST=http2plain STREAM=empty run-perf-test
 
+run-soak-test:
+	${MAKE} -f Makefile.test TEST=soak STREAM=empty run-perf-test
+
+
 run-perf-test: create-cachedir init-orchestrator
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
 		test/performance/tests/${TEST}/sender.properties &

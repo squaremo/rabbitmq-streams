@@ -34,7 +34,7 @@ messageQueue = []
 
 # Register custom statistics - Delivery time and Mean delivery time
 grinder.statistics.registerDataLogExpression("Delivery time", "userLong0")
-grinder.statistics.registerSummaryExpression("Mean delivery time",
+grinder.statistics.registerSummaryExpression("Mean delivery time (ms)",
                                              "(/ userLong0 (count timedTests))")
 
 # Compile the regex pattern outside of a class method
@@ -48,7 +48,8 @@ def recordDeliveryTime(deliveryTime):
 recordTest = Test(1, "Receive messages").wrap(recordDeliveryTime)
 
 class NetworkListener(Thread):
-    # TODO: Comments
+    """Use a new thread to listen to a network port and place each message
+    sent on a new line to the message queue"""
     
     def __init__(self):
         self._serverSocket = ServerSocket(PORT)
@@ -95,12 +96,16 @@ class NetworkListener(Thread):
 
         if(self._clientSocket is not None):
             self._clientSocket.close() 
-        
-
-listener = NetworkListener()
-listener.start()
 
 class TestRunner:
+    def __init__(self):
+        if grinder.threadNumber > 0:
+            raise RuntimeError("Can only support one thread")
+
+        grinder.logger.output("Thread starting")
+        self.initialisationTime = System.currentTimeMillis()
+        self._listener = NetworkListener()
+        self._listener.start()
 
     def __call__(self):
         lock.acquire()
@@ -117,5 +122,9 @@ class TestRunner:
         deliveryTime = System.currentTimeMillis() - timestamp
         recordTest(deliveryTime)
 
-        if(grinder.runNumber >= totalRuns - 1):
-            listener.stop()
+        if(totalRuns > 0 and grinder.runNumber >= totalRuns - 1):
+            self._listener.stop()
+
+    def __del__(self):
+        grinder.logger.output("Thread shutting down")
+        self._listener.stop()
