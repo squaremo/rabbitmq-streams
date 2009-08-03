@@ -46,4 +46,4 @@ sleep 3
 /usr/sbin/rabbitmqctl delete_user guest
 /usr/sbin/rabbitmqctl delete_user feedshub_admin
 /usr/sbin/rabbitmqctl add_user feedshub_admin feedshub_admin
-/usr/sbin/rabbitmqctl map_user_vhost feedshub_admin /
+/usr/sbin/rabbitmqctl set_permissions feedshub_admin '.*' '.*' '.*'

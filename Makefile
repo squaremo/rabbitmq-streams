@@ -106,6 +106,7 @@ all-harnesses:
 	$(MAKE) -C harness/java all
 
 all-plugins:
+	$(MAKE) -C plugins all;
 	for p in $(PLUGIN_MAKEFILES); \
 		do $(MAKE) -C $$(dirname $$p) all; \
 	done
