@@ -1,0 +1,13 @@
+XMPP XEP0060 "PubSub" plugin.
+
+This implements the publishing half of XMPP PubSub.
+
+Debugging:
+
+Supply these to the plugin harness to get a debugging console:
+-DJVMARGS="-Dsmack.debugEnabled=true" -DDISPLAY=:0.0
+e.g.,
+
+python bin/plugin_test_harness.py -v \
+-DJVMARGS="-Dsmack.debugEnabled=true" -DDISPLAY=:0.0 \
+--id pubsub plugins/xmpppubsub/ psconf
