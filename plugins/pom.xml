@@ -47,6 +47,7 @@
     <module>data_not_changed</module>
     <module>uniq</module>
 		<module>email_sender</module>
+		<module>lastvalue</module>
   </modules>
 
   <build>
