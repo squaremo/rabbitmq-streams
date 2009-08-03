@@ -1,4 +1,4 @@
-JAVA_PLUGINS=$(shell find . -name pom.xml)
+JAVA_PLUGINS=$(shell find . -mindepth 2 -name pom.xml)
 PLUGIN_DIRS=$(foreach plugin, $(JAVA_PLUGINS), $(shell dirname $(plugin)))
 
 all: mvn 

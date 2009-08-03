@@ -107,12 +107,6 @@ all-harnesses:
 
 all-plugins:
 	$(MAKE) -C plugins all;
-	for p in $(PLUGIN_MAKEFILES); \
-		do $(MAKE) -C $$(dirname $$p) all; \
-	done
-
-
-
 
 docs:
 	$(MAKE) -C doc
