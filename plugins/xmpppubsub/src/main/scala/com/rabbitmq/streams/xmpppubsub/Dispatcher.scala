@@ -27,7 +27,7 @@ import scala.collection.mutable.Map
 case class Entry(bytes : Array[Byte], key : String, ack : (() => Unit))
 case class DestinationStatusChange(destination: String, configs: List[JSONObject], active: Boolean)
 
-class Payload(str : String) extends SimplePayload("content", "pubsub:content", str)
+class Payload(str : String) extends SimplePayload("text", "", (<text>{str}</text>).toString)
 
 class Destination(endpoint : Node) {
     def publish(msg: Array[Byte]) {

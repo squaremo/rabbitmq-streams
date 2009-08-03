@@ -36,7 +36,6 @@ class XmppPubSubServer() extends Server() {
 
   private def connectionFromConfig(settings: JSONObject): XMPPConnection = {
     val options = configFromJson(settings)
-
     val conn = new XMPPConnection(options)
     conn.connect
       conn.login(settings.getString("username"),
