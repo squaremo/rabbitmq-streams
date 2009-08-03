@@ -119,9 +119,6 @@ startup_couch_scan() ->
     {ok, CouchInfo} = couchapi:get(""),
     {couchdb_presence_check, {ok, _}} = {couchdb_presence_check,
                                          rfc4627:get_field(CouchInfo, "couchdb")},
-    {ok, CouchVersion} = rfc4627:get_field(CouchInfo, "version"),
-    {couchdb_version_check, true} = {couchdb_version_check,
-                                     lists:prefix("0.9.", binary_to_list(CouchVersion))},
     case couchapi:get(?FEEDSHUB_STATUS_DBNAME) of
         {ok, _DbInfo} ->
             ok;
