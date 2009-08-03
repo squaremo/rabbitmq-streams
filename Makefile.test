@@ -68,10 +68,15 @@ run-short-thrash-test:
 run-soak-test:
 	${MAKE} -f Makefile.test TEST=soak STREAM=empty run-perf-test
 
+plot-last-run:
+	mkdir -p tmp/gnuplot
+	gnuplot test/performance/gnuplot/plain-receiver.p
+	gnuplot test/performance/gnuplot/plain-sender.p
 
-run-perf-test: create-cachedir init-orchestrator
-	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
-		test/performance/tests/${TEST}/sender.properties &
+	awk -f test/performance/gnuplot/calculate-receiver-rate.awk \
+		tmp/logs/data_receiver-0.log > tmp/gnuplot/receiver-rate.log
+
+	gnuplot test/performance/gnuplot/rate-receiver.p
 
 # *** End top level targets ***
 
@@ -86,3 +91,8 @@ start-grinder-receiver: create-cachedir
 init-orchestrator: start-grinder-receiver
 	sbin/import_config.py test/performance/streams/${STREAM}
 	make start-orchestrator-nox 
+
+run-perf-test: create-cachedir init-orchestrator
+	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
+		test/performance/tests/${TEST}/sender.properties &
+
