@@ -6,5 +6,4 @@ RABBIT_BIN=../build/opt/rabbitmq/ebin
 IBROWSE_BIN=../build/opt/ibrowse/ebin
 
 ERL_PATH_OPTS="-pa $EBIN_DIR -pa $RFC4627_BIN -pa $ERLAMQP_BIN -pa $RABBIT_BIN -pa $IBROWSE_BIN"
-#(erl $ERL_PATH_OPTS -boot start_sasl -sname orchestrator -s orchestrator | tee streams.log) & 
-erl $ERL_PATH_OPTS -boot start_sasl -sname orchestrator -s orchestrator
+erl $ERL_PATH_OPTS -boot start_sasl -sname orchestrator -s orchestrator -orchestrator couch_base_url '"http://127.0.0.1:5984/"' -orchestrator root_config_url '"http://127.0.0.1:5984/feedshub_status/root_config"'
