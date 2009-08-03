@@ -355,14 +355,14 @@ install-ibrowse: build/src/ibrowse build/opt/ibrowse
 
 update-ibrowse: build/src/ibrowse
 	rm -rf build/opt/ibrowse
-	(cd build/src/ibrowse && git fetch; git checkout $(IBROWSE_GIT_TAG))
+	(cd build/src/ibrowse && git fetch; git checkout -f $(IBROWSE_GIT_TAG))
 	$(MAKE) build/opt/ibrowse
 
 build/src/ibrowse:
 	@echo checking out ibrowse
 	(mkdir -p build/src && cd build/src && \
 	 git clone -n git://github.com/cmullaparthi/ibrowse.git && \
-         cd ibrowse && git checkout $(IBROWSE_GIT_TAG)) > build/logs/clone-ibrowse.txt 2>&1
+         cd ibrowse && git checkout -f $(IBROWSE_GIT_TAG)) > build/logs/clone-ibrowse.txt 2>&1
 
 build/opt/ibrowse:
 	(cd build/src/ibrowse/ && $(MAKE)) > build/logs/build-ibrowse.txt 2>&1
