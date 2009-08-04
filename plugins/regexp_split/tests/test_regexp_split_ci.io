@@ -1,0 +1,19 @@
+>PLUGIN_INSTANCE_CONFIG	{"dotall": false, "regexp": "sausages", "multiline": false, "caseinsensitive": true}
+>input	sausages
+
+<positive	sausages
+
+# match case-insensitive
+>input	SAUSAGES
+
+<positive	SAUSAGES
+
+>input	
+...	
+...	
+...	
+
+<negative	
+...	
+...	
+...	
