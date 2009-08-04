@@ -448,9 +448,11 @@ demo-showandtell-stop: stop-orchestrator
 
 
 test-plugins:
-	@for d in plugins/*/tests; \
+	fail=0; \
+        for d in plugins/*/tests; \
 	   do echo "Testing plugin `dirname $${d}`"; \
 	   for f in $${d}/*.io; \
-	     do python bin/plugin_test_harness.py `dirname $${d}` -v --test $${f}; \
-	   done \
-	done
+	     do  python bin/plugin_test_harness.py `dirname $${d}` -v --test $${f} || fail=1; \
+	   done; \
+	done; \
+	exit $${fail}
