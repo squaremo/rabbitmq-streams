@@ -11,7 +11,7 @@ object PluginSpecRunner extends ConsoleRunner(PluginSpec)
 
 object PluginSpec extends Specification {
   "JavaScript plugin" should {
-    "compile the function it's given" in {
+    "be constructable" in {
       val plugin = new JavaScriptPlugin()
       plugin must notBeNull
     }
