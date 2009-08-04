@@ -7,8 +7,14 @@
 
 <output	Barfoo
 #
-#Concatenate text nodes
+#Multiple text nodes
 >input	<labels><label>Baz</label><label>boo</label></labels>
 
 <output	Baz
 <output	boo
+#
+# Different nesting
+>input	<labels><label>Foo</label><nest><label>Bar</label></nest></labels>
+
+<output	Foo
+<output	Bar
