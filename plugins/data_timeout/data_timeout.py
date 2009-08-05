@@ -16,26 +16,27 @@ class DataTimeout(Component):
         super(DataTimeout, self).__init__(config)
         self.timeout = self.setting('timeout')
         self.timeout_message = self.setting('timeout_message')
+        self.reset_timer()
+
+    def reset_timer(self):
         now = time.time()
         # NB: we assume that the operations below have negligible latency
-        # compared to `self.timeout`; this isn't necessarily true and can mean
-        # that after silence for ``N*self.timeout`` secs, less than ``N``
+        # compared to ``self.timeout``; this isn't necessarily true and can
+        # mean that after silence for ``N*self.timeout`` secs, less than ``N``
         # timeout messages get send. I don't see this as a practical problem
         # though. -- AS
         state = self.getState({'alarm': now + self.timeout})
         if state['alarm'] <= now:
             self.notify(NO_DATA, self.timeout_message)
             state['alarm'] = now + self.timeout
+        timeout = state['alarm'] - now
         self.putState(state)
-        self.reset_timer(state['alarm'] - now)
-
-    def reset_timer(self, timeout):
         if hasattr(self, 'timer'): self.timer.cancel()
         self.timer = threading.Timer(timeout, self.notify, [NO_DATA, self.timeout_message])
         self.timer.start()
 
-    def input(self, stuff, _):
-        self.reset_timer(self.timeout)
+    def input(self, _, __):
+        self.reset_timer()
 
 def run(config):
     rr = DataTimeout(config)
