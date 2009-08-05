@@ -8,9 +8,9 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ConnectionParameters;
 
-public class AMQPConnection {
+public class AMQPConnectionFactory {
 
-    public static Connection amqConnectionFromConfig(final JSONObject config)
+    public Connection connectionFromConfig(final JSONObject config)
             throws IOException {
         String hostname = config.getString("host");
         int port = config.getInt("port");

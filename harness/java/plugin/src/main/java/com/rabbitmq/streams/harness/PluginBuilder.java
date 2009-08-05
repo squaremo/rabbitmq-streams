@@ -113,7 +113,7 @@ class PluginBuilder {
   protected void configurePlugin(Plugin plugin, JSONObject configuration) throws Exception {
     // FIXME this creates two connections, when we only really need one;
     // we should use the message channel abstraction with the loggers as well.
-    Connection messageServerConnection = AMQPConnection.amqConnectionFromConfig(configuration.getJSONObject("messageserver"));
+    Connection messageServerConnection = new AMQPConnectionFactory().connectionFromConfig(configuration.getJSONObject("messageserver"));
     Channel messageServerChannel = messageServerConnection.createChannel();
     setIdForPlugin(plugin, configuration);
     connectDatabaseToPlugin(plugin, configuration);

@@ -16,7 +16,7 @@ public class Run {
   }
 
   public void runPlugin() throws IOException  {
-    Connection conn = AMQPConnection.amqConnectionFromConfig(config.getJSONObject("messageserver"));
+    Connection conn = new AMQPConnectionFactory().connectionFromConfig(config.getJSONObject("messageserver"));
     try {
       AMQPLogger buildlog = new AMQPLogger(conn.createChannel(), "." + config.getString("plugin_name"));
       // TODO: why does this need to run in a thread, rather than just being synchronous
