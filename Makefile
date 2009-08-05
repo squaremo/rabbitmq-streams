@@ -99,6 +99,9 @@ update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client upda
 
 all: all-orchestrator all-harnesses all-plugins
 
+# run this to "make" after code changes
+test: all test-plugins
+
 all-orchestrator:
 	$(MAKE) -C orchestrator all
 
@@ -106,8 +109,7 @@ all-harnesses:
 	$(MAKE) -C harness/java all
 
 all-plugins:
-	$(MAKE) -C plugins all;
-	$(MAKE) test-plugins
+	$(MAKE) -C plugins all
 
 docs:
 	$(MAKE) -C doc
@@ -448,12 +450,6 @@ demo-showandtell-stop: stop-orchestrator
 	-rm -f $(SHOWANDTELL_PIDSFILE)
 
 
-test-plugins:
-	fail=0; \
-        for d in plugins/*/tests; \
-	   do echo "Testing plugin `dirname $${d}`"; \
-	   for f in $${d}/*.io; \
-	     do  python bin/plugin_test_harness.py `dirname $${d}` -v --test $${f} || fail=1; \
-	   done; \
-	done; \
-	exit $${fail}
+
+test-plugins: start-all
+	bin/test_plugins plugins/*/
