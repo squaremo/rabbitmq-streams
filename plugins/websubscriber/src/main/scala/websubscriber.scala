@@ -17,7 +17,7 @@ class websubscriber() extends Server() {
   var dispatcher : Dispatcher = null
 
   override def configure(config : JSONObject) {
-    dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id), privateDb)
+    dispatcher = new Dispatcher(log, (msg, id) => publishToDestination(msg.getBytes,  id), getDatabase)
     dispatcher.start
     super.configure(config)
   }

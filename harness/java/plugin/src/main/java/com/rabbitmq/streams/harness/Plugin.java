@@ -12,7 +12,7 @@ public abstract class Plugin {
   protected String id;
   protected StateResource stateResource;
   protected Logger log;
-  protected DatabaseResource privateDb;
+  private DatabaseResource privateDb;
   protected DatabaseResource terminalsDatabase;
   protected Notifier notifier;
 
@@ -53,20 +53,24 @@ public abstract class Plugin {
     this.notifier = notifier;
   }
 
+  public DatabaseResource getDatabase() {
+    return privateDb;
+  }
+
   public void setDatabase(DatabaseResource database) {
     privateDb = database;
   }// </editor-fold>
 
   /**
    * For plugins to set their state
-   * @param name
+   * @param state
    * @return
    */
   protected final void setState(Map<String, Object> state) {
     try {
       stateResource.setState(state);
     }
-    catch (IOException ioe) {
+    catch (IOException ignored) {
 
     }
   }
