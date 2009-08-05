@@ -152,7 +152,7 @@ class PluginBase(object):
 
     def _make_exchange_publisher(self, channel, exchange, routing_key):
         def p(body, rk_prefixes=[], **headers):
-            rk = headers.pop("override_routing_key", ".".join(rk_prefixes) + routing_key)
+            rk = headers.pop("override_routing_key", ".".join(rk_prefixes + [routing_key]))
             if self.__publication_error:
                 raise Exception("Publishing after publication error")
             message = amqp.Message(body=body, children=None, delivery_mode=2, **headers)
