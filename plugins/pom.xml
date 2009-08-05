@@ -48,6 +48,7 @@
 		<module>email_sender</module>
 		<module>lastvalue</module>
     <module>xpathselect</module>
+    <module>newdata</module>
   </modules>
 
   <build>
