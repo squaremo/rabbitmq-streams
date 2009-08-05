@@ -107,6 +107,7 @@ all-harnesses:
 
 all-plugins:
 	$(MAKE) -C plugins all;
+	$(MAKE) test-plugins
 
 docs:
 	$(MAKE) -C doc
