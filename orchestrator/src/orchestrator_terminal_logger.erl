@@ -4,14 +4,17 @@
 
 -export([init/1, handle_event/2, handle_call/2, handle_info/2, code_change/3, terminate/2]).
 
--include("orchestrator.hrl").
 -include("rabbit.hrl").
 -include("rabbit_framing.hrl").
 
-init([RoutingKey, Channel]) ->
+init([Exchanges, RoutingKey, Channel]) ->
     PrivateQ = lib_amqp:declare_private_queue(Channel),
-    #'queue.bind_ok'{} = lib_amqp:bind_queue(Channel, ?FEEDSHUB_LOG_XNAME, PrivateQ, list_to_binary(RoutingKey)),
-    _ConsumerTag = lib_amqp:subscribe(Channel, PrivateQ, self(), false),
+    lists:foreach(
+      fun (Exchange) ->
+              #'queue.bind_ok'{} = lib_amqp:bind_queue(Channel, Exchange, PrivateQ, list_to_binary(RoutingKey)),
+              _ConsumerTag = lib_amqp:subscribe(Channel, PrivateQ, self(), false)
+      end,
+      Exchanges),
     {ok, Channel}.
 
 handle_event(_ErrorMsg, State) ->
@@ -43,10 +46,11 @@ handle_info({#'basic.deliver' { 'delivery_tag' = DeliveryTag,
     RKFormatted = " | " ++ lists:flatmap(fun (T) -> T ++ " | " end, RKRest),
     case Level of
 	"debug" -> error_logger:info_msg("*** DEBUG ***~n~s~n ~s~n", [RKFormatted, Message]);
-	"info" -> error_logger:info_msg("~s~n ~s~n", [RKFormatted, Message]);
-	"warn" -> error_logger:warning_msg("~s~n ~s~n", [RKFormatted, Message]);
+	"info"  -> error_logger:info_msg("~s~n ~s~n", [RKFormatted, Message]);
+	"warn"  -> error_logger:warning_msg("~s~n ~s~n", [RKFormatted, Message]);
 	"error" -> error_logger:error_msg("~s~n ~s~n", [RKFormatted, Message]);
-	"fatal" -> error_logger:error_msg("*** FATAL ***~n~s~n ~s~n", [RKFormatted, Message])
+	"fatal" -> error_logger:error_msg("*** FATAL ***~n~s~n ~s~n", [RKFormatted, Message]);
+	Notify  -> error_logger:info_msg("*** Notification ***~n~s~n ~s: ~s~n", [RKFormatted, Notify, Message])
     end,
     lib_amqp:ack(Channel, DeliveryTag),
     {ok, Channel};

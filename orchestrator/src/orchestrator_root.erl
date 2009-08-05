@@ -25,7 +25,7 @@ open_channel() ->
 
 -record(root_config, {rabbitmq_host, rabbitmq_port, rabbitmq_admin_user, rabbitmq_admin_password}).
 
-setup_core_messaging(Ch, LogCh, NotifyCh) ->
+setup_core_messaging(Ch, LogCh) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(LogCh, #'exchange.declare'{exchange = ?FEEDSHUB_LOG_XNAME,
                                                   type = <<"topic">>,
@@ -35,7 +35,7 @@ setup_core_messaging(Ch, LogCh, NotifyCh) ->
                                                   type = <<"topic">>,
                                                   durable = false}),
     #'exchange.declare_ok'{} =
-        amqp_channel:call(NotifyCh, #'exchange.declare'{exchange = ?FEEDSHUB_NOTIFY_XNAME,
+        amqp_channel:call(LogCh, #'exchange.declare'{exchange = ?FEEDSHUB_NOTIFY_XNAME,
                                                   type = <<"topic">>,
                                                   durable = true}),
     PrivateQ = lib_amqp:declare_private_queue(Ch),
@@ -266,7 +266,7 @@ status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
 server_started_callback(RootPid) ->
     gen_server:cast(RootPid, server_started_callback).
 
--record(state, {config, amqp_connection, ch, logger_ch, notify_ch, server_startup_waiting}).
+-record(state, {config, amqp_connection, ch, logger_ch, server_startup_waiting}).
 
 init([]) ->
     {ok, Configuration = #root_config{rabbitmq_host = RHost,
@@ -277,15 +277,13 @@ init([]) ->
     AmqpConnectionPid = amqp_connection:start_network_link(RUser, RPassword, RHost, RPort),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
-    NotifyCh = amqp_connection:open_channel(AmqpConnectionPid),
-    ok = setup_core_messaging(Ch, LogCh, NotifyCh),
+    ok = setup_core_messaging(Ch, LogCh),
     gen_server:cast(self(), setup_logger), %% do this after we're fully running.
     gen_server:cast(self(), check_active_servers), %% do this after we're fully running.
     {ok, #state{config = Configuration,
                 amqp_connection = AmqpConnectionPid,
                 ch = Ch,
-		logger_ch = LogCh,
-                notify_ch = NotifyCh
+		logger_ch = LogCh
 	       }}.
 
 handle_call(open_channel, _From, State = #state{amqp_connection = Conn}) ->
