@@ -35,18 +35,15 @@ class PluginBuilder {
       URLClassLoader ucl = new URLClassLoader(classPathEntries(new URL(pluginDirectory), libUri, jars(libUri)), ClassLoader.getSystemClassLoader());
       Thread.currentThread().setContextClassLoader(ucl);
       String pluginName = configuration.getString("plugin_name");
+      JSONObject merged = mergedStaticConfiguration(configuration);
       if (pluginIsServer(configuration)) {
         Server p = constructPlugin(ucl, pluginName);
         configureServer(p, configuration);
-        // We very much want this to happen last
-        p.configure(mergedStaticConfiguration(configuration));
         return p;
       }
       else {
         PipelineComponent p = constructPlugin(ucl, pluginName);
         configurePipelineComponent(p, configuration);
-        // We very much want this to happen last
-        p.configure(mergedStaticConfiguration(configuration));
         return p;
       }
     }
@@ -101,13 +98,13 @@ class PluginBuilder {
 // <editor-fold defaultstate="expanded" desc="Configuration interpreter">
   
   protected void configureServer(Server plugin, JSONObject configuration) throws Exception {
-    configurePlugin(plugin, configuration);
     connectTerminalsDatabase(plugin, configuration);
+    configurePlugin(plugin, configuration);
   }
 
   protected void configurePipelineComponent(PipelineComponent plugin, JSONObject configuration) throws Exception {
-    configurePlugin(plugin, configuration);
     setStateResourceOnPlugin(plugin, configuration);
+    configurePlugin(plugin, configuration);
   }
 
   protected void configurePlugin(Plugin plugin, JSONObject configuration) throws Exception {
@@ -120,10 +117,14 @@ class PluginBuilder {
     Logger iolog = connectLoggerToPlugin(plugin, configuration, messageServerConnection);
     connectNotifierToPlugin(plugin, configuration, messageServerConnection);
     Channel channel = messageServerConnection.createChannel();
-    MessageResource mr = getMessageResource(configuration);
+    //
+    JSONObject staticConfig = mergedStaticConfiguration(configuration);
+    MessageResource mr = getMessageResource(pluginIsServer(configuration), staticConfig);
     constructPluginOutputs(configuration, mr);
     constructPluginInputs(configuration, mr);
     plugin.setMessageChannel(mr);
+    // And now that everything is in place, let the plugin itself do any setup it so wishes
+    plugin.configure(staticConfig);
   }
 
   protected static JSONObject mergedStaticConfiguration(JSONObject configuration) {
@@ -172,7 +173,6 @@ class PluginBuilder {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private void constructPluginInputs(JSONObject configuration, MessageResource channel) {
     JSONObject inputs = configuration.getJSONObject("inputs");
     for (Iterator<String> fields = (Iterator<String>) inputs.keys(); fields.hasNext();) {
@@ -245,12 +245,12 @@ class PluginBuilder {
     }
   }
 
-  private MessageResource getMessageResource(JSONObject configuration) throws IOException {
-    if (pluginIsServer(configuration)) {
-      return resources.getMessageResource(configuration);
+  private MessageResource getMessageResource(boolean server, JSONObject mergedConfig) throws IOException {
+    if (server) {
+      return resources.getMessageResource(mergedConfig);
     }
     else {
-      return resources.getComponentMessageResource(configuration);
+      return resources.getComponentMessageResource(mergedConfig);
     }
   }
 
