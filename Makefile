@@ -62,6 +62,7 @@ IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
 
 # only needed for older fedora
 MAVEN_SRC=http://apache.mirror.infiniteconflict.com/maven/binaries/apache-maven-2.0.10-bin.tar.bz2
+GIVE_IT_TO_MY_FEDORA=
 
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
@@ -87,15 +88,16 @@ install-rpms:
 	give-it-to-my-fedora
 
 give-it-to-my-fedora:
-	@echo "WARNING: THIS HORRIBLE KLUDGE TO FIX VERSIONING PROBLEMS WITH FEDORA"
-	@echo "         PACKAGES WILL JUST DUMP/OVERWRITE STUFF INTO /usr/local"
-	@read -p "DO YOU GIVE YOU INFORMED CONSENT? (yes/No)? " ans; \
-	 [ x$${ans} == xyes ] || (echo "ABORTING. Spoilsport!"; exit 1)
+	@echo "WARNING: THIS HORRIBLE KLUDGE TO FIX VERSIONING PROBLEMS WITH FEDORA"; \
+	 echo "         PACKAGES WILL JUST DUMP/OVERWRITE STUFF INTO /usr/local"; \
+	 test -n "$(GIVE_IT_TO_MY_FEDORA)" || \
+           (read -p "DO YOU GIVE YOU INFORMED CONSENT? (yes/No)? " ans; \
+	    [ x$${ans} == xyes ] || (echo "ABORTING. Spoilsport!"; exit 1))
 	if ! which escript >/dev/null; then \
 		sudo ln -s /usr/lib/erlang/bin/escript /usr/local/bin/; \
 	fi; \
 	if ! which erl_call >/dev/null; then \
-		sudo ln -s /usr/lib/erlang/lib/erl_interface-*/bin/erl_call /usr/local/bin \
+		sudo ln -s /usr/lib/erlang/lib/erl_interface-*/bin/erl_call /usr/local/bin; \
 	fi; \
 	if  ! mvn --version | grep 'Maven version: ' | \
 	   	python -c 'import sys; \
