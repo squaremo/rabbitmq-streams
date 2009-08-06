@@ -1,6 +1,5 @@
 # This is a makefile for running performance tests
 
-# FIXME: download
 GRINDER_HOME=build/opt/grinder-3.2
 JYTHON_HOME=/usr/share/jython
 
