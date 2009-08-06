@@ -1,8 +1,6 @@
 # TODO: Some comments
 # TODO: Make more objecty
 # TODO: Stop multiple threads from calling
-# TODO: Real delivery time
-# TODO: Use message formatting
 # TODO: Currently takes only one connx at a time
 
 from net.grinder.script.Grinder import grinder
@@ -21,8 +19,9 @@ from threading import Condition
 from threading import Thread
 from net.grinder.script.Grinder import grinder
 
-# TODO: Make into script parameter
-PORT=12345
+import re
+
+PORT = grinder.properties.getInt("streams.test.port", 55555)
 
 log = grinder.logger.output
 totalRuns = grinder.properties.getInt("grinder.runs", -1)
@@ -35,9 +34,12 @@ messageQueue = []
 
 # Register custom statistics - Delivery time and Mean delivery time
 grinder.statistics.registerDataLogExpression("Delivery time", "userLong0")
-grinder.statistics.registerSummaryExpression("Mean delivery time",
+grinder.statistics.registerSummaryExpression("Mean delivery time (ms)",
                                              "(/ userLong0 (count timedTests))")
 
+# Compile the regex pattern outside of a class method
+# See http://osdir.com/ml/java.grinder.user/2005-11/msg00060.html
+tsPattern = re.compile(r"\|timestamp=([0-9]*)\|.*")
 
 # Test timing is meaningless for this scenario, record the delivery time instead
 def recordDeliveryTime(deliveryTime):
@@ -46,7 +48,8 @@ def recordDeliveryTime(deliveryTime):
 recordTest = Test(1, "Receive messages").wrap(recordDeliveryTime)
 
 class NetworkListener(Thread):
-    # TODO: Comments
+    """Use a new thread to listen to a network port and place each message
+    sent on a new line to the message queue"""
     
     def __init__(self):
         self._serverSocket = ServerSocket(PORT)
@@ -78,12 +81,9 @@ class NetworkListener(Thread):
         socket.close()
 
     def _handleMessage(self, message):
-        """Called for each message received. Adds the timing information to the
-        message queue in a thread safe manner."""
+        """Called for each message received."""
         lock.acquire()
-        sendTime = long(message)
-        deliveryTime = System.currentTimeMillis() - sendTime
-        messageQueue.append(deliveryTime)
+        messageQueue.append(message)
         lock.notifyAll()
         lock.release()
 
@@ -96,19 +96,35 @@ class NetworkListener(Thread):
 
         if(self._clientSocket is not None):
             self._clientSocket.close() 
-        
-
-listener = NetworkListener()
-listener.start()
 
 class TestRunner:
+    def __init__(self):
+        if grinder.threadNumber > 0:
+            raise RuntimeError("Can only support one thread")
+
+        grinder.logger.output("Thread starting")
+        self.initialisationTime = System.currentTimeMillis()
+        self._listener = NetworkListener()
+        self._listener.start()
 
     def __call__(self):
         lock.acquire()
         while not messageQueue: lock.wait()
-        deliveryTime = messageQueue.pop(0)
+        message = messageQueue.pop(0)
         lock.release()
+        
+        m = tsPattern.match(message)
+        if m is None or not len(m.groups()) ==1:
+            raise Exception(
+                "Could not find timestamp in message: " + str(message))
+
+        timestamp = long(m.group(1))
+        deliveryTime = System.currentTimeMillis() - timestamp
         recordTest(deliveryTime)
 
-        if(grinder.runNumber >= totalRuns - 1):
-            listener.stop()
+        if(totalRuns > 0 and grinder.runNumber >= totalRuns - 1):
+            self._listener.stop()
+
+    def __del__(self):
+        grinder.logger.output("Thread shutting down")
+        self._listener.stop()

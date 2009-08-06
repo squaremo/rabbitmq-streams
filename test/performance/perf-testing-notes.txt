@@ -1,0 +1,97 @@
+Perf testing & Rabbit Streams
+=============================
+
+Quick start
+-----------
+
+The test targets are in Makefile.test and can but be run from the command line (assuming "make" is installed).
+
+1. Install the dependencies (only need to do this once):
+
+   make -f Makefile.test setup
+
+2. Start the debug listeners:
+
+   make listen-all
+
+3. Start Rabbit Streams:
+
+   make -f Makefile.test init-rabbit-streams
+
+4. Run the tests. There are currently 2 available:
+   
+   - a short thrash test:
+
+     make -f Makefile.test run-short-thrash-test
+
+   - a soak test (WARNING: this will take around 12 hours)
+
+     make -f Makefile.test run-soak-test
+
+5. Review the results. The output from the tests are in "tmp/logs". The performance test harness is split into two self-explanatory components - a "sender" and a "receiver". For each of these there will be 2 output files:
+
+ - "data_XXXX-0.log"; contains the raw measurement data for each test run
+
+ - "output_XXXX-0.log"; contains the output from the component and assuming the test completed normally, a summary of the test resuls.
+
+The logs are rotated by the test framework but it is recommended that any important results are copied somewhere safe as soon as the test completes to ensure they are not overwritten by a subsequent run.
+
+See below for a discussion on what is measured.
+
+6. (New and experimental) Graph the results. The dependencies "gnuplot" and "awk" must be installed manually. Then run:
+
+   make -f Makefile.test plot-last-run
+
+There are 3 graphs produced in "tmp/gnuplot":
+
+   - sender.png; a graph of total send time against run number
+
+   - receiver.png; a graph of delivery time against run number
+
+   - rate-receiver.png; number of messages per second recevied by the receiver against time. These are based on averaging 1 second time periods so for a short test run like the short thrash test, there will only be a couple of data points. The data file containing these points is created in "tmp/gnuplot/receiver-rate.log".
+
+
+Design Overview
+---------------
+The performance test harness uses The Grinder framework (http://grinder.sourceforge.net/). Test scripts are written in Jython which gives the test author the flexibility to utilise any mix of Python and Java. It is also a distributed framework so that in future, tests can be run from a number of machines.
+
+The test harness is split into two components; the sender and receiver. Both run in isolated Grinder instances:
+
+ - sender; sends messages to the Rabbit Streams ingress gateway. Currently, the only implemented sender is for HTTP Post. It sends a message consisting of a formatted timestamp along with a configurable amount of junk data to make up the desired message size.
+
+ - receiver; receives messages sent by a Rabbit Streams egress gateway. Note that currently, this must be started before the Orchestrator due to the way the network printer (currently the only supported gateway) works. When each message is received, a delivery time is calculated based on the timestamp in the message and this is added to a queue. On each Grinder test run, a message is pulled from the queue (or the test blocks until a message is available) and the delivery time recorded. 
+
+The receiver design is less than ideal but is done this way to squeeze into the Grinder test semantics. See below for suggestions on improvements. It also means that the Grinder supplied transaction rate calculation is not perfect because it is based on when the message is popped off the queue rather than when they are received. In theory, as a message is popped off the queue for every test run, and the tests runs occur as quickly as The Grinder can record the data, this will be very close to the real time. In practice, thread / process scheduling means that there tends to be some grouping. The transaction rate calculation that is used for graphing therefore uses 1 second intervals to smooth out this effect.  
+
+Test configuration
+------------------
+Tests are run by "make" using the target "run-perf-test". The following parameters must be set (see the target "run-short-thrash-test" as an example):
+
+ - TEST; the name of the test to run. This will be the name of a folder in "test/performance/tests/" that must contain 2 files; receiver.properties and sender.properties. The properties files define the test parameters and which sender and receiver to use. See the files in "test/performance/tests/short-thrash" for an example.
+
+ - STREAM; the Rabbit Streams config to test. This must be a folder in "test/performance/streams" and must contain a valid Rabbit Streams config. See "test/performance/streams/empty" as an example.
+
+The "test/performance/scripts" directory contains the sender and receiving script. More can be added so that different mixtures of endpoints can be tested.
+
+Current tests
+-------------
+There are currently 2 example tests, and both use a HTTP sender, and plain network receiver:
+
+ - short-thrash-test; send 1000 requests as quick as possible using a single thread. Each message is 1024 bytes long. The receiver exits once 1000 messages have been received.
+
+ - soak-test; send messages at around 10 messages per second for 12 hours. Each message is 1024 bytes long. The receiver listens for 13 hours and then exits.
+
+Limitations
+-----------
+ - delivery time can only be calculated if it is in the message. This restricts the messages that can be sent and therefore the configurations that be tested.
+
+Notes
+-----
+ - You may see something like " Failed to connect to 'localhost/127.0.0.1:6372', proceeding without the console; set grinder.useConsole=false to disable this warning." when running tests. This is shown when tests are run direcetly rather than through the Grinder console and so can be safely ignored.
+
+
+Future direction
+----------------
+ - if it was easier to control the Orchestrator programatically, then the two test components could be merged. This would allow message delivery times to be checked and also the result of any message processing regardless of the message payload by using a UID or hash to retrieve each message from the receiver. If multiple senders are required, then a network interface should be added to the receiver to allow retrieval of delivered messages and statistics
+
+ - add more endpoints. These can be re-used for full end to end functional testing as well

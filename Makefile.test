@@ -1,57 +1,97 @@
 # This is a makefile for running performance tests
 
-# FIXME: download
-GRINDER_HOME=~/Desktop/grinder-3.2
+GRINDER_HOME=build/opt/grinder-3.2
 JYTHON_HOME=/usr/share/jython
 
 # Must be absolute
-TMP_DIR=$(CURDIR)/tmp
-PYTHON_CACHEDIR=${TMP_DIR}/python/cachedir
-LOG_DIR=$(TMP_DIR)/logs
+TMP_DIR:=$(CURDIR)/tmp
+PYTHON_CACHEDIR:=${TMP_DIR}/python/cachedir
+LOG_DIR:=$(TMP_DIR)/logs
 
-JAVA_CMD=java
-CLASSPATH=${GRINDER_HOME}/lib/grinder.jar
+JAVA_CMD:=java
+CLASSPATH:=${GRINDER_HOME}/lib/grinder.jar
 
-JVM_ARGS=-Dgrinder.logDirectory=$(LOG_DIR)
+JVM_ARGS:=-Dgrinder.logDirectory=$(LOG_DIR)
 
-GRINDER_JVM_ARGS="-Dpython.cachedir=${PYTHON_CACHEDIR} \
+GRINDER_JVM_ARGS:="-Dpython.cachedir=${PYTHON_CACHEDIR} \
 	-Dpython.home=${JYTHON_HOME}"
 
-JAVA_ARGS=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
+JAVA_ARGS:=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
 
-GRINDER_CMD=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
+GRINDER_CMD:=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
+DEB_DEPENDENCIES:=jython
 
-run-perf-test: create-cachedir init-perf-test
-	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
-		test/load/sender.properties &
+# *** Top level targets ***
 
-create-cachedir:
-	mkdir -p ${PYTHON_CACHEDIR}
-	chmod a+rw ${PYTHON_CACHEDIR}
+default:
+	echo Try a run-* target e.g,. run-short-thrash-test
 
-grinder-console:
+setup: install-debs install-grinder
+
+install-debs:
+	- [ -z "`dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) 2>&1 | grep -v 'install ok installed'`" ] || \
+	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
+
+install-grinder: build/opt/grinder-3.2
+
+build/opt/grinder-3.2:
+	wget -O build/grinder.zip http://downloads.sourceforge.net/sourceforge/grinder/grinder-3.2.zip
+	cd build/opt; unzip ../grinder.zip
+
+start-grinder-console:
 	${GRINDER_CMD} net.grinder.Console &
 
-start-grinder-receiver: create-cachedir
-	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
-		test/load/receiver.properties &
+stop-grinder-console:
+	# TODO:
 
 stop-grinder-receiver:
 	# TODO: Variable to tidy  up, and catch error for non-existant process
 	pkill -fx  -P \
-		`pgrep -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"` \
+		`pgrep -fx "java.*net.grinder.Grinder.*receiver.properties"` \
 		".*net.grinder.engine.process.WorkerProcessEntryPoint"
 
-	pkill -fx "java.*net.grinder.Grinder.*test/load/receiver.properties"
+	pkill -fx "java.*net.grinder.Grinder.*receiver.properties"
 
-init-test:
+init-rabbit-streams:
 	make stop-core-nox 
 	make cleandb
 	make start-core-nox
 	make create-fresh-accounts
 	make start-orchestrator-nox
 
-init-perf-test: 
-	sbin/import_config.py test/load/config
+
+run-short-thrash-test:
+	${MAKE} -f Makefile.test TEST=short-thrash STREAM=empty run-perf-test
+
+run-soak-test:
+	${MAKE} -f Makefile.test TEST=soak STREAM=empty run-perf-test
+
+plot-last-run:
+	mkdir -p tmp/gnuplot
+	gnuplot test/performance/gnuplot/plain-receiver.p
+	gnuplot test/performance/gnuplot/plain-sender.p
+
+	awk -f test/performance/gnuplot/calculate-receiver-rate.awk \
+		tmp/logs/data_receiver-0.log > tmp/gnuplot/receiver-rate.log
+
+	gnuplot test/performance/gnuplot/rate-receiver.p
+
+# *** End top level targets ***
+
+create-cachedir:
+	mkdir -p ${PYTHON_CACHEDIR}
+	chmod a+rw ${PYTHON_CACHEDIR}
+
+start-grinder-receiver: create-cachedir
+	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
+		test/performance/tests/${TEST}/receiver.properties &
+
+init-orchestrator: start-grinder-receiver
+	sbin/import_config.py test/performance/streams/${STREAM}
 	make start-orchestrator-nox 
+
+run-perf-test: create-cachedir init-orchestrator
+	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
+		test/performance/tests/${TEST}/sender.properties &
+
