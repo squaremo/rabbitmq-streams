@@ -94,6 +94,9 @@ give-it-to-my-fedora:
 	if ! which escript >/dev/null; then \
 		sudo ln -s /usr/lib/erlang/bin/escript /usr/local/bin/; \
 	fi; \
+	if ! which erl_call >/dev/null; then \
+		sudo ln -s /usr/lib/erlang/lib/erl_interface-*/bin/erl_call /usr/local/bin \
+	fi; \
 	if  ! mvn --version | grep 'Maven version: ' | \
 	   	python -c 'import sys; \
 sys.exit(not map(int,sys.stdin.read().split(": ")[1].split("."))>[2,0,6])'; then \
