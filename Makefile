@@ -52,13 +52,16 @@ DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
         netcat-openbsd 	build-essential erlang-src libicu38 libicu-dev \
 	libmozjs-dev libcurl4-openssl-dev default-jdk
 
-RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc curl-devel icu
+RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel js-devel
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
 ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
 RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
 IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
+
+# only needed for older fedora
+MAVEN_SRC=http://apache.mirror.infiniteconflict.com/maven/binaries/apache-maven-2.0.10-bin.tar.bz2
 
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
@@ -81,7 +84,22 @@ endif
 
 install-rpms:
 	sudo yum install -y $(RPM_DEPENDENCIES)
+	give-it-to-my-fedora
 
+give-it-to-my-fedora:
+	@echo "WARNING: THIS HORRIBLE KLUDGE TO FIX VERSIONING PROBLEMS WITH FEDORA"
+	@echo "         PACKAGES WILL JUST DUMP/OVERWRITE STUFF INTO /usr/local"
+	@read -p "DO YOU GIVE YOU INFORMED CONSENT? (yes/No)? " ans; \
+	 [ x$${ans} == xyes ] || (echo "ABORTING. Spoilsport!"; exit 1)
+	if ! which escript >/dev/null; then \
+		sudo ln -s /usr/lib/erlang/bin/escript /usr/local/bin/; \
+	fi; \
+	if  ! mvn --version | grep 'Maven version: ' | \
+	   	python -c 'import sys; \
+sys.exit(not map(int,sys.stdin.read().split(": ")[1].split("."))>[2,0,6])'; then \
+		wget $(MAVEN_SRC) -O- | (cd /usr/local/; tar xj --strip-components 1);\
+		yum -y remove maven2; \
+	fi
 ###########################################################################
 install-debs:
 	: # if everything is already installed, don't require sudo'ing
