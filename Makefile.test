@@ -63,7 +63,7 @@ init-rabbit-streams:
 
 
 run-short-thrash-test:
-	${MAKE} -f Makefile.test TEST=http2plain STREAM=empty run-perf-test
+	${MAKE} -f Makefile.test TEST=short-thrash STREAM=empty run-perf-test
 
 run-soak-test:
 	${MAKE} -f Makefile.test TEST=soak STREAM=empty run-perf-test
