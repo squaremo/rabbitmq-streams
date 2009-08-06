@@ -10,8 +10,8 @@ COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
 RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
 RABBITMQ_HOST=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq host)
 RABBITMQ_PASSWORD=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq password)
-
-
+OS=$$(if [ -e /etc/redhat-release ]; then echo "redhat"; \
+    elif [ -e /etc/debian_version ]; then echo "debian"; fi)
 
 SCREEN_SESSION=feedshub
 # FIXME: would be nice to have different bg colors for rabbit, couch etc.
@@ -44,11 +44,15 @@ RABBIT_FIFO=build/scratch/rabbit_fifo
 COUCH_FIFO=build/scratch/couch_fifo
 PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
-DEB_DEPENDENCIES=automake autoconf libtool help2man netcat-openbsd \
-	build-essential erlang erlang-src libicu38 libicu-dev \
-	libmozjs-dev libcurl4-openssl-dev mercurial subversion git\
-	elinks python-simplejson cvs zip default-jdk \
-	ant maven2 screen
+
+DEB_AND_RPM_DEPENDENCIES:=automake autoconf libtool help2man erlang mercurial subversion git \
+	ant maven2 screen python-simplejson cvs zip elinks
+
+DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
+        netcat-openbsd 	build-essential erlang-src libicu38 libicu-dev \
+	libmozjs-dev libcurl4-openssl-dev default-jdk
+
+RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc curl-devel icu
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
@@ -60,20 +64,26 @@ default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
 setup: \
-	install-debs \
-	install-dev-debs \
+	install-packages \
 	create-var-dirs \
 	install-couchdb \
 	install-erlang-rfc4627 \
 	install-ibrowse \
 	install-rabbitmq
 
+
+install-packages:
+ifeq ($(OS),redhat)
+	$(MAKE) install-rpms
+else
+	$(MAKE) install-debs
+endif
+
+install-rpms:
+	sudo yum install -y $(RPM_DEPENDENCIES)
+
 ###########################################################################
-
 install-debs:
-	: # none at the minute.
-
-install-dev-debs:
 	: # if everything is already installed, don't require sudo'ing
 	- [ -z "`dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) 2>&1 | grep -v 'install ok installed'`" ] || \
 	( sudo apt-get update && sudo apt-get install $(DEB_DEPENDENCIES) )
