@@ -292,7 +292,7 @@ class TestWiring(object):
         for in_name, to_say in kwargs.items():
             for cant in to_say:
                 self.talkers[in_name](cant.body, rk=cant.rk, config=cant.config)
-        time.sleep(1) # FIXME HORRIBLE HACK
+        time.sleep(3) # FIXME HORRIBLE HACK
         self.outputter.flush()
 
     def teardown(self):
