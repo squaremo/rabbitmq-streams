@@ -49,6 +49,7 @@
 		<module>lastvalue</module>
     <module>xpathselect</module>
     <module>newdata</module>
+    <module>timeout</module>
   </modules>
 
   <build>
