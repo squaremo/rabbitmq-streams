@@ -34,6 +34,7 @@ COUCH_LISTENER_PIDFILE=var/run/couch-listener.pid
 RABBIT_LISTENER_PIDFILE=var/run/rabbit-listener.pid
 ORCHESTRATOR_LISTENER_PIDFILE=var/run/orchestrator-listener.pid
 SHOWANDTELL_PIDSFILE=var/run/showandtell.pids
+SCREEN_PIDFILE=var/run/screen.pid
 
 LISTEN_ORCHESTRATOR=while true; do sleep 1 && nc -l $(LISTEN_ORCHESTRATOR_PORT); done | tee -a $(ORCHESTRATOR_LOG)
 LISTEN_RABBIT=while true; do sleep 1 && nc -k -l $(LISTEN_RABBIT_PORT); done | tee -a $(RABBIT_LOG)
@@ -288,11 +289,13 @@ listen-all: listen-orchestrator listen-core
 unlisten-all: unlisten-orchestrator unlisten-couch unlisten-rabbit
 
 unlisten-all-nox:
-	FIXME
+	kill "`cat $(SCREEN_PIDFILE)`"
 
 dummy-screen:
 	@echo "starting up a screen session with 1-window per listener"
 	$(SCREEN) -md -t dummy
+	# FIXME pretty horrible hack, race condition etc.
+	$(SCREEN) -ls | grep Detached | head -1 | egrep -o '^	[0-9]+' | cut -f2 > $(SCREEN_PIDFILE)
 
 listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rabbit-nox
 	@echo '=================================================================='

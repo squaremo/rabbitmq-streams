@@ -1,7 +1,3 @@
-/*
- * Destination.scala
- */
-
 package com.rabbitmq.streams.plugin.archive
 
 import scala.actors.Actor
@@ -16,18 +12,18 @@ case class NewEntry(bytes : Array[Byte])
 
 class Destination(log : Logger, postto: Database) extends Actor {
 
-    def act {
-        loop {
-            react {
-                case NewEntry(bytes) =>
-                    val body = new String(bytes)
-                    log.debug("Message received at " + postto + " of " + body)
-                    val doc = new Document
-                    doc.put("updated", new Date().getTime)
-                    doc.put("body", body)
-                    log.debug("Saving doc" + doc.toString)
-                    postto.saveDocument(doc)
-            }
-        }
+  def act {
+    loop {
+      react {
+        case NewEntry(bytes) =>
+          val body = new String(bytes)
+          log.debug("Message received at " + postto + " of " + body)
+          val doc = new Document
+          doc.put("updated", new Date().getTime)
+          doc.put("body", body)
+          log.debug("Saving doc" + doc.toString)
+          postto.saveDocument(doc)
+      }
     }
+  }
 }
