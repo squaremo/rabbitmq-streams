@@ -7,6 +7,7 @@ all: lib/$(jarfile)
 clean:
 	rm -rf target
 	rm -rf lib
+	rm -rf config/feedshub_status
 
 target/$(jarfile): $(sources) $(harness_jar)
 	mvn package
@@ -14,3 +15,7 @@ target/$(jarfile): $(sources) $(harness_jar)
 lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib
 	cp target/*.jar lib/
+
+build-config:
+	mkdir -p config/feedshub_status
+	../../bin/compile.sh config/feedshub_status config/simple.js
