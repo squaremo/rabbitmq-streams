@@ -14,3 +14,7 @@ target/$(jarfile): $(sources)
 lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib
 	cp target/*.jar lib/
+
+build-config:
+	mkdir -p config/feedshub_status
+	../../bin/compile.sh config/feedshub_status config/simple.js

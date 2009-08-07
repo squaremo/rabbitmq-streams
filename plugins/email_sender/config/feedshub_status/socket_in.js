@@ -1,1 +1,0 @@
-{"server_type":"socket_source","configuration":{"host":"localhost"},"type":"server"}
