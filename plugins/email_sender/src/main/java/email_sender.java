@@ -47,11 +47,9 @@ public class email_sender extends Server {
       List<EmailDestination> dests = destinationsMap.get(terminalId);
       if (null == dests || 0 == dests.size()) {
         try {
-          dests = new ArrayList<EmailDestination>(terminalConfigs
-            .size());
+          dests = new ArrayList<EmailDestination>(terminalConfigs.size());
           for (JSONObject termConfigObject : terminalConfigs) {
-            JSONObject destConfig = termConfigObject
-              .getJSONObject("destination");
+            JSONObject destConfig = termConfigObject.getJSONObject("destination");
             EmailDestination dest = new EmailDestination(destConfig);
             dests.add(dest);
           }
@@ -81,27 +79,26 @@ public class email_sender extends Server {
   }
 
   private class EmailDestination {
-    private Collection<InternetAddress> to;
+    private InternetAddress[] addresses;
+    private String subject;
 
     public EmailDestination(JSONObject destConfig) throws AddressException {
-      JSONArray jsonTo = destConfig.getJSONArray("to");
-      to = new ArrayList<InternetAddress>();
-
       log.info("Creating new email destination");
+      JSONArray to = destConfig.getJSONArray("to");
+      addresses = new InternetAddress[to.size()];
 
-      for (int i = 0; i < jsonTo.size(); i++) {
-        to.add(new InternetAddress(jsonTo.getString(i)));
+      for (int i = 0; i < to.size(); i++) {
+        addresses[i] = new InternetAddress(to.getString(i));
       }
+
+      subject = destConfig.optString("subject", "");
     }
 
     public void send(byte[] msg) throws MessagingException {
-      //todo: set the subject from headers
-      sendMail(host, username, password, "The subject, to be extracted from headers", new String(msg), to);
+      sendMail(host, username, password, subject, new String(msg), addresses);
     }
 
-    private void sendMail(String host, String username, String password,
-      String subject, String body, Collection<InternetAddress> to)
-      throws MessagingException {
+    private void sendMail(String host, String username, String password, String subject, String body, InternetAddress[] to) throws MessagingException {
       log.info("Sending mail");
 
       Properties props = new Properties();
@@ -115,19 +112,11 @@ public class email_sender extends Server {
 
       MimeMessage message = new MimeMessage(mailSession);
       message.setSubject(subject);
-      message.setContent(body, "text/plain"); //todo: set content mime type from config/headers?
-
-
-      //todo: config recipients from message headers?
-      for (InternetAddress t : to) {
-        message.addRecipient(Message.RecipientType.TO, t);
-      }
-
-      //todo: Add cc and bcc?
+      message.setContent(body, "text/plain");
+      message.addRecipients(Message.RecipientType.TO, to);
 
       transport.connect();
-      transport.sendMessage(message, message
-        .getRecipients(Message.RecipientType.TO));
+      transport.sendMessage(message, message.getRecipients(Message.RecipientType.TO));
       transport.close();
     }
   }

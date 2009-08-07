@@ -1,0 +1,1 @@
+{"servers":[{"server":"email_out","source":{},"destination":{"to":["junk@lshift.net"],"subject":"simple test"}},{"server":"socket_out","source":{},"destination":{"port":12340,"host":"0.0.0.0"}}],"type":"terminal"}

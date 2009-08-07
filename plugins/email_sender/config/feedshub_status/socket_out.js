@@ -1,0 +1,1 @@
+{"server_type":"socket_destination","configuration":{},"type":"server"}

@@ -1,0 +1,1 @@
+{"server_type":"email_sender","configuration":{"host":"smtp.lshift.net","transportProtocol":"smtp","username":"","password":""},"type":"server"}
