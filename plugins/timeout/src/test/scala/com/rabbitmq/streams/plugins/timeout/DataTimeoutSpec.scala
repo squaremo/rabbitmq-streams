@@ -46,9 +46,17 @@ object DataTimeoutSpec extends Specification with Mockito {
       dt.configure(config)
     }
 
-    "complain about a bad timeout value" in {
+    "complain about a nonsense timeout value" in {
       val c = JSONObject.fromObject(config)
       c.put("timeout", "zappa")
+      dt.configure(c) must throwA[PluginBuildException]
+    }
+
+    "complain about a negative or zero time value" in {
+      val c = JSONObject.fromObject(config)
+      c.put("timeout", -100)
+      dt.configure(c) must throwA[PluginBuildException]
+      c.put("timeout", 0)
       dt.configure(c) must throwA[PluginBuildException]
     }
 
@@ -137,7 +145,7 @@ object DataTimeoutSpec extends Specification with Mockito {
       dt.configure(config)
       Thread.sleep(700)
       mc.inject("input", mock[InputMessage])
-      Thread.sleep(500) // over the timout, but we put a message through
+      Thread.sleep(500) // 500 + 700 is over the timout, but we put a message through
       dt ! DataTimeout.Stop
       n.notify(any(classOf[NotificationType]), anyString) was notCalled
     }

@@ -47,10 +47,11 @@ class DataTimeout extends PipelineComponent with Actor {
     catch {
       case ex : Exception => throw new PluginBuildException("Unable to interpret configuration values given -- check the types", ex)
     }
+    if (timeout <= 0) throw new PluginBuildException("A zero or negative timeout doesn't make sense")
 
     state = getState
 
-    val outer = DataTimeout.this
+    val outer = this
     object input extends InputReader {
       override def handleMessage(msg : InputMessage, ignored : JSONObject) {
         outer ! new Input(msg)
@@ -69,14 +70,14 @@ class DataTimeout extends PipelineComponent with Actor {
         }
     }
 
-    start
     // start on configuration; we won't actually get anything until
     // the harness hooks consumers up.  Or we time out.
-
+    // Note that we can't just treat the thread as an actor; we have to return
+    // from the constructor and from configure.
+    start
   }
 
   def loop() {
-    //println("Looping")
     receive {
       case Timeout => maybeTriggerTimer; loop
       case Input(msg) => publishToChannel("output", msg); setAlarmState(now + timeout); loop
@@ -85,19 +86,23 @@ class DataTimeout extends PipelineComponent with Actor {
   }
 
   def maybeTriggerTimer() {
-    //println("Timeout!")
     getAlarmState match {
-      case None => ; // We timed out, but we don't have an alarm recorded.  Hrm.
+      case None => log.error("Timeout without an alarm set"); // We timed out, but we don't have an alarm recorded.  Hrm.
       case Some(alarm) => {
         val n = now
-        //println("It's now " + n + " and I'm supposed to wake up at " + alarm)
+        log.debug("It's now " + n + " and I'm supposed to wake up at " + alarm)
         if (alarm <= n) {
+          ((n - alarm) / timeout) match {
+            case x if (x > 1) =>
+              log.warn(x + " timeouts missed since " +alarm+ "; notifying once.")
+            case _ =>;
+          }
           notifier.notify(NotificationType.NoData, message)
           val newalarm = n + timeout
           setAlarmState(newalarm)
           setTimer(newalarm)
         } else {
-          // We got prodded, but it turns out there's been messages in the meantime
+          // We got prodded, but it turns out there's been messages in the meantime.
           setTimer(alarm)
         }
       }
@@ -111,16 +116,27 @@ class DataTimeout extends PipelineComponent with Actor {
     }
   }
   def setAlarmState(time : Long) {
-    println("Setting alarm for " + time.toString)
+    log.debug("Setting alarm for " + time.toString)
     state.put("alarm", new java.lang.Long(time))
     setState(state)
     // setState avoids conflicts, so we don't need to get here as well
   }
 
   def setTimer(time : Long) {
-    val sleepTime = time - now
+    val sleepTime : Long = (time - now) match {
+      case inThePast if (inThePast <= 0) => {
+          // This may occur because the timeout is smaller than the time it takes to
+          // get here from where it was invoked.  If we let this kind of behaviour
+          // continue, it'll quite possibly thrash; so we set an arbitrary timeout
+          // this time.
+          log.warn("Race: we are trying to set an alarm in the past. Using now + 100ms instead")
+          100
+        }
+      case s => s
+    }
+    // Note that we don't try and mess with this on an input; this is on the assumption
+    // that the timeout will generally be much longer than the time between messages.
     val outer = this
-    //println("Sleep for " + sleepTime)
     actor {
       Thread.sleep (sleepTime)
       outer ! Timeout
@@ -128,6 +144,5 @@ class DataTimeout extends PipelineComponent with Actor {
   }
 
   def act = loop()
-
 
 }
