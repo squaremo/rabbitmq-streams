@@ -65,7 +65,7 @@ class DataTimeout extends PipelineComponent with Actor {
           setTimer(alarm)
         }
       case Some(a) => {
-          ;
+          maybeTriggerTimer()
         }
     }
 
@@ -85,12 +85,12 @@ class DataTimeout extends PipelineComponent with Actor {
   }
 
   def maybeTriggerTimer() {
-    println("Timeout!")
+    //println("Timeout!")
     getAlarmState match {
       case None => ; // We timed out, but we don't have an alarm recorded.  Hrm.
       case Some(alarm) => {
         val n = now
-        println("It's now " + n + " and I'm supposed to wake up at " + alarm)
+        //println("It's now " + n + " and I'm supposed to wake up at " + alarm)
         if (alarm <= n) {
           notifier.notify(NotificationType.NoData, message)
           val newalarm = n + timeout

@@ -109,5 +109,37 @@ object DataTimeoutSpec extends Specification with Mockito {
       dt ! DataTimeout.Stop // stop processing timeouts
       n.notify(NotificationType.NoData, config.getString("message")) was called.twice
     }
+
+    "notify, and set an alarm for now + timeout if there's an expired alarm on startup" in {
+      val dt = new DataTimeout
+      fullyMock(dt)
+      var doc : java.util.Map[String, Object] = new java.util.HashMap();
+      doc.put("alarm", (dt.now - 2000L).asInstanceOf[Object])
+      val state = mock[StateResource]
+      state.getState() returns doc
+      state.setState(any(classOf[java.util.Map[String, Object]])) answers {s => doc=s.asInstanceOf[java.util.Map[String, Object]]}
+      dt.setStateResource(state)
+      val n = mock[Notifier]
+      dt.setNotifier(n)
+      dt.configure(config)
+      Thread.sleep(1200)
+      // one notification from starting after an alarm, and one from waiting timeout + e
+      n.notify(NotificationType.NoData, config.getString("message")) was called.twice
+    }
+
+    "reset the alarm if it sees a message" in {
+      val dt = new DataTimeout
+      fullyMock(dt)
+      val mc = new MockMessageChannel()
+      dt.setMessageChannel(mc)
+      val n = mock[Notifier]
+      dt.setNotifier(n)
+      dt.configure(config)
+      Thread.sleep(700)
+      mc.inject("input", mock[InputMessage])
+      Thread.sleep(500) // over the timout, but we put a message through
+      dt ! DataTimeout.Stop
+      n.notify(any(classOf[NotificationType]), anyString) was notCalled
+    }
   }
 }
