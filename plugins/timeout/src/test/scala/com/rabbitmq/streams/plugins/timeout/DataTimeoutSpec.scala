@@ -10,6 +10,11 @@ import org.mockito.Matchers
 import org.specs.runner.{ConsoleRunner, JUnit4}
 import com.rabbitmq.streams.harness.testsupport.MockMessageChannel
 import com.rabbitmq.streams.harness.InputMessage
+import com.rabbitmq.streams.harness.StateResource
+import com.rabbitmq.streams.harness.PluginBuildException
+import com.rabbitmq.streams.harness.PipelineComponent
+import com.rabbitmq.streams.harness.Logger
+import com.rabbitmq.streams.harness.{Notifier, NotificationType}
 
 class DataTimeoutTest extends JUnit4(DataTimeoutSpec)
 //class MySpecSuite extends ScalaTestSuite(DataTimeoutSpec)
@@ -18,18 +23,36 @@ object MySpecRunner extends ConsoleRunner(DataTimeoutSpec)
 
 object DataTimeoutSpec extends Specification with Mockito {
 
-  val config = new JSONObject
-  config.put("timeout", 3)
-  config.put("message", "MESSAGE GOES HERE")
+  def fullyMock(plugin : PipelineComponent) {
+    plugin.setLog(mock[Logger])
+    plugin.setMessageChannel(mock[MessageChannel])
+    plugin.setNotifier(mock[Notifier])
+    plugin.setStateResource(mock[StateResource])
+  }
 
-  "Data timeout " should {
+  "Data timeout" should {
+
+    val dt = new DataTimeout
+    fullyMock(dt)
+    val config = new JSONObject
+    config.put("timeout", 1000)
+    config.put("message", "MESSAGE GOES HERE")
+
     "be nullary-constructable" in {
-      val dt = new DataTimeout
       dt must notBeNull
     }
 
+    "not complain given OK values" in {
+      dt.configure(config)
+    }
+
+    "complain about a bad timeout value" in {
+      val c = JSONObject.fromObject(config)
+      c.put("timeout", "zappa")
+      dt.configure(c) must throwA[PluginBuildException]
+    }
+
     "register an input handler" in {
-      val dt = new DataTimeout
       dt must notBeNull
       val mc = mock[MessageChannel]
       dt.setMessageChannel(mc)
@@ -38,8 +61,6 @@ object DataTimeoutSpec extends Specification with Mockito {
     }
     
     "publish messages onward" in {
-      val dt = new DataTimeout
-      var h : InputHandler = null
       val mc = new MockMessageChannel()
       dt.setMessageChannel(mc)
       dt.configure(config)
@@ -49,6 +70,44 @@ object DataTimeoutSpec extends Specification with Mockito {
       val out = mc.outputs.get(0)
       out.channel must_== "output"
       out.msg must_== m
+    }
+
+    "save an alarm if there's none saved" in {
+      val mc = new MockMessageChannel
+      val state = mock[StateResource]
+      var doc : java.util.Map[String, Object] = new java.util.HashMap();
+      state.getState answers {_ => doc}
+      state.setState(any(classOf[java.util.Map[String, Object]])) answers {s => doc=s.asInstanceOf[java.util.Map[String, Object]]}
+      dt.setMessageChannel(mc)
+      dt.setStateResource(state);
+      dt.configure(config)
+      doc.containsKey("alarm") must beTrue
+    }
+
+    "set an alarm for now + timeout when none is saved" in {
+      val n = mock[Notifier]
+      val log = mock[Logger]
+      // make sure we construct a new one, in case there are lurking messages
+      val dt = new DataTimeout
+      fullyMock(dt)
+      dt.setLog(log)
+      dt.setNotifier(n)
+      dt.configure(config)
+      Thread.sleep(1500) // i.e., longer than the timeout, but not long enough for two timeouts
+      dt ! DataTimeout.Stop // stop processing timeouts that may come in
+      n.notify(NotificationType.NoData, config.getString("message")) was called
+    }
+
+    "sets an alarm again" in {
+      val n = mock[Notifier]
+      // make sure we construct a new one, in case there are lurking messages
+      val dt = new DataTimeout
+      fullyMock(dt)
+      dt.setNotifier(n)
+      dt.configure(config)
+      Thread.sleep(2500) // i.e., longer than the timeout, but not long enough for more than two timeouts
+      dt ! DataTimeout.Stop // stop processing timeouts
+      n.notify(NotificationType.NoData, config.getString("message")) was called.twice
     }
   }
 }
