@@ -18,6 +18,7 @@ public class email_sender extends Server {
 
   private Map<String, List<EmailDestination>> destinationsMap = new HashMap<String, List<EmailDestination>>();
   String host, username, password, transportProtocol;
+  boolean useTls = false;
 
   public final Server.ServerInputReader input = new Server.ServerInputReader() {
 
@@ -74,8 +75,9 @@ public class email_sender extends Server {
     username = config.getString("username");
     password = config.getString("password");
     transportProtocol = config.getString("transportProtocol");
+    useTls = config.optBoolean("TLS", false);
 
-    log.info(String.format("Setup config vars, host: %s, username: %s, password: %s, protocol: %s", host, username, password, transportProtocol));
+    log.info(String.format("Setup config vars, host: %s, username: %s, password: %s, protocol: %s, TLS: %s", host, username, password, transportProtocol, useTls));
   }
 
   private class EmailDestination {
@@ -102,6 +104,9 @@ public class email_sender extends Server {
       log.info("Sending mail");
 
       Properties props = new Properties();
+      if (useTls) {
+        props.put("mail.smtp.starttls.enable", "true");
+      }
       props.setProperty("mail.transport.protocol", transportProtocol);
       props.setProperty("mail.host", host);
       props.setProperty("mail.user", username);

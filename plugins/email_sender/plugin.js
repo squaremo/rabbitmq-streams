@@ -8,10 +8,11 @@
 
     "global_configuration_specification": [],
     "configuration_specification": [
-                                    {"label": "Transport protocol", "type": "protocol (e.g. smtp)", "name": "transportProtocol"},
-                                    {"label": "Host", "type": "URL - the smtp host", "name": "host"},
-                                    {"label": "Username", "type": "String - username", "name": "username"},
-                                    {"label": "Password", "type": "String - password", "name": "password"}
+      {"label": "Transport protocol", "type": "protocol (e.g. smtp)", "name": "transportProtocol"},
+      {"label": "Host", "type": "URL - the smtp host", "name": "host"},
+      {"label": "Username", "type": "String - username", "name": "username"},
+      {"label": "Password", "type": "String - password", "name": "password"},
+      {"label": "Use TLS", "type": "boolean", "name": "TLS"}
                                     ],
 
     "destination_specification": [
