@@ -20,25 +20,14 @@ public abstract class AMQPInputConsumer implements Runnable {
   private JSONObject staticConfiguration;
   protected final Logger log;
 
-  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log) {
+  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject originalConfig, Logger log) {
     this.log = log;
     this.consumer = consumer;
     this.handler = handler;
-    this.originalConfiguration = config.getJSONObject("configuration");
-    makeStaticConfiguration(config);
+    this.originalConfiguration = originalConfig;
   }
 
-  private void makeStaticConfiguration(JSONObject config) {
-    JSONArray globalConfig = config.getJSONObject("plugin_type").getJSONArray("global_configuration_specification");
-    staticConfiguration = new JSONObject();
-    for (Object configItem : globalConfig) {
-      JSONObject item = (JSONObject) configItem;
-      staticConfiguration.put(item.getString("name"), JSONObject.fromObject(item.get("value")));
-    }
-    staticConfiguration.putAll(config.getJSONObject("configuration"));
-  }
-
-    /**
+  /**
    * Set values in the header.
    */
   protected static void setValuesInHeader(Map<String, Object> headersToMutate, JSONObject vals) {

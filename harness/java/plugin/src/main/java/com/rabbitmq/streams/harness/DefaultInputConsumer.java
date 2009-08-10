@@ -4,6 +4,13 @@ import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import net.sf.json.JSONObject;
 
+/**
+ * This input consumer assumes that the receiver takes responsibility for
+ * managing concurrency and acking messages.  In particular, it assumes that
+ * overlapping transactions will not be a problem; @see SerialisedInputConsumer
+ * @author mikeb@lshift.net
+ * @author matthew@lshift.net
+ */
 class DefaultInputConsumer extends AMQPInputConsumer {
 
   DefaultInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log) {

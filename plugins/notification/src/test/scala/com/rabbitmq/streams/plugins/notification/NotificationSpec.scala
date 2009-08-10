@@ -13,23 +13,11 @@ import org.mockito.Mockito
 import org.mockito.Matchers
 import com.rabbitmq.streams.harness.AMQPConnectionFactory
 import com.rabbitmq.client.Connection
+import com.rabbitmq.streams.harness.testsupport.MockMessageChannel
 
 class MySpecTest extends JUnit4(NotificationSpec)
 //class MySpecSuite extends ScalaTestSuite(MySpec)
 object MySpecRunner extends ConsoleRunner(NotificationSpec)
-
-class MC extends MessageChannel {
-  var handlers : Map[String, InputHandler] = Map()
-  var outputs : List[(String, Message)] = List()
-
-  override def consume(ch : String, h : InputHandler) {
-    handlers = handlers + (ch -> h) // Should it keep a list
-  }
-
-  override def publish(ch : String, msg : Message) {
-    outputs = outputs + (ch, msg)
-  }
-}
 
 object NotificationSpec extends Specification {
   def config(host : String, vhost : String, port : Int, username : String, password : String) : JSONObject = {
@@ -79,14 +67,14 @@ object NotificationSpec extends Specification {
 
     "register a command handler" in {
       val plugin = new NotificationServer
-      val mc = new MC
+      val mc = new MockMessageChannel
       plugin.setMessageChannel(mc)
       val cf = Mockito.mock(classOf[AMQPConnectionFactory])
       val c = Mockito.mock(classOf[Connection])
       Mockito.when(cf.connectionFromConfig(Matchers.any(classOf[JSONObject]))).thenReturn(c)
       plugin.setConnectionFactory(cf)
       plugin.configure(new JSONObject())
-      mc.handlers("command") must notBeNull
+      mc.handlers.get("command") must notBeNull
     }
 
     "complain if given an empty terminalConfig" in {
