@@ -21,6 +21,7 @@
 
 # ONLY Mavenised plugins get things in lib/ through Maven
 ^plugins/archive/(lib|dist)/
+^plugins/archive/config/feedshub_status
 ^plugins/data_empty/(lib|dist)/
 ^plugins/data_not_changed/(lib|dist)/
 ^plugins/httppost/(lib|dist)/

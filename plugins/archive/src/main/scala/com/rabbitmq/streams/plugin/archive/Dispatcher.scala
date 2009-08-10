@@ -17,6 +17,7 @@ case class DestinationStatusChange(destination: String, configs: List[JSONObject
 
 class Dispatcher(log : Logger, couch : Session) extends Actor {
   private val destinationsMap : Map[String, List[Destination]] = Map()
+  private val viewName = "_design/by_date"
 
   def act() {
     loop {
@@ -43,6 +44,26 @@ class Dispatcher(log : Logger, couch : Session) extends Actor {
                     val dbname = "archive_" + destination + destConfig.getString("name")
                     couch.createDatabase(dbname)
                     val db = couch.getDatabase(dbname)
+                    if(db.getDocument(viewName) == null) {
+                      val view = new Document()
+                      view.setId(viewName)
+                      view.put("language", "javascript")
+
+                      val mapFunction = """
+                        function(doc) {
+                          date = new Date(doc.updated)
+                          year = date.getFullYear()
+                          month = date.getMonth() + 1
+                          day = date.getDate()
+                          hour = date.getHours()
+                          minute = date.getMinutes()
+                          seconds = date.getSeconds()
+                          emit([year, month, day, hour, minute, seconds], {Body: doc.body})
+                        }
+                      """
+                      view.addView(viewName, "By Date", mapFunction)
+                      db.saveDocument(view, viewName)
+                    }
                     new Destination(log, db)
                   })
                 destinationsMap += (destination -> dests)
