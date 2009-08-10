@@ -15,7 +15,7 @@
       },
       {"label": "Timeout message",
        "type": "string",
-       "name": "timeout_message"
+       "name": "message"
       }
     ],
 
