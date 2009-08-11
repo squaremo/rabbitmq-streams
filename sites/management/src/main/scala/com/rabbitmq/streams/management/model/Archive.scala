@@ -47,41 +47,29 @@ class Archive(private val couch: Session, private val dbName: String, private va
   val name = config.getString("name")
 
   private val db = couch.getDatabase(dbName)
-  private val entriesView = new View("entries/updated")
-  init()
-
-  def init()  {
-    db.view(entriesView) match {
-      case null => installView
-      case    _ => Console.err.println("View found")
-    }
-  }
-
-  def installView {
-    Console.err.println("Installing view")
-    val d = new Document()
-    d.addView("entries", "updated", "function(doc) {emit(doc.updated, doc);}")
-    db.saveDocument(d)
-    Console.err.println("View installed")
-  }
 
   def entries(limit: Int): Seq[ArchiveEntry] = {
+    val entriesView = new View("by_date/by_date")
     entriesView.setLimit(limit)
     require(db != null, "db should not be null for " + dbName)
     db.view(entriesView) match {
       case null => {
-        println("No view found")
         Nil
       }
       case view => {
-        println("Found " + view.getResults)
-        for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject("value"))
+        for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject)
       }  
     }
   }
 }
 
 class ArchiveEntry(private val doc: JSONObject) {
-  val updated = doc.getLong("updated")
-  val content = doc.getString("body")
+  val updated = toDate(doc.getJSONArray("key"))
+  val content = doc.getJSONObject("value").getString("Body")
+
+  def toDate(array:JSONArray):java.util.Date = {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(array.getInt(0), array.getInt(1), array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
+    calendar.getTime
+  }
 }
