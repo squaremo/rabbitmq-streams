@@ -17,7 +17,7 @@ class ArchivesActor extends CometActor {
     bind("list" ->(
       <div>
       {archives.map(a =>
-        <h3>{a.name}</h3>
+        <h3>{a.name} - {a.terminalName}</h3>
         <table>
           <thead>
             <tr><th>Updated</th><th>Content</th></tr>
