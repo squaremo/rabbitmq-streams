@@ -289,7 +289,7 @@ listen-all: listen-orchestrator listen-core
 unlisten-all: unlisten-orchestrator unlisten-couch unlisten-rabbit
 
 unlisten-all-nox:
-	kill "`cat $(SCREEN_PIDFILE)`"
+	kill "`cat $(SCREEN_PIDFILE)`" && rm -f "$(SCREEN_PIDFILE)"
 
 dummy-screen:
 	@echo "starting up a screen session with 1-window per listener"

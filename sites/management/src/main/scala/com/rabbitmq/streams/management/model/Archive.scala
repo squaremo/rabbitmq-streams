@@ -22,8 +22,8 @@ class Server(url: String, configDatabaseName: String) {
         if server.getJSONObject("server").getString("server_type").equals("archive");
         t <- server.getJSONArray("terminals");
         terminal = t.asInstanceOf[JSONObject];
-        destination = terminal.getJSONObject("server").getJSONObject("destination");
-        if destination.optBoolean("publish", false))
+        destination = terminal.getJSONObject("server").getJSONObject("destination")
+    )
     yield newArchive(server.getJSONObject("server"), terminal, destination)
   }
 
@@ -45,34 +45,31 @@ object LocalServer extends Server("http://localhost:5984", "feedshub_status")
  */
 class Archive(private val couch: Session, private val dbName: String, private val config: JSONObject) {
   val name = config.getString("name")
-  val title = config.getString("title")
 
   private val db = couch.getDatabase(dbName)
 
-  def installView {
-    val d = new Document()
-    d.addView("entries", "updated", "function(doc) {emit(doc.updated, doc);}")
-    db.saveDocument(d)
-  }
-
   def entries(limit: Int): Seq[ArchiveEntry] = {
-    val entriesView = new View("entries/updated")
+    val entriesView = new View("by_date/by_date")
     entriesView.setLimit(limit)
     require(db != null, "db should not be null for " + dbName)
     db.view(entriesView) match {
-      case null =>  {
-        installView
-        entries(limit)
+      case null => {
+        Nil
       }
       case view => {
-        println("Found " + view.getResults)
-        for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject("value"))
-      }
+        for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject)
+      }  
     }
   }
 }
 
 class ArchiveEntry(private val doc: JSONObject) {
-  val updated = doc.getLong("updated")
-  val content = doc.getString("body")
+  val updated = toDate(doc.getJSONArray("key"))
+  val content = doc.getJSONObject("value").getString("Body")
+
+  def toDate(array:JSONArray):java.util.Date = {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(array.getInt(0), array.getInt(1), array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
+    calendar.getTime
+  }
 }
