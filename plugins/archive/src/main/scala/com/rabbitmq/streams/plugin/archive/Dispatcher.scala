@@ -25,63 +25,63 @@ class Dispatcher(log : Logger, couch : Session) extends Actor {
         case Entry(bytes, key, ack) => {
             destinationsMap.get(key) match {
               case Some(destinations) => {
-                  log.debug("Dispatch to " + key)
-                  destinations.foreach(_ ! NewEntry(bytes))
-                  ack()
-                }
+                log.debug("Dispatch to " + key)
+                destinations.foreach(_ ! NewEntry(bytes))
+                ack()
+              }
               case None => {
-                  log.debug("Not listening for: " + key)
-                  ack()
-                }
+                log.debug("Not listening for: " + key)
+                ack()
+              }
             }
           }
         case DestinationStatusChange(destination, configs, active) => {
-            if (active) {
-              log.info("Activating " + destination)
-              if (! destinationsMap.contains(destination)) {
-                val dests = configs.map(config => {
-                    val destConfig = config.getJSONObject("destination")
-                    val dbname = "archive_" + destination + destConfig.getString("name")
-                    couch.createDatabase(dbname)
-                    val db = couch.getDatabase(dbname)
-                    if(db.getDocument(viewName) == null) {
-                      val view = new Document()
-                      view.setId(viewName)
-                      view.put("language", "javascript")
+          if (active) {
+            log.info("Activating " + destination)
+            if (! destinationsMap.contains(destination)) {
+              val dests = configs.map(config => {
+                  val destConfig = config.getJSONObject("destination")
+                  val dbname = "archive_" + destination + destConfig.getString("name")
+                  couch.createDatabase(dbname)
+                  val db = couch.getDatabase(dbname)
+                  if(db.getDocument(viewName) == null) {
+                    val view = new Document()
+                    view.setId(viewName)
+                    view.put("language", "javascript")
 
-                      val mapFunction = """
-                        function(doc) {
-                          date = new Date(doc.updated)
-                          year = date.getFullYear()
-                          month = date.getMonth() + 1
-                          day = date.getDate()
-                          hour = date.getHours()
-                          minute = date.getMinutes()
-                          seconds = date.getSeconds()
-                          emit([year, month, day, hour, minute, seconds], {Body: doc.body})
-                        }
-                      """
-                      view.addView(viewName, "By Date", mapFunction)
-                      db.saveDocument(view, viewName)
-                    }
-                    new Destination(log, db)
-                  })
-                destinationsMap += (destination -> dests)
-                dests.foreach(_.start)
-                log.debug("Now listening to :" + destinationsMap.keySet toString)
-              }
-            }
-            else {
-              log.info("Deactivating " + destination)
-              destinationsMap.get(destination) match {
-                case Some(dests) => {
-                    dests.foreach(_.exit)
-                    destinationsMap -= destination
+                    val mapFunction = """
+                      function(doc) {
+                        date = new Date(doc.updated)
+                        year = date.getFullYear()
+                        month = date.getMonth() + 1
+                        day = date.getDate()
+                        hour = date.getHours()
+                        minute = date.getMinutes()
+                        seconds = date.getSeconds()
+                        emit([year, month, day, hour, minute, seconds], {Body: doc.body})
+                      }
+                    """
+                    view.addView(viewName, "by_date", mapFunction)
+                    db.saveDocument(view, viewName)
                   }
-                case None => log.warn("Cannot deactivate " + destination + "; not known or already inactive.")
-              }
+                  new Destination(log, db)
+                })
+              destinationsMap += (destination -> dests)
+              dests.foreach(_.start)
+              log.debug("Now listening to :" + destinationsMap.keySet toString)
             }
           }
+          else {
+            log.info("Deactivating " + destination)
+            destinationsMap.get(destination) match {
+              case Some(dests) => {
+                  dests.foreach(_.exit)
+                  destinationsMap -= destination
+                }
+              case None => log.warn("Cannot deactivate " + destination + "; not known or already inactive.")
+            }
+          }
+        }
       }
     }
   }
