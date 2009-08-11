@@ -22,8 +22,8 @@ class Server(url: String, configDatabaseName: String) {
         if server.getJSONObject("server").getString("server_type").equals("archive");
         t <- server.getJSONArray("terminals");
         terminal = t.asInstanceOf[JSONObject];
-        destination = terminal.getJSONObject("server").getJSONObject("destination");
-        if destination.optBoolean("publish", false))
+        destination = terminal.getJSONObject("server").getJSONObject("destination")
+    )
     yield newArchive(server.getJSONObject("server"), terminal, destination)
   }
 
@@ -45,29 +45,38 @@ object LocalServer extends Server("http://localhost:5984", "feedshub_status")
  */
 class Archive(private val couch: Session, private val dbName: String, private val config: JSONObject) {
   val name = config.getString("name")
-  val title = config.getString("title")
 
   private val db = couch.getDatabase(dbName)
+  private val entriesView = new View("entries/updated")
+  init()
+
+  def init()  {
+    db.view(entriesView) match {
+      case null => installView
+      case    _ => Console.err.println("View found")
+    }
+  }
 
   def installView {
+    Console.err.println("Installing view")
     val d = new Document()
     d.addView("entries", "updated", "function(doc) {emit(doc.updated, doc);}")
     db.saveDocument(d)
+    Console.err.println("View installed")
   }
 
   def entries(limit: Int): Seq[ArchiveEntry] = {
-    val entriesView = new View("entries/updated")
     entriesView.setLimit(limit)
     require(db != null, "db should not be null for " + dbName)
     db.view(entriesView) match {
-      case null =>  {
-        installView
-        entries(limit)
+      case null => {
+        println("No view found")
+        Nil
       }
       case view => {
         println("Found " + view.getResults)
         for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject("value"))
-      }
+      }  
     }
   }
 }
