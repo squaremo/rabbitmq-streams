@@ -13,7 +13,7 @@ class Server(url: String, configDatabaseName: String) {
   val configDb = couch.getDatabase(configDatabaseName)
 
   private def newArchive(server: JSONObject, terminal: JSONObject, destination: JSONObject): Archive = {
-    new Archive(couch, "archive_" + terminal.get("_id") + destination.get("name"), destination)
+    new Archive(couch, terminal, destination)
   }
 
   def archives: Seq[Archive] = {
@@ -43,14 +43,17 @@ object LocalServer extends Server("http://localhost:5984", "feedshub_status")
 /**
  * Represents an archive available as a feed
  */
-class Archive(private val couch: Session, private val dbName: String, private val config: JSONObject) {
+class Archive(private val couch: Session, private val terminal: JSONObject, private val config: JSONObject) {
+  private val dbName:String  = "archive_" + terminal.get("_id") + config.get("name")
   val name = config.getString("name")
+  val terminalName = terminal.get("_id")
 
   private val db = couch.getDatabase(dbName)
 
   def entries(limit: Int): Seq[ArchiveEntry] = {
     val entriesView = new View("by_date/by_date")
     entriesView.setLimit(limit)
+    entriesView.setDescending(true)
     require(db != null, "db should not be null for " + dbName)
     db.view(entriesView) match {
       case null => {
