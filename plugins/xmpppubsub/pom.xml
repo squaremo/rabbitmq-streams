@@ -50,7 +50,7 @@
     <dependency>
       <groupId>smack</groupId>
       <artifactId>smack</artifactId>
-      <version>3.1.0</version>
+      <version>3.1.0-rabbitstreams-p1</version>
     </dependency>
     <dependency>
       <groupId>smack</groupId>
