@@ -45,8 +45,9 @@
     <module>data_empty</module>
     <module>data_not_changed</module>
     <module>uniq</module>
-		<module>email_sender</module>
-		<module>lastvalue</module>
+    <module>window</module>
+    <module>email_sender</module>
+    <module>lastvalue</module>
     <module>xpathselect</module>
     <module>newdata</module>
     <module>timeout</module>
