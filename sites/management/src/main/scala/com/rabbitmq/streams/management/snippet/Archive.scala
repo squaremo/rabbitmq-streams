@@ -16,10 +16,19 @@ class Archive {
     val archives = LocalServer.archives
     <head>
       <style type="text/css">#archive-list {{width: 600px;}}</style>
+      <script type="text/javascript" src="/js/archive.js"></script>
     </head>
     <div>
       {archives.map(a =>
           <h3>{a.name} - {a.terminalName}</h3>
+          <form>
+            <input id="fromDate" type="text"/>
+            <input id="fromTime" type="text"/>
+            <input id="toDate" type="text"/>
+            <input id="toTime" type="text"/>
+            <input type="submit" value="Filter archive"/>
+          </form>
+
           <table>
             <thead>
               <tr><th>Updated</th><th>Content</th></tr>
@@ -30,5 +39,6 @@ class Archive {
           </table>)
       }
     </div>
+
   }
 }
