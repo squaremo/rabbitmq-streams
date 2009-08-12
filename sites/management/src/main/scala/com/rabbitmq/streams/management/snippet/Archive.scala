@@ -8,17 +8,27 @@ import scala.xml.NodeSeq
 import net.liftweb.widgets.tablesorter.TableSorter
 
 import com.rabbitmq.streams.management.controller._
+import com.rabbitmq.streams.management.model.LocalServer
 
 class Archive {
 
   def table: NodeSeq = {
+    val archives = LocalServer.archives
     <head>
-    <style type="text/css">#archive-list {{width: 600px;}}</style>
+      <style type="text/css">#archive-list {{width: 600px;}}</style>
     </head>
-    <div>{TableSorter.renderOnLoad("archive-list")}
-      <lift:comet type="ArchivesActor">
-        <a:list>Loading...</a:list>
-      </lift:comet>
+    <div>
+      {archives.map(a =>
+          <h3>{a.name} - {a.terminalName}</h3>
+          <table>
+            <thead>
+              <tr><th>Updated</th><th>Content</th></tr>
+            </thead>
+            <tbody>
+              {a.entries(10).map(e => <tr><td>{e.updated}</td><td>{e.content}</td></tr>)}
+            </tbody>
+          </table>)
+      }
     </div>
   }
 }

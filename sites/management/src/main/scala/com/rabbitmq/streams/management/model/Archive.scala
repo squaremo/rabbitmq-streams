@@ -18,13 +18,12 @@ class Server(url: String, configDatabaseName: String) {
 
   def archives: Seq[Archive] = {
     for(row <- configDb.view("terminals/byserver?group=true").getResults;
-        server = row.getJSONObject("value")
-        if server.getJSONObject("server").getString("server_type").equals("archive");
-        t <- server.getJSONArray("terminals");
-        terminal = t.asInstanceOf[JSONObject];
-        destination = terminal.getJSONObject("server").getJSONObject("destination")
-    )
-    yield newArchive(server.getJSONObject("server"), terminal, destination)
+      server = row.getJSONObject("value")
+      if server.getJSONObject("server").getString("server_type").equals("archive");
+      t <- server.getJSONArray("terminals");
+      terminal = t.asInstanceOf[JSONObject];
+      destination = terminal.getJSONObject("server").getJSONObject("destination")
+    ) yield newArchive(server.getJSONObject("server"), terminal, destination)
   }
 
   def archive(name: String): Option[Archive] = {
@@ -57,11 +56,12 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
     require(db != null, "db should not be null for " + dbName)
     db.view(entriesView) match {
       case null => {
-        Nil
-      }
+          Nil
+        }
       case view => {
-        for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject)
-      }  
+          println("Fetching results")
+          for(row <- view.getResults) yield new ArchiveEntry(row.getJSONObject)
+        }
     }
   }
 }
