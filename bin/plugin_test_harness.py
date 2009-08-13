@@ -30,6 +30,15 @@ MODS = frozenset('sleep rk config headers'.split())
 
 class ReplError(Exception): pass
 
+def deunicode(x):
+    if isinstance(x, unicode):
+        return str(x)
+    elif isinstance(x, dict):
+        return dict(map(deunicode, x.iteritems()))
+    elif isinstance(x, (list, tuple)):
+        return type(x)(map(deunicode, x))
+    else:
+        return x
 
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
@@ -345,9 +354,9 @@ def setup_everything(plugindir, id, config_json, env, Outputter):
     info("#", json_repr(plugin_specs))
     inputspec = [{"name": "input"},
                  {"name": "command"}] if is_server(plugin_specs) \
-                                      else plugin_specs['inputs_specification']
+                                      else deunicode(plugin_specs['inputs_specification'])
     outputspec = [{'name': 'output'}] if is_server(plugin_specs) \
-                                      else plugin_specs['outputs_specification']
+                                      else deunicode(plugin_specs['outputs_specification'])
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
                         inputspec=inputspec,
                         outputspec=outputspec,
