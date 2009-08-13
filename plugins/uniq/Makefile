@@ -9,7 +9,11 @@ clean:
 	rm -rf lib
 
 target/$(jarfile): $(sources)
+ifeq ($(TEST),false)
+	mvn package -Dmaven.test.skip=true
+else
 	mvn package
+endif
 
 lib/$(jarfile): target/$(jarfile)
 	mkdir -p lib

@@ -9,7 +9,11 @@ lib/$(jarfile): target/$(jarfile)
 	cp target/*.jar lib
 
 target/$(jarfile): $(sources) $(harness_jar)
+ifeq ($(TEST),false)
+	mvn package -Dmaven.test.skip=true
+else
 	mvn package
+endif
 
 clean:
 	mvn clean
