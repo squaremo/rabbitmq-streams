@@ -1,8 +1,8 @@
 $(document).ready(function(){
-  $("#fromDate").datepicker({ dateFormat: 'dd/mm/yy' });
-  $("#toDate").datepicker({ dateFormat: 'dd/mm/yy' });
-  $('#fromTime').timepickr();
-  $('#toTime').timepickr();
+  $("#startDate").datepicker({ dateFormat: 'dd/mm/yy' });
+  $("#endDate").datepicker({ dateFormat: 'dd/mm/yy' });
+  $('#startTime').timepickr();
+  $('#endTime').timepickr();
 });
 
 
