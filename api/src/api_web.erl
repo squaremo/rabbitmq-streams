@@ -8,6 +8,8 @@
 
 -export([start/1, stop/0, loop/2]).
 
+-include("api.hrl").
+
 %% External API
 
 start(Options) ->
@@ -64,7 +66,7 @@ handle_static(_OtherPath, _DocRoot, Req) ->
 
 % TODO Server status
 handle_root(DocRoot, Req) ->
-    Req:respond({200, [], "Streams API"}).
+    Req:respond({200, [{"Content-Type", "application/json"}], rfc4627:encode(app_status())}).
 
 % dispatch to particular facet and resource
 handle_method(ResourceTypeAtom, Facet, <<>>, Req) ->
@@ -73,4 +75,8 @@ handle_method(ResourceTypeAtom, Facet, Name, Req) ->
     Req:respond({200, [], "Method call."}).
 
 handle_index(ResourceTypeAtom, Facet, Req) ->
-    Req:ok({200, [], "Index."}).
+    Req:respond({200, [], "Index"}).
+
+app_status() ->
+    {obj, [{"application", ?APPLICATION_NAME},
+           {"version", ?APPLICATION_VERSION}]}.
