@@ -1,10 +1,10 @@
-%% @author author <author@example.com>
-%% @copyright YYYY author.
+%% @author Michael Bridgen <mikeb@lshift.net>
+%% @copyright 2009 Michael Bridgen, LShift Ltd.
 
 %% @doc TEMPLATE.
 
 -module(api).
--author('author <author@example.com>').
+-author('Michael Bridgen <mikeb@lshift.net>').
 -export([start/0, stop/0]).
 
 ensure_started(App) ->
