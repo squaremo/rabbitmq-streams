@@ -2,6 +2,7 @@ package com.rabbitmq.streams.management.model
 
 import java.lang.String
 import java.net.URL
+import java.util.{Calendar, Date}
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
@@ -65,6 +66,21 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
     performViewQuery(entriesView)
   }
 
+  private def toViewKey(date: Date): JSONArray = {
+    val array = new JSONArray()
+    val calendar = Calendar.getInstance()
+    calendar.setTime(date)
+
+    array.add(calendar.get(Calendar.YEAR))
+    array.add(calendar.get(Calendar.MONTH) + 1)
+    array.add(calendar.get(Calendar.DAY_OF_MONTH))
+    array.add(calendar.get(Calendar.HOUR))
+    array.add(calendar.get(Calendar.MINUTE))
+    array.add(calendar.get(Calendar.SECOND))
+
+    array
+  }
+  
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
     case null => (Nil, 0)
     case v => (for(row <- v.getResults) yield new ArchiveEntry(row.getJSONObject), v.getInt("total_rows"))
