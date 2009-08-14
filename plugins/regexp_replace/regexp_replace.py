@@ -27,10 +27,10 @@ class RegexpReplacer(Component):
         match = expression["regexp"]
         flags = makeFlags(expression, defaults=globalFlags)
         return re.compile(match, flags)
-        
+
     def input(self, msg, config):
         globalFlags = [config.get(k, False) for k in GLOBALFLAGS]
-        body = msg.body
+        body = msg.body_as_string
         for expression in config["expressions"]:
             match = self.matcher(expression, globalFlags)
             replacement = expression["replacement"]

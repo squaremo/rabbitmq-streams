@@ -125,6 +125,7 @@ class Success(object):
 class TestOutputter(object):
 
     def __init__(self, channel_names, format_output=None):
+        assert all(type(c) is str for c in channel_names)
         self.channel_names = channel_names
         self.outputs = [{}]
         self.results = []
@@ -133,8 +134,11 @@ class TestOutputter(object):
 
     def make_output_callback(self, channel_name):
         assert channel_name in self.channel_names
+        assert type(channel_name) is str
         def output_concer(msg):
-            self.outputs[-1].setdefault(str(channel_name), []).append(Msg(msg.body))
+            assert type(msg.body) is str, "bad msg:%r %r" % (type(msg), msg.body)
+            self.outputs[-1].setdefault(str(channel_name), []).append(
+                Msg(msg.body))
         return output_concer
 
     def expect(self, **kwargs):
