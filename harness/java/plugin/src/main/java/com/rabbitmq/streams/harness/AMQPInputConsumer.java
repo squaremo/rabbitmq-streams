@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import net.sf.json.JSONObject;
 import net.sf.json.JSONArray;
+import static java.util.Collections.EMPTY_MAP;
 
 import java.util.Map;
 
@@ -25,6 +26,7 @@ public abstract class AMQPInputConsumer implements Runnable {
     this.consumer = consumer;
     this.handler = handler;
     this.originalConfiguration = originalConfig;
+    this.staticConfiguration = interpolateConfig(originalConfiguration, EMPTY_MAP);
   }
 
   /**
@@ -39,16 +41,14 @@ public abstract class AMQPInputConsumer implements Runnable {
   }
 
   JSONObject mergeConfigWithHeaders(Map<String, Object> headers) {
-    JSONObject result = JSONObject.fromObject(staticConfiguration);
     if (headers != null) {
       JSONObject values = getValuesFromHeader(headers);
       if (values != null) {
-        result = interpolateConfig(originalConfiguration, values);
+        return interpolateConfig(originalConfiguration, values);
       }
     }
-    return result;
+    return staticConfiguration;
   }
-
 
   protected static Object interpolateValue(Object uninterpolated, Map<String, Object> vals) {
     if (uninterpolated instanceof String) {
