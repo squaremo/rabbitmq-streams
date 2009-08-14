@@ -17,7 +17,6 @@ class Archives {
     def filterForDatabase(database: String): Function0[Unit] = {
       return new Function0[Unit]() {
         override def apply(): Unit = {
-          println("database " + database + " - " + archiveName.is)
           S.redirectTo("/archive/browse", () => {
             archiveName(database)
             filterPeriod(asInterval(startDate, startTime, endDate, endTime))
@@ -37,7 +36,7 @@ class Archives {
             "endTime" -> SHtml.text(endTime, endTime = _, ("id", "endTime")),
             "submit" -> SHtml.submit("Filter", filterForDatabase(archive.name))
           ),
-          "entries" -> archive.entries(10).flatMap(entry =>
+          "entries" -> archive.latestEntries(10).flatMap(entry =>
             bind("e", chooseTemplate("tag", "entry", content),
               "updated" -> Text(entry.updated.toLocaleString),
               "content" -> Text(entry.content)
@@ -71,7 +70,7 @@ class Archives {
       "name" -> Text(archiveName.is),
       "from" -> Text(period._1.toString),
       "to" -> Text(period._2.toString),
-      "entries" -> archive.entries(10).flatMap(entry =>
+      "entries" -> archive.latestEntries(10).flatMap(entry =>
         bind("e", chooseTemplate("tag", "entry", content),
           "updated" -> Text(entry.updated.toLocaleString),
           "content" -> Text(entry.content)
