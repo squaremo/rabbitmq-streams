@@ -658,6 +658,7 @@ if __name__ == '__main__':
     parser.add_option_group(amqpoptions)
 
     opts, args = parser.parse_args()
+    first_lineno = 1
     if opts.selftest:
         import doctest
         print doctest.testmod()
@@ -680,10 +681,18 @@ if __name__ == '__main__':
                 sys.stdin_bak = sys.stdin
                 sys.stdin = open(filename)
             make_expect = lambda wiring: wiring.outputter.expect
-            field, config_json = sys.stdin.readline().split('\t',1)
-            if field != IN+"PLUGIN_INSTANCE_CONFIG":
-                print >> sys.stderr, "First line of stdin must be the PLUGIN_INSTANCE_CONFIG"
+            for line in iter(sys.stdin.readline, ''):
+                if line.startswith('#'):
+                    first_lineno += 1
+                else:
+                    break
+            else:
+                line = 'BAD'
+            if not re.match(IN+"PLUGIN_INSTANCE_CONFIG\t", line):
+                print >> sys.stderr, "First non-comment line of stdin "\
+                      "must be the PLUGIN_INSTANCE_CONFIG"
                 sys.exit(255)
+            config_json = line.split('\t',1)[1]
             verbosity = 0
         else:
             is_valid_channel=lambda t, c: t==IN and (c in wiring.inputs or c == "SLEEP")
@@ -706,9 +715,10 @@ if __name__ == '__main__':
         if not opts.py:
             try:
                 repl_exit = repl(lines=iter(sys.stdin.readline, ''),
-                              send=send,
-                              expect=make_expect(wiring),
-                              is_valid_channel=is_valid_channel)
+                                 send=send,
+                                 expect=make_expect(wiring),
+                                 is_valid_channel=is_valid_channel,
+                                 lineno=first_lineno)
                 if opts.test:
                     time.sleep(1)
                     if opts.test and opts.verbose:
