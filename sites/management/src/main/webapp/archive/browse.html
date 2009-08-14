@@ -1,3 +1,16 @@
 <lift:surround with="default" at="content">
-  <h1>Browse archive</h1>
+  <lift:Archives.browse>
+    <h1>Browse archive - <archive:name/> filtered from <archive:from/> until <archive:to/> </h1>
+
+    <table>
+      <thead>
+        <tr><th>Updated</th><th>Content</th></tr>
+      </thead>
+      <tbody>
+      <archive:entries>
+        <tag:entry><tr><td><e:updated/></td><td><e:content/></td></tr></tag:entry>
+      </archive:entries>
+      </tbody>
+    </table>
+  </lift:Archives.browse>
 </lift:surround>
