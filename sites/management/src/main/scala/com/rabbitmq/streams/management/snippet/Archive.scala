@@ -13,8 +13,11 @@ import com.rabbitmq.streams.management.model.LocalServer
 import scala.xml._
 import net.liftweb.http.S
 import net.liftweb.http.S.SFuncHolder
+import net.liftweb.http.RequestVar
 
 class Archive {
+
+  object archiveName extends RequestVar[String](null)
 
   def archives(content: NodeSeq): NodeSeq = {
     var startDate = ""
@@ -27,7 +30,8 @@ class Archive {
     def filterForDatabase(database:String): Function0[Unit] = {
       return new Function0[Unit]()  {
         override def apply():Unit = {
-          println("\n*\n*\n*     DATABASE IS " + database)
+          println("\n*\n*\n*     DATABASE IS " + database + " - " + startDate)
+          S.redirectTo("/archive/browse", () => archiveName(database))
         }
       }
     }
