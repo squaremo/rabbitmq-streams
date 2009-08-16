@@ -84,7 +84,7 @@ request(Method, URL) ->
 request(Method, URL, undefined) ->
     request1(URL, [], Method, [], []);
 request(Method, URL, Term) ->
-    request1(URL, [], Method, rfc4627:encode(Term), [{centont_type, "application/json"}]).
+    request1(URL, [], Method, rfc4627:encode(Term), [{content_type, "application/json"}]).
 
 request1(URL, Headers, Method, Body, Options) ->
     process_response(ibrowse:send_req(URL, Headers, Method, Body, Options)).

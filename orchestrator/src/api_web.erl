@@ -50,6 +50,12 @@ loop(Req, DocRoot) ->
 get_option(Option, Options) ->
     {proplists:get_value(Option, Options), proplists:delete(Option, Options)}.
 
+json_response(Req, Code, JsonStructure) ->
+    % Content negoitation here?
+    Req:respond({Code,
+                 [{content_type, "application/json"}],
+                 rfc4627:encode(JsonStructure)}).
+
 check_resource_type(<<"terminal">>) -> {ok, terminal};
 check_resource_type(<<"pipeline">>) -> {ok, pipeline};
 check_resource_type(_) -> {error, invalid_resource_type}.
@@ -66,17 +72,25 @@ handle_static(_OtherPath, _DocRoot, Req) ->
 
 % TODO Server status
 handle_root(DocRoot, Req) ->
-    Req:respond({200, [{"Content-Type", "application/json"}], rfc4627:encode(app_status())}).
+    json_response(Req, 200, app_status()).
 
 % dispatch to particular facet and resource
 handle_method(ResourceTypeAtom, Facet, <<>>, Req) ->
-    handle_index(ResourceTypeAtom, Facet, Req);    
+    handle_index(ResourceTypeAtom, Facet, Req);
 handle_method(ResourceTypeAtom, Facet, Name, Req) ->
     Req:respond({200, [], "Method call."}).
 
+handle_index(pipeline, "model", Req) ->
+    json_response(Req, 200, list_pipelines());
 handle_index(ResourceTypeAtom, Facet, Req) ->
-    Req:respond({200, [], "Index"}).
+    Req:respond({404, [], "Not found."}).
 
 app_status() ->
     {obj, [{"application", ?APPLICATION_NAME},
            {"version", ?APPLICATION_VERSION}]}.
+
+list_pipelines() ->
+    {obj, [{"rows", [pipeline_object(P) || P <- streams:all_pipelines(?FEEDSHUB_STATUS_DBNAME)]}]}.
+
+pipeline_object(Pipeline) ->
+    Pipeline.
