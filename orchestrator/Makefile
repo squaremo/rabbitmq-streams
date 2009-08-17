@@ -1,10 +1,13 @@
+include support/include.mk
 
-all:
-	mkdir -p doc/
-	(cd src; $(MAKE))
+all: doc_dir $(EBIN_FILES)
+	mv src/*.html $(DOC_DIR)/
+
+doc_dir:
+	mkdir -p $(DOC_DIR)
 
 clean:
-	(cd src; $(MAKE) clean)
+	rm -rf $(EBIN_FILES)
 	rm -f erl_crash.dump
 
 cleandb:
@@ -12,9 +15,9 @@ cleandb:
 
 # TODO(alexander): -the orchestrator should probably pull COUCH_SERVER itself;
 #                  -the variables COUCH_SERVER and CONFIG_DOC need to be passed in
-run: all
+run:
 	$(ERL) $(ERL_PATH_OPTS) \
 		-boot start_sasl \
-		-sname orchestrator -s orchestrator \
+		-sname orchestrator -s crypto -s orchestrator \
 		-orchestrator couch_base_url '"$(COUCH_SERVER)/"'  \
 		-orchestrator root_config_url '"$(CONFIG_DOC)"'

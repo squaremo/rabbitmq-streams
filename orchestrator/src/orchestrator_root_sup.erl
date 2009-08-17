@@ -13,4 +13,6 @@ start_link() ->
 init([]) ->
     {ok, {{one_for_one, 0, 10},
 	  [{orchestrator_root, {orchestrator_root, start_link, []},
-            permanent, 5000, worker, [orchestrator_root]}]}}.
+            permanent, 5000, worker, [orchestrator_root]},
+           {api_sup, {api_sup, start_link, []},
+            permanent, infinity, supervisor, [api_sup]}]}}.
