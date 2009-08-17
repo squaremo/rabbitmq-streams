@@ -8,8 +8,8 @@ import scala.xml._
 import net.liftweb.util.Helpers._
 class Archives {
   object archiveName extends RequestVar[String]("")
-  object filterPeriod extends RequestVar[(Date, Date)]((new Date(), new Date()))
-
+  object filterPeriod extends RequestVar[(Date, Date)]((asDate(S.param("start").openOr("")), asDate(S.param("end").openOr(""))))
+  
   def archives(content: NodeSeq): NodeSeq = {
     var startDate, startTime, endDate, endTime = ""
     val archives = LocalServer.archives
@@ -48,15 +48,20 @@ class Archives {
   }
 
   private def asInterval(startDate:String, startTime:String, endDate:String, endTime:String):(Date, Date) = {
+    val start = asDate(startDate.trim + "-" + startTime.trim)
+    val end = asDate(endDate.trim + "-" + endTime.trim)
+    (start, end)
+  }
+
+  private def asDate(date: String): Date =  {
     try {
-      val parser = new SimpleDateFormat("dd/MM/yyyy HH:mm")
-      val start = parser.parse(startDate.trim + " " + startTime.trim)
-      val end = parser.parse(endDate.trim + " " + endTime.trim)
-      (start, end)
+      val parser = new SimpleDateFormat("dd/MM/yyyy-HH:mm")
+      parser.parse(date)
     }
     catch {
-      case ex: ParseException => (new Date, new Date)
+      case ex: ParseException => new Date
     }
+
   }
 
   def browse(content: NodeSeq): NodeSeq = LocalServer.archive(archiveName.is) match {
