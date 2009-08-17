@@ -58,6 +58,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
   }
 
   def entries(startKey: String, endKey: String, pageSize: Int, descending: Boolean): (Seq[ArchiveEntry], Int) = {
+    println("Fetching view for keys " + startKey + " - " + endKey)
     val entriesView = new View(entriesViewName)
     entriesView.setLimit(pageSize)
     entriesView.setStartKey(startKey)
@@ -66,7 +67,11 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
     performViewQuery(entriesView)
   }
 
-  private def toViewKey(date: Date): JSONArray = {
+  def entries(startDate: Date, endDate: Date, pageSize: Int, descending: Boolean) : (Seq[ArchiveEntry], Int) = {
+    entries(toViewKey(startDate), toViewKey(endDate), pageSize, descending)
+  }
+
+  private def toViewKey(date: Date): String = {
     val array = new JSONArray()
     val calendar = Calendar.getInstance()
     calendar.setTime(date)
@@ -78,7 +83,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
     array.add(calendar.get(Calendar.MINUTE))
     array.add(calendar.get(Calendar.SECOND))
 
-    array
+    array.toString
   }
   
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
