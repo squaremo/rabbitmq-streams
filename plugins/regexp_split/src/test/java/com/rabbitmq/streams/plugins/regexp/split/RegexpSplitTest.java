@@ -1,5 +1,7 @@
 package com.rabbitmq.streams.plugins.regexp.split;
 
+import java.nio.charset.CharacterCodingException;
+
 import org.junit.Test;
 import org.junit.Before;
 import static org.mockito.Mockito.*;
@@ -55,8 +57,12 @@ public class RegexpSplitTest {
   public void testPositiveMessage() throws PluginBuildException {
     splitter.setMessageChannel(channel);
     splitter.configure(config);
-
-    when(message.body()).thenReturn(testString.getBytes());
+    try {
+        when(message.bodyAsString()).thenReturn(testString);
+    }
+    catch (CharacterCodingException e) {
+      e.printStackTrace();
+    }
     try {
       splitter.input.handleMessage(message);
       verify(channel).publish(RegexpSplit.POSITIVE, message);
@@ -70,8 +76,12 @@ public class RegexpSplitTest {
   public void testNegativeMessage() throws PluginBuildException {
     splitter.setMessageChannel(channel);
     splitter.configure(config);
-
-    when(message.body()).thenReturn("bangers".getBytes());
+    try {
+      when(message.bodyAsString()).thenReturn("bangers");
+    }
+    catch (CharacterCodingException e) {
+      e.printStackTrace();
+    }
     try {
       splitter.input.handleMessage(message);
       verify(channel).publish(RegexpSplit.NEGATIVE, message);

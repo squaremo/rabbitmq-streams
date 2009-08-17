@@ -1,61 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0"?><project>
+  <parent>
+    <artifactId>streams-plugins</artifactId>
+    <groupId>com.rabbitmq.streams.plugins</groupId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+  <name>Uniq plugin</name>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.rabbitmq.streams.plugins</groupId>
   <artifactId>uniq</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <inceptionYear>2009</inceptionYear>
-  <name>Streams Uniq plugin</name>
-  <properties>
-    <scala.version>2.7.4</scala.version>
-  </properties>
-
-  <parent>
-    <groupId>com.rabbitmq.streams.plugins</groupId>
-    <artifactId>streams-plugins</artifactId>
-    <version>1.0-SNAPSHOT</version>
-  </parent>
-
-  <repositories>
-    <repository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-releases</url>
-    </repository>
-  </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-releases</url>
-    </pluginRepository>
-  </pluginRepositories>
-
-  <dependencies>
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>${scala.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.4</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.specs</groupId>
-      <artifactId>specs</artifactId>
-      <version>1.2.5</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.rabbitmq.streams</groupId>
-      <artifactId>plugin</artifactId>
-      <version>1.0-SNAPSHOT</version>
-    </dependency>
-  </dependencies>
-
+  <inceptionYear>2008</inceptionYear>
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
@@ -79,7 +33,6 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-eclipse-plugin</artifactId>
         <configuration>
           <downloadSources>true</downloadSources>
@@ -106,13 +59,51 @@
               <goal>copy-dependencies</goal>
             </goals>
             <configuration>
-              <outputDirectory>${project.build.directory}</outputDirectory>
+              <outputDirectory>lib/</outputDirectory>
             </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
+  <repositories>
+    <repository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </repository>
+  </repositories>
+  <pluginRepositories>
+    <pluginRepository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </pluginRepository>
+  </pluginRepositories>
+  <dependencies>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-tools.testing</groupId>
+      <artifactId>specs</artifactId>
+      <version>1.5.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.rabbitmq.streams</groupId>
+      <artifactId>plugin</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
   <reporting>
     <plugins>
       <plugin>
@@ -124,4 +115,9 @@
       </plugin>
     </plugins>
   </reporting>
+  <properties>
+    <scala.version>2.7.5</scala.version>
+  </properties>
 </project>
+
+
