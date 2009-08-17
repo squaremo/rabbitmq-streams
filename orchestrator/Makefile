@@ -1,5 +1,6 @@
 
 all:
+	mkdir -p doc/
 	(cd src; $(MAKE))
 
 clean:
