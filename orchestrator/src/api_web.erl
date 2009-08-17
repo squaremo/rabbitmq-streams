@@ -90,7 +90,14 @@ app_status() ->
            {"version", ?APPLICATION_VERSION}]}.
 
 list_pipelines() ->
-    {obj, [{"rows", [pipeline_object(P) || P <- streams:all_pipelines(?FEEDSHUB_STATUS_DBNAME)]}]}.
+    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(?FEEDSHUB_STATUS_DBNAME)]}.
 
-pipeline_object(Pipeline) ->
-    Pipeline.
+pipeline_pair(Row) ->
+    {ok, Id} = rfc4627:get_field(Row, "key"),
+    {ok, PipelineDesc} = rfc4627:get_field(Row, "value"),
+    PipelineUrl = api_url(model, pipeline, binary_to_list(Id)),
+    {PipelineUrl, PipelineDesc}.
+
+% TODO Check the facet and resource type
+api_url(Facet, ResourceType, Id) ->
+    "/" ++ mochiweb_util:join([atom_to_list(Facet), atom_to_list(ResourceType), Id], "/").
