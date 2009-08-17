@@ -1,7 +1,6 @@
 include support/include.mk
 
 all: doc_dir $(EBIN_FILES)
-	mv src/*.html $(DOC_DIR)/
 
 doc_dir:
 	mkdir -p $(DOC_DIR)
@@ -15,7 +14,7 @@ cleandb:
 
 # TODO(alexander): -the orchestrator should probably pull COUCH_SERVER itself;
 #                  -the variables COUCH_SERVER and CONFIG_DOC need to be passed in
-run:
+run: all
 	$(ERL) $(ERL_PATH_OPTS) \
 		-boot start_sasl \
 		-sname orchestrator -s crypto -s orchestrator \

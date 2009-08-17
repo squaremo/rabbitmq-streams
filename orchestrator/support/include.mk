@@ -53,3 +53,4 @@ src/%.$(EMULATOR): src/%.erl
 
 $(DOC_DIR)/%.html: src/%.erl
 	$(ERL) -noshell -run edoc file $< -run init stop
+	mv src/*.html $(DOC_DIR)/
