@@ -98,7 +98,7 @@ class ArchiveEntry(private val doc: JSONObject) {
 
   def toDate(array: JSONArray): java.util.Date = {
     val calendar = java.util.Calendar.getInstance()
-    calendar.set(array.getInt(0), array.getInt(1), array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
+    calendar.set(array.getInt(0), array.getInt(1) - 1, array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
     calendar.getTime
   }
 }
