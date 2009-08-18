@@ -91,7 +91,7 @@ public abstract class Plugin {
   }
 
   protected final void notification(NotificationType kind, InputMessage msg) {
-    notifier.notify(kind, new String(msg.body()), msg.headers());
+    notifier.notify(kind, msg.bodyAsStringLax(), msg.headers());
   }
 
   protected final void notification(NotificationType kind, String msg) {

@@ -63,23 +63,28 @@ object WindowSpec extends Specification with Mockito {
       win.configure(config)
       mc.consume(Matchers.eq("input"), any(classOf[InputHandler])) was called
     }
-/*
-    "publish full message onward" in {
-      val mc = new MockMessageChfannel()
-      win.setMessageChannel(mc)
-      win.configure(config)
-      val m = mock[InputMessage]
-      m.body returns "1234567".getBytes
-      mc.inject("input", m)
-      mc.outputs.size() must_== 1
-      val out = mc.outputs.get(0)
-      out.channel must_== "output"
-      out.msg must_== m
-    }
-*/
+
+    //FIXME(alexander): figure out why the test below fails
+
+    // "publish full message onward" in {
+    //   val mc = new MockMessageChannel()
+    //   win.setMessageChannel(mc)
+    //   win.configure(config)
+    //   val m = mock[InputMessage]
+    //   m.body returns "1234567".getBytes("utf-8")
+    //   m.bodyAsString returns "1234567"
+    //   System.err.println("###DEBUG" + m.bodyAsString)
+    //   mc.inject("input", m)
+    //   mc.outputs.size() must_== 1
+    //   val out = mc.outputs.get(0)
+    //   System.err.println("###DEBUG"+out.msg)
+    //   out.channel must_== "output"
+    //   out.msg must_== m
+    // }
+
     "" in {
 
     }
-    
+
     }
 }

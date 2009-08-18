@@ -62,7 +62,7 @@ public class ServerTest {
   public void testRegisterInput() throws Exception {
     final ServerInputReader h = mock(ServerInputReader.class);
     InputMessage msg = mock(InputMessage.class);
-    when(msg.body()).thenReturn("Hello".getBytes());
+    when(msg.body()).thenReturn("Hello".getBytes("utf-8"));
     when(msg.routingKey()).thenReturn("testTerminal");
     Server s = new Server() {
       @Override public void configure(JSONObject config) throws PluginBuildException {

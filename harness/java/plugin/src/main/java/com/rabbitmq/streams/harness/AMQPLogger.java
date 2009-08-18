@@ -1,6 +1,7 @@
 package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.concurrent.BlockingQueue;
@@ -230,12 +231,17 @@ public class AMQPLogger implements Runnable, Logger {
     void log(Channel logChannel, String routingKey, BasicProperties basicProperties, String message) {
       try {
         try {
-          logChannel.basicPublish(logExchange, level + routingKey, false, false, basicProperties, message.getBytes());
+          logChannel.basicPublish(logExchange, level + routingKey, false, false,
+                                  basicProperties, message.getBytes("utf-8"));
         }
         catch (AlreadyClosedException ace) {
           System.err.println(level + routingKey + ": " + message);
           ace.printStackTrace();
         }
+        catch (UnsupportedEncodingException e) {
+          throw new RuntimeException("This shouldn't happen.");
+        }
+
       }
       catch (IOException e) {
         System.err.println(level + routingKey + ": " + message);

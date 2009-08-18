@@ -31,7 +31,7 @@ class WindowPlugin() extends PipelineComponent() {
     val sep:String = encoding match {
       case Seq('u','t','f','-','8','-','s','e','p',':', rest@_*) => rest.mkString
     }
-    val encodingOverhead:Long = sep.getBytes().size
+    val encodingOverhead:Long = sep.getBytes("utf-8").size
 
     var state: java.util.Map[java.lang.String,java.lang.Object] = getState()
     var (deadline:Long, msgs:List[InputMessage]) =
