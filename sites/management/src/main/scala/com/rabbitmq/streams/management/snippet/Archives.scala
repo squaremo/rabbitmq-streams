@@ -65,39 +65,25 @@ class Archives {
 
   }
 
-  def browse(content: NodeSeq): NodeSeq = LocalServer.archive(archiveName.is) match {
-    case None => content
-    case Some(archive) => {
-      //      bindBrowse(archive, content)
-      val period = filterPeriod.is
-      val entries = archive.entries(period._1, period._2, 10, false)._1
-      bind("archive", content,
-        "name" -> Text(archiveName.is),
-        "from" -> Text(period._1.toString),
-        "to" -> Text(period._2.toString),
-        "entries" -> entries.flatMap(entry =>
-          bind("e", chooseTemplate("tag", "entry", content),
-            "updated" -> Text(entry.updated.toLocaleString),
-            "content" -> Text(entry.content)
+  def browse(content: NodeSeq): NodeSeq = {
+    val pageSize = (S.attr("pageSize") openOr "0").toInt
+    LocalServer.archive(archiveName.is) match {
+      case None => content
+      case Some(archive) => {
+        val period = filterPeriod.is
+        val entries = archive.entries(period._1, period._2)._1
+        bind("archive", content,
+          "name" -> Text(archiveName.is),
+          "from" -> Text(period._1.toString),
+          "to" -> Text(period._2.toString),
+          "entries" -> entries.flatMap(entry =>
+            bind("e", chooseTemplate("tag", "entry", content),
+              "updated" -> Text(entry.updated.toLocaleString),
+              "content" -> Text(entry.content)
+            )
           )
         )
-      )
+      }
     }
-  }
-
-  private def bindBrowse(archive: Archive, content: NodeSeq): NodeSeq = {
-    val period = filterPeriod.is
-    val entries = archive.entries(period._1, period._2, 10, false)._1
-    bind("archive", content,
-      "name" -> Text(archiveName.is),
-      "from" -> Text(period._1.toString),
-      "to" -> Text(period._2.toString),
-      "entries" -> entries.flatMap(entry =>
-      bind("e", chooseTemplate("tag", "entry", content),
-        "updated" -> Text(entry.updated.toLocaleString),
-        "content" -> Text(entry.content)
-        )
-        )
-      )
   }
 }
