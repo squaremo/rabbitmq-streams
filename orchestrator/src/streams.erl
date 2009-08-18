@@ -1,11 +1,14 @@
 -module(streams).
 
--export([all_pipelines/1, status_doc/1, process_status/1]).
+-export([all_pipelines/1, defn_doc/1, status_doc/1, process_status/1]).
 
 -include("orchestrator.hrl").
 
+defn_doc(ThingId) ->
+    couchapi:get(streams_config:config_db() ++ "/" ++ ThingId).
+
 status_doc(ThingId) ->
-    couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status").
+    couchapi:get(streams_config:config_db() ++ "/" ++ ThingId ++ "_status").
 
 all_pipelines(DbName) ->
     Rows = couchapi:get_view_rows(DbName, "feeds", "join?group=true"),

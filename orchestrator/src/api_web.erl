@@ -61,7 +61,7 @@ get_option(Option, Options) ->
 json_response(Req, Code, JsonStructure) ->
     % Content negoitation here?
     Req:respond({Code,
-                 [{content_type, "application/json"}],
+                 [{"Content-Type", "application/json"}],
                  rfc4627:encode(JsonStructure)}).
 
 check_resource_type(<<"terminal">>) -> {ok, terminal};
@@ -112,7 +112,7 @@ app_status() ->
            {"version", ?APPLICATION_VERSION}]}.
 
 list_pipelines() ->
-    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(?FEEDSHUB_STATUS_DBNAME)]}.
+    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(streams_config:config_db())]}.
 
 
 % -------------------------------------------------

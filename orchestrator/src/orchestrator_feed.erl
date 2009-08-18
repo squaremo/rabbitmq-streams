@@ -37,7 +37,7 @@ ensure_plugin_sup_detected(State = #state{feed_sup_pid = FSP}) ->
     end.
 
 get_config(#state{feed_id = FeedId}) ->
-    {ok, FeedDefinition} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(FeedId)),
+    {ok, FeedDefinition} = streams:defn_doc(FeedId),
     FeedDefinition.
 
 resource_name(FeedId, N, A) when is_binary(FeedId) ->

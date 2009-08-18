@@ -14,7 +14,7 @@
 expand({raw, AbsUrl}) ->
     AbsUrl;
 expand(RelUrl) ->
-    {ok, CouchBaseUrl} = application:get_env(couch_base_url),
+    CouchBaseUrl = streams_config:state_server(),
     CouchBaseUrl ++ RelUrl.
 
 get(Url) ->
@@ -70,7 +70,7 @@ createdb(DbName) ->
     simple_result(put1(DbName, undefined)).
 
 get_view(DbName, ViewCollectionName, ViewName) ->
-    get1(DbName ++ "_design/" ++ ViewCollectionName ++ "/_view/" ++ ViewName).
+    get1(DbName ++ "/_design/" ++ ViewCollectionName ++ "/_view/" ++ ViewName).
 
 get_view_rows(DbName, ViewCollectionName, ViewName) ->
     {ok, Result} = get_view(DbName, ViewCollectionName, ViewName),

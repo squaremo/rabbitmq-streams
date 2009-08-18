@@ -7,6 +7,9 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
+    %% Report this if not empty
+    [] = streams_config:check_config(),
+    print_banner(),
     {ok, _} = ibrowse_sup:start_link(),
     api_deps:ensure(),
     orchestrator_root_sup:start_link().
@@ -22,3 +25,16 @@ priv_dir() ->
         D ->
             D
     end.
+
+print_banner() ->
+    {ok, Product} = application:get_key(id),
+    {ok, Version} = application:get_key(vsn),
+    io:format("~s ~s~n", [Product, Version]),
+    Settings = [{"node", node()},
+                {"state server", streams_config:state_server()},
+                {"config URL", streams_config:config_doc_url()},
+                {"config database", streams_config:config_db()}],
+    DescrLen = lists:max([length(K) || {K, _} <- Settings]),
+    Format = "~-" ++ integer_to_list(DescrLen) ++ "s: ~s~n",
+    lists:foreach(fun ({K, V}) -> io:format(Format, [K, V]) end, Settings),
+    io:nl().

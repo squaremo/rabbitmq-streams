@@ -5,6 +5,7 @@ RABBITSTREAMS_CONF=etc/rabbitstreams.conf
 
 CONFIG_DOC=$$(cat $(RABBITSTREAMS_CONF) | bin/json --raw get config_doc)
 COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
+CONFIG_DB=$$(echo $(CONFIG_DOC) | sed -e 's/http:\/\/.*\/\(.*\)\/.*/\1/')
 
 # !!!: this needs to evaluated *after* couchdb is installed and setup up
 RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
@@ -224,7 +225,7 @@ listen-orchestrator-nox: create-var-dirs
 start-orchestrator: stop-orchestrator
 	mkfifo $(ORCHESTRATOR_FIFO)
 	( cat $(ORCHESTRATOR_FIFO) | \
-	  ( $(MAKE) COUCH_SERVER=$(COUCH_SERVER) CONFIG_DOC=$(CONFIG_DOC) -C orchestrator run ; \
+	  ( $(MAKE) COUCH_SERVER=$(COUCH_SERVER) CONFIG_DOC=$(CONFIG_DOC) CONFIG_DB=$(CONFIG_DB) -C orchestrator run ; \
 	    echo "Orchestrator died" ; \
 	    pkill -x -f "nc localhost $(LISTEN_ORCHESTRATOR_PORT)" ) 2>&1 | \
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &

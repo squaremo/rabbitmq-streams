@@ -4,8 +4,6 @@
 -define(FEEDSHUB_LOG_XNAME, <<"feedshub/log">>).
 -define(FEEDSHUB_NOTIFY_XNAME, <<"feedshub/notify">>).
 
--define(FEEDSHUB_STATUS_DBNAME, "feedshub_status/").
-
 -ifdef(debug).
 -define(DEBUGREPORT(Term), error_logger:info_report({?MODULE, 'DEBUG', Term})).
 -else.

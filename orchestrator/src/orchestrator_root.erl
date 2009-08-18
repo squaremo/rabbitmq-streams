@@ -56,14 +56,13 @@ setup_logger(LogCh) ->
 	{error, {already_started, _Pid}} -> ok
     end.
 
-
 install_views() ->
     lists:foreach(
       fun({WC, DB}) ->
 	      lists:foreach(fun(Dir) -> install_view(DB, Dir) end,
 			    filelib:wildcard(orchestrator:priv_dir() ++ WC))
       end, [
-	    {"/feedshub_status/views/*", ?FEEDSHUB_STATUS_DBNAME}
+	    {"/feedshub_status/views/*", streams_config:config_db()}
 	   ]),
     ok.
 
@@ -84,7 +83,7 @@ install_view(DbName, ViewDir) ->
                                             dict:store(FunctionName, FunctionText, dict:new()),
                                             V)
                         end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
-    Path = DbName ++ "_design/" ++ ViewCollectionName,
+    Path = DbName ++ "/_design/" ++ ViewCollectionName,
     Doc = {obj, [{"views", Views},
 		 {"language", <<"javascript">>}]},
     Doc2 =
@@ -121,11 +120,11 @@ startup_couch_scan() ->
                                          rfc4627:get_field(CouchInfo, "couchdb")},
     {ok, CouchVersion} = rfc4627:get_field(CouchInfo, "version"),
     {couchdb_version_check, true} = {couchdb_version_check, lists:prefix("0.9.", binary_to_list(CouchVersion))},
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME) of
+    case couchapi:get(streams_config:config_db()) of
         {ok, _DbInfo} ->
             ok;
         {error, 404, _} ->
-            exit({no_status_db, "You need to create " ++ ?FEEDSHUB_STATUS_DBNAME ++
+            exit({no_status_db, "You need to create " ++ streams_config:config_db() ++
                   "before running the orchestrator"})
     end,
     install_views(),
@@ -189,7 +188,7 @@ id_from_status(Status) ->
 
 check_active_servers(Channel, Connection) ->
     ServerIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
+		 || R <- couchapi:get_view_rows(streams_config:config_db(), "servers", "active")],
     lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
 							      Channel, Connection,
@@ -204,7 +203,7 @@ deactivate_feed(FeedId, _Args) ->
 
 check_active_feeds(Connection) ->
     FeedIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
+               || R <- couchapi:get_view_rows(streams_config:config_db(), "feeds", "active")],
     lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection]) end, FeedIds),
     ok.
 
@@ -227,7 +226,7 @@ activate_terminal(TermId, Channel) ->
 check_active_terminals(Channel) ->
     TermIds =
 	[id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
+	 || R <- couchapi:get_view_rows(streams_config:config_db(), "terminals", "active")],
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
 
