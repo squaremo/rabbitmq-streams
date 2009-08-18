@@ -232,7 +232,7 @@ check_active_terminals(Channel) ->
     ok.
 
 status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(ThingId) ++ "_status") of
+    case streams:status_doc(ThingId) of
 	{ok, Doc} ->
 	    {On, Off, Args} =
 		case rfc4627:get_field(Doc, "type") of

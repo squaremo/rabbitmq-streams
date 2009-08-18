@@ -40,7 +40,7 @@
 
 (^|/)nb-configuration\.xml$
 
-^doc/.*\.html$
+^(orchestrator/)?doc/.*\.html$
 ^doc/.*\.png$
 
 (^|/)\.libs-done$

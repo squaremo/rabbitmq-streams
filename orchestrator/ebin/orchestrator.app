@@ -7,7 +7,7 @@
             orchestrator_root_sup,
             couchapi
 	   ]},
-  {applications,[kernel,stdlib]},
+  {applications,[kernel,stdlib,crypto]},
   {mod, {orchestrator, []}},
   %% pass these in with ``erl [...] -orcestrator couch_base_url http://...``
   {env, [{couch_base_url, "YOU WILL HAVE TO SUPPLY SOMETHING LIKE THIS ON THE \
