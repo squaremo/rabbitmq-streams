@@ -11,6 +11,40 @@ class Server(url: String, configDatabaseName: String) {
   val couch = Server.sessionFromString(url)
   val configDb = couch.getDatabase(configDatabaseName)
 
+  val terminalConfigViewName = "_design/terminalconfig"
+  createViewsIfNecessary
+
+  def createViewsIfNecessary {
+    if(configDb.getDocument(terminalConfigViewName) == null) {
+      val view = new Document()
+      view.setId(terminalConfigViewName)
+      view.put("language", "javascript")
+
+      val mapFunction = """
+        function(doc) {
+          if(doc.type == "terminal") {
+            for(s in doc.servers) {
+              keyvalues(doc.servers[s].source, doc._id);
+              keyvalues(doc.servers[s].destination, doc._id);
+            }
+          }
+        }
+
+        function keyvalues(content, id)	{
+          for(k in content)	{
+            var array = [];
+            array.push(content[k]);
+            array.push(k);
+            emit(array, id);
+          }
+        }
+      """
+     
+      view.addView(terminalConfigViewName, "byvalue", mapFunction)
+      configDb.saveDocument(view, terminalConfigViewName)
+    }
+  }
+
   private def newArchive(server: JSONObject, terminal: JSONObject, destination: JSONObject): Archive = {
     new Archive(couch, terminal, destination)
   }
@@ -65,7 +99,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
     performViewQuery(entriesView)
   }
 
-  def entries(startDate: Date, endDate: Date) : (Seq[ArchiveEntry], Int) = {
+  def entries(startDate: Date, endDate: Date): (Seq[ArchiveEntry], Int) = {
     entries(toViewKey(startDate), toViewKey(endDate))
   }
 
@@ -83,7 +117,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
 
     array.toString
   }
-  
+
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
     case null => (Nil, 0)
     case v => (for(row <- v.getResults) yield new ArchiveEntry(row.getJSONObject), v.getInt("total_rows"))
