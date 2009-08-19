@@ -12,15 +12,33 @@ class Server(url: String, configDatabaseName: String) {
   val configDb = couch.getDatabase(configDatabaseName)
 
   val terminalConfigViewName = "_design/terminalconfig"
+  val terminalArchiveViewName = "_design/terminalarchive"
+
   createViewsIfNecessary
 
-  def createViewsIfNecessary {
-    if(configDb.getDocument(terminalConfigViewName) == null) {
-      val view = new Document()
-      view.setId(terminalConfigViewName)
-      view.put("language", "javascript")
+  private def createViewsIfNecessary {
+    def createView(db: Database, name: String, viewName: String, scripts: (String, String)*) {
+      db.saveDocument(constructView(name, viewName, scripts:_*), name)
+    }
 
-      val mapFunction = """
+    def constructView(name: String, viewName: String, scripts: (String, String)*): Document =  {
+      val document = new Document
+      document.put("_id", "_design/" + name)
+      document.put("language", "javascript")
+
+      val functions = new JSONObject()
+      for(script <- scripts) functions.put(script._1, script._2)
+
+      val views = new JSONObject()
+      views.put(viewName, functions)
+      document.put("views", views)
+
+      document
+    }
+
+    if(configDb.getDocument(terminalConfigViewName) == null) {
+      createView(configDb, terminalConfigViewName, "byvalue",
+        ("map", """
         function(doc) {
           if(doc.type == "terminal") {
             for(s in doc.servers) {
@@ -38,10 +56,44 @@ class Server(url: String, configDatabaseName: String) {
             emit(array, id);
           }
         }
-      """
-     
-      view.addView(terminalConfigViewName, "byvalue", mapFunction)
-      configDb.saveDocument(view, terminalConfigViewName)
+        """))
+    }
+    if(configDb.getDocument(terminalArchiveViewName) == null) {
+      createView(configDb, terminalArchiveViewName, "byterminal",
+        ("map", """
+          function(doc)	{
+           if(doc.type == "terminal")	{
+            for(s in doc.servers) {
+              emit(doc.servers[s].server, doc);
+            }
+           }
+           if(doc.type == "server")	{
+            emit(doc._id, doc);
+           }
+          }
+        """),
+        ("reduce", """
+          function(key, values, rereduce) {
+           if(rereduce) {
+            return values;
+           }
+           var output = [];
+           for(v in values) {
+            if(values[v].type == "server" && values[v].server_type == "archive") {
+             for(t in values) {
+              if(values[t].type == "terminal") {
+               for(s in values[t].servers) {
+                if(values[t].servers[s].server == key[0][0]) {
+                 output.push({terminal: values[t]._id, archive: key[0][0] + values[t].servers[s].destination.name});
+                }
+               }
+              }
+             }
+            }
+           }
+           return output;
+          }
+        """))
     }
   }
 
