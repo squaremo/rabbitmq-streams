@@ -10,8 +10,8 @@ start(normal, []) ->
     %% Report this if not empty
     [] = streams_config:check_config(),
     print_banner(),
+    ok = api_deps:ensure(),
     {ok, _} = ibrowse_sup:start_link(),
-    api_deps:ensure(),
     orchestrator_root_sup:start_link().
 
 stop(_State) ->

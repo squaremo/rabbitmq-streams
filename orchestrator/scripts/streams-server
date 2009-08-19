@@ -1,0 +1,23 @@
+#!/bin/bash
+
+NODENAME=streams
+ROOT_CONFIG=http://localhost:5984/feedshub_status/root_config
+STATE_SERVER=http://localhost:5984/
+CONFIG_DB=feedshub_status
+
+[ "x" = "x$STREAMS_NODENAME" ] && STREAMS_NODENAME=${NODENAME}
+[ "x" = "x$STREAMS_ROOT_CONFIG" ] && STREAMS_ROOT_CONFIG=${ROOT_CONFIG}
+[ "x" = "x$STREAMS_STATE_SERVER" ] && STREAMS_STATE_SERVER=${STATE_SERVER}
+[ "x" = "x$STREAMS_CONFIG_DB" ] && STREAMS_CONFIG_DB=${CONFIG_DB}
+
+START_STREAMS='-s crypto -s orchestrator'
+
+EBIN_DIR="`dirname $0`/../ebin"
+
+ERL_PATH_OPTS="-pa $EBIN_DIR"
+exec erl ${START_STREAMS} \
+    $ERL_PATH_OPTS \
+    -boot start_sasl -sname ${STREAMS_NODENAME} \
+    -orchestrator couch_base_url "\"${STREAMS_STATE_SERVER}\"" \
+    -orchestrator root_config_url "\"${STREAMS_ROOT_CONFIG}\"" \
+    -orchestrator config_db "\"${STREAMS_CONFIG_DB}\""
