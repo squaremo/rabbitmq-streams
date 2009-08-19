@@ -10,6 +10,7 @@ import net.liftweb.util.Helpers._
 class Archives {
   object archiveName extends RequestVar[String]("")
   object filterPeriod extends RequestVar[(Date, Date)]((asDate(S.param("start").openOr("")), asDate(S.param("end").openOr(""))))
+  object terminalQuery extends RequestVar[String]("")
 
   def archives(content: NodeSeq): NodeSeq = {
     var startDate, startTime, endDate, endTime = ""
@@ -85,5 +86,24 @@ class Archives {
         )
       }
     }
+  }
+
+  def terminalSearch(content: NodeSeq): NodeSeq = {
+    var query = ""
+
+    def performQuery() {
+      S.redirectTo("/archive/terminals", () => { terminalQuery(query)})
+    }
+
+    bind("search", content,
+      "query" -> SHtml.text(query, query = _),
+      "submit" -> SHtml.submit("Find terminal", performQuery)
+    )
+  }
+
+  def terminalResult(content: NodeSeq): NodeSeq = {
+    bind("results", content,
+      "query" -> Text(terminalQuery.is)
+    )
   }
 }

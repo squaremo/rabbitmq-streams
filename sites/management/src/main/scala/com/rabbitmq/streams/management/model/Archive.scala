@@ -111,10 +111,11 @@ class Server(url: String, configDatabaseName: String) {
     ) yield newArchive(server.getJSONObject("server"), terminal, destination)
   }
 
-  def archive(name: String): Option[Archive] = {
-    archives.dropWhile(a => a.name != name).firstOption
+  def archive(terminal: String): Option[Archive] = {
+    archives.dropWhile(a => a.terminalName != terminal).firstOption
   }
 }
+
 object Server {
   def sessionFromString(urlStr: String): Session = {
     val url = new URL(urlStr)

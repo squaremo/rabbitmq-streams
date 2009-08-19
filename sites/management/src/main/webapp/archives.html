@@ -4,6 +4,14 @@
     <script type="text/javascript" src="/js/archive.js"></script>
   </head>
 
+  <h1>Query archives by terminal</h1>
+  <lift:Archives.terminalSearch form="POST">
+    <search:query/> <search:submit/>
+  </lift:Archives.terminalSearch>
+  <div>
+    
+  </div>
+
   <h1>Feeds hub archives</h1>
   <div>
     <lift:Archives.archives form="POST">
