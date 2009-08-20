@@ -1,18 +1,18 @@
 package com.rabbitmq.streams.management.model
 
 import java.lang.String
-import java.net.URL
+import java.net.{URLEncoder, URL}
 import java.util.{Calendar, Date}
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
 
 class Server(url: String, configDatabaseName: String) {
-  val couch = Server.sessionFromString(url)
-  val configDb = couch.getDatabase(configDatabaseName)
+  private val couch = Server.sessionFromString(url)
+  private val configDb = couch.getDatabase(configDatabaseName)
 
-  val terminalConfigViewName = "_design/terminalconfig"
-  val terminalArchiveViewName = "_design/terminalarchive"
+  private val terminalConfigViewName = "_design/terminalconfig"
+  private val terminalArchiveViewName = "_design/terminalarchive"
 
   createViewsIfNecessary
 
@@ -53,7 +53,7 @@ class Server(url: String, configDatabaseName: String) {
             var array = [];
             array.push(content[k]);
             array.push(k);
-            emit(array, id);
+            emit(content[k], id);
           }
         }
         """))
@@ -113,6 +113,16 @@ class Server(url: String, configDatabaseName: String) {
 
   def archive(terminal: String): Option[Archive] = {
     archives.dropWhile(a => a.terminalName != terminal).firstOption
+  }
+
+  def terminals(query: String): Seq[String] = {
+    val view = new View("terminalconfig/byvalue")
+    view.setStartKey(URLEncoder.encode(query, "UTF-8"))
+    view.setEndKey(URLEncoder.encode(query, "UTF-8"))
+    configDb.view(view) match {
+      case null => Nil
+      case v    => for(row <- v.getResults) yield row.getString("value")
+    }
   }
 }
 

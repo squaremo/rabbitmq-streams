@@ -102,6 +102,9 @@ class Archives {
   }
 
   def terminalResult(content: NodeSeq): NodeSeq = {
+    val terminals = LocalServer.terminals(terminalQuery.is)
+    for(t <- terminals) println("TERM IS " + t)
+    
     bind("results", content,
       "query" -> Text(terminalQuery.is)
     )
