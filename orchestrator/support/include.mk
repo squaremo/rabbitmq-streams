@@ -12,6 +12,7 @@ RABBIT_BIN=$(CURDIR)/../build/opt/rabbitmq
 IBROWSE_BIN=$(CURDIR)/../build/opt/ibrowse
 MOCHIWEB_BIN=$(CURDIR)/../build/opt/mochiweb
 
+
 INCLUDE_EXT := $(RFC4627_BIN)/include $(ERLAMQP_BIN)/include $(RABBIT_BIN)/include $(MOCHIWEB_BIN)/include
 ERL_PATH_EXT := -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin -pa $(RABBIT_BIN)/ebin -pa $(IBROWSE_BIN)/ebin -pa $(MOCHIWEB_BIN)/ebin
 

@@ -170,6 +170,7 @@ veryclean: clean
 	rm -rf var/log/* var/run/*
 	rm -rf build/opt
 	rm -rf build/scratch
+	rm -f  orchestrator/deps/*
 	-[ -d $(SRC_COUCH) ] && $(MAKE) -C $(SRC_COUCH) clean
 	-[ -d build/src/rabbitmq-server ] && $(MAKE) -C build/src/rabbitmq-server clean
 	-[ -d build/src/rabbitmq-erlang-client ] && $(MAKE) -C build/src/rabbitmq-erlang-client clean
@@ -347,23 +348,6 @@ full-reset-core: stop-core cleandb start-core create-fresh-accounts
 ###########################################################################
 # CouchDB
 
-install-mochiweb: build/src/mochiweb build/opt/mochiweb
-
-build/src/mochiweb:
-	@echo Checking out Mochiweb from svn ...
-	(mkdir -p build/src && cd build/src && \
-            svn co -r $(MOCHIWEB_SVN_TAG) http://mochiweb.googlecode.com/svn/trunk/ mochiweb) \
-		> build/logs/checkout-mochiweb.txt 2>&1
-
-build/opt/mochiweb:
-	@echo Building Mochiweb ...
-	(cd build/src/mochiweb; $(MAKE) all) > build/logs/build-mochiweb.txt 2>&1
-	(mkdir -p build/opt/mochiweb && cp -r build/src/mochiweb/{ebin,include} build/opt/mochiweb)
-
-
-###########################################################################
-# CouchDB
-
 install-couchdb: $(SRC_COUCH) $(OPT_COUCH)
 
 $(SRC_COUCH):
@@ -378,10 +362,11 @@ $(OPT_COUCH):
 	(cd $(SRC_COUCH); ./configure --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
 		>> build/logs/build-couchdb.txt 2>&1
 
+
 ###########################################################################
 # Erlang RFC 4627
 
-install-erlang-rfc4627: build/src/erlang-rfc4627 build/opt/erlang-rfc4627
+install-erlang-rfc4627: orchestrator/deps/erlang-rfc4627
 
 update-erlang-rfc4627: build/src/erlang-rfc4627
 	rm -rf build/opt/erlang-rfc4627
@@ -393,18 +378,18 @@ build/src/erlang-rfc4627:
 	(mkdir -p build/src && cd build/src && hg clone http://hg.opensource.lshift.net/erlang-rfc4627) \
 		> build/logs/clone-erlang-rfc4627.txt 2>&1
 
-build/opt/erlang-rfc4627:
+build/opt/erlang-rfc4627: build/src/erlang-rfc4627
 	@echo Building erlang-rfc4627 ...
-	(cd build/src/erlang-rfc4627 && $(MAKE)) \
-		> build/logs/build-erlang-rfc4627.txt 2>&1
-	(mkdir -p build/opt/erlang-rfc4627 && \
-		cp -r build/src/erlang-rfc4627/{ebin,include} build/opt/erlang-rfc4627) \
-		>> build/logs/build-erlang-rfc4627.txt 2>&1
+	(cd $< && $(MAKE)) >& build/logs/build-erlang-rfc4627.txt
+	(mkdir -p $@ && cp -r $</{ebin,include} $@) >> build/logs/build-erlang-rfc4627.txt 2>&1
+
+orchestrator/deps/erlang-rfc4627: build/opt/erlang-rfc4627
+	ln -s ../../$< $@
 
 ###########################################################################
 # iBrowse
 
-install-ibrowse: build/src/ibrowse build/opt/ibrowse
+install-ibrowse: orchestrator/deps/ibrowse
 
 update-ibrowse: build/src/ibrowse
 	rm -rf build/opt/ibrowse
@@ -417,21 +402,38 @@ build/src/ibrowse:
 	 git clone -n git://github.com/cmullaparthi/ibrowse.git && \
          cd ibrowse && git checkout -f $(IBROWSE_GIT_TAG)) > build/logs/clone-ibrowse.txt 2>&1
 
-build/opt/ibrowse:
-	(cd build/src/ibrowse/ && $(MAKE)) > build/logs/build-ibrowse.txt 2>&1
-	(mkdir -p build/opt/ibrowse && \
-		cp -r build/src/ibrowse/ebin build/opt/ibrowse/ebin) \
-		>> build/logs/build-ibrowse.txt 2>&1
+build/opt/ibrowse: build/src/ibrowse
+	(cd $< && $(MAKE)) > build/logs/build-ibrowse.txt 2>&1
+	(mkdir -p $@ && cp -r $</ebin $@/ebin) >> build/logs/build-ibrowse.txt 2>&1
+
+orchestrator/deps/ibrowse: build/opt/ibrowse
+	ln -s ../../$< $@
+
+###########################################################################
+# Mochiweb
+
+install-mochiweb: orchestrator/deps/mochiweb
+
+build/src/mochiweb:
+	@echo Checking out Mochiweb from svn ...
+	(mkdir -p build/src && cd build/src && \
+            svn co -r $(MOCHIWEB_SVN_TAG) http://mochiweb.googlecode.com/svn/trunk/ mochiweb) \
+		> build/logs/checkout-mochiweb.txt 2>&1
+
+build/opt/mochiweb: build/src/mochiweb
+	@echo Building Mochiweb ...
+	(cd $<; $(MAKE) all) > build/logs/build-mochiweb.txt 2>&1
+	(mkdir -p $@ && cp -r $</{ebin,include} $@)
+
+orchestrator/deps/mochiweb: build/opt/mochiweb
+	ln -s ../../$< $@
+
+
 
 ###########################################################################
 # RabbitMQ
 
-install-rabbitmq: \
-	build/src/rabbitmq-codegen \
-	build/src/rabbitmq-server \
-	build/src/rabbitmq-erlang-client \
-	build/opt/rabbitmq \
-	build/opt/rabbitmq-erlang-client
+install-rabbitmq: build/opt/rabbitmq orchestrator/deps/rabbitmq-erlang-client
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
@@ -463,24 +465,26 @@ build/src/rabbitmq-erlang-client:
          hg clone -r $(RABBITMQ_CLIENT_HG_TAG) http://hg.rabbitmq.com/rabbitmq-erlang-client) \
 		> build/logs/clone-rabbitmq-erlang-client.txt 2>&1
 
-build/opt/rabbitmq:
+build/opt/rabbitmq: build/src/rabbitmq-server build/src/rabbitmq-codegen
 	@echo Building rabbitmq-server ...
-	(cd build/src/rabbitmq-server && $(MAKE) srcdist) \
-		> build/logs/build-rabbitmq-server.txt 2>&1
-	mkdir -p build/scratch \
+	(cd $< && $(MAKE) srcdist) > build/logs/build-rabbitmq-server.txt 2>&1
+	mkdir -p build/scratch >> build/logs/build-rabbitmq-server.txt 2>&1
+	(cd build/scratch && tar -zxvf ../../$</dist/rabbitmq-server-0.0.0.tar.gz) \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
-	(cd build/scratch && tar -zxvf ../src/rabbitmq-server/dist/rabbitmq-server-0.0.0.tar.gz) \
-		>> build/logs/build-rabbitmq-server.txt 2>&1
-	(cd build/scratch/rabbitmq-server-0.0.0 && $(MAKE) install TARGET_DIR="$(CURDIR)/build/opt/rabbitmq" SBIN_DIR="$(CURDIR)/build/opt/rabbitmq/sbin" MAN_DIR="$(CURDIR)/build/opt/rabbitmq/man") \
+	(cd build/scratch/rabbitmq-server-0.0.0 && \
+	 $(MAKE) install TARGET_DIR="$(CURDIR)/$@" SBIN_DIR="$(CURDIR)/$@/sbin" MAN_DIR="$(CURDIR)/$@/man") \
 		>> build/logs/build-rabbitmq-server.txt 2>&1
 
-build/opt/rabbitmq-erlang-client:
+build/opt/rabbitmq-erlang-client: build/src/rabbitmq-erlang-client build/opt/rabbitmq
 	@echo Building rabbitmq-erlang-client ...
-	(cd build/src/rabbitmq-erlang-client && $(MAKE) BROKER_DIR=$(CURDIR)/build/opt/rabbitmq) \
+	(cd $< && $(MAKE) BROKER_DIR=$(CURDIR)/$(word 2,$^)) \
 		> build/logs/build-rabbitmq-erlang-client.txt 2>&1
-	(mkdir -p build/opt/rabbitmq-erlang-client && \
-		cp -r build/src/rabbitmq-erlang-client/{ebin,include} build/opt/rabbitmq-erlang-client) \
+	(mkdir -p $@ && cp -r $</{ebin,include} $@) \
 		>> build/logs/build-rabbitmq-erlang-client.txt 2>&1
+
+orchestrator/deps/rabbitmq-erlang-client: build/opt/rabbitmq-erlang-client
+	ln -s ../../$< $@
+
 
 ###########################################################################
 # Demos
