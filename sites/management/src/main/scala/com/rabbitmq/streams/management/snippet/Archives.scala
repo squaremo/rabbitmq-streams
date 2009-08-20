@@ -10,6 +10,7 @@ import net.liftweb.util.Helpers._
 class Archives {
   object archiveName extends RequestVar[String]("")
   object filterPeriod extends RequestVar[(Date, Date)]((asDate(S.param("start").openOr("")), asDate(S.param("end").openOr(""))))
+  object filtered extends RequestVar[Boolean](false)
   object terminalQuery extends RequestVar[String]("")
 
   def archives(content: NodeSeq): NodeSeq = {
@@ -22,6 +23,7 @@ class Archives {
           S.redirectTo("/archive/browse", () => {
             archiveName(database)
             filterPeriod(asInterval(startDate, startTime, endDate, endTime))
+            filtered(true)
           })
         }
       }
@@ -71,7 +73,10 @@ class Archives {
       case None => content
       case Some(archive) => {
         val period = filterPeriod.is
-        val entries = archive.entries(period._1, period._2)._1
+        val entries =filtered.is match  {
+          case false => archive.latestEntries(20)
+          case true => archive.entries(period._1, period._2)._1
+        }
         bind("archive", content,
           "name" -> Text(archiveName.is),
           "from" -> Text(period._1.toString),
