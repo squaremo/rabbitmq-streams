@@ -1,18 +1,26 @@
 #!/bin/sh
+set -eu
 if [ -z "$*" ]; then
     echo >&2 "Error: need to supply some plugins to test"
     echo >&2 "Typical usage: bin/test_plugins plugins/*/"
     exit 255
 fi
-fail=0
+failed_fixtures=0
+failed_tests=0
 for d in "$@"; do
     if test -e "$(printf "%s\n" "${d}"/tests/* | head -1)"; then
         echo "Testing plugin ${d}";
         for f in "${d}"/tests/*.io; do
-            python bin/plugin_test_harness.py "$d" -v --test ${f} || fail=1;
+            python bin/plugin_test_harness.py "$d" -v --test ${f} || {
+                failed_tests=`expr $failed_tests + $?`
+                failed_fixtures=`expr $failed_fixtures + 1`
+            }
         done;
     else
         echo "Warning: no tests for ${d}!"
     fi
 done;
-exit $fail
+if [ "$failed_fixtures" -ne 0 ]; then
+    echo "Test fixtures that failed: $failed_fixtures, total test failures: $failed_tests"
+    exit `expr $failed_fixtures % 255 '|' 255`
+fi

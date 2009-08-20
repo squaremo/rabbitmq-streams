@@ -10,9 +10,10 @@ RFC4627_BIN=$(CURDIR)/../build/opt/erlang-rfc4627
 ERLAMQP_BIN=$(CURDIR)/../build/opt/rabbitmq-erlang-client
 RABBIT_BIN=$(CURDIR)/../build/opt/rabbitmq
 IBROWSE_BIN=$(CURDIR)/../build/opt/ibrowse
+MOCHIWEB_BIN=$(CURDIR)/../build/opt/mochiweb
 
-INCLUDE_EXT := $(RFC4627_BIN)/include $(ERLAMQP_BIN)/include $(RABBIT_BIN)/include
-ERL_PATH_EXT := -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin -pa $(RABBIT_BIN)/ebin -pa $(IBROWSE_BIN)/ebin
+INCLUDE_EXT := $(RFC4627_BIN)/include $(ERLAMQP_BIN)/include $(RABBIT_BIN)/include $(MOCHIWEB_BIN)/include
+ERL_PATH_EXT := -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin -pa $(RABBIT_BIN)/ebin -pa $(IBROWSE_BIN)/ebin -pa $(MOCHIWEB_BIN)/ebin
 
 INCLUDE_DIRS := $(INCLUDE_EXT) include $(wildcard deps/*/include)
 EBIN_DIRS := $(wildcard deps/*/ebin)
@@ -40,7 +41,7 @@ EBIN_FILES = $(ERL_OBJECTS) $(ERL_DOCUMENTS) $(APP_FILES:src/%.app=ebin/%.app)
 EBIN_FILES_NO_DOCS = $(ERL_OBJECTS) $(APP_FILES:src/%.app=ebin/%.app)
 MODULES = $(ERL_SOURCES:src/%.erl=%)
 
-ERL_PATH_OPTS=-pa $(EBIN_DIR) -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin -pa $(RABBIT_BIN)/ebin -pa $(IBROWSE_BIN)/ebin
+ERL_PATH_OPTS=-pa $(EBIN_DIR) -pa $(RFC4627_BIN)/ebin -pa $(ERLAMQP_BIN)/ebin -pa $(RABBIT_BIN)/ebin -pa $(IBROWSE_BIN)/ebin $(MOCHIWEB_BIN)/ebin
 
 ebin/%.app: src/%.app
 	cp $< $@

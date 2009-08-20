@@ -1,4 +1,38 @@
 <lift:surround with="default" at="content">
+  <head>
+    <style type="text/css">#archive-list {width: 600px;}</style>
+    <script type="text/javascript" src="/js/archive.js"></script>
+  </head>
+
+  <h1>Query archives by terminal</h1>
+  <lift:Archives.terminalSearch form="POST">
+    <search:query/> <search:submit/>
+  </lift:Archives.terminalSearch>
+  <div>
+    
+  </div>
+
   <h1>Feeds hub archives</h1>
-  <div><lift:snippet type="Archive:table"></lift:snippet></div>  
+  <div>
+    <lift:Archives.archives form="POST">
+      <archives:list>
+        <tag:list>
+          <h3><t:name/></h3>
+          <span>
+            <t:filter>
+              <tag:form><f:startDate id="fromDate"/><f:startTime/> <f:endDate/> <f:endTime/><f:submit/></tag:form>
+            </t:filter>
+          </span>
+          <table>
+            <thead>
+              <tr><th>Updated</th><th>Content</th></tr>
+            </thead>
+            <tbody>
+            <t:entries><tag:entry><tr><td><e:updated/></td><td><e:content/></td></tr></tag:entry></t:entries>
+            </tbody>
+          </table>
+        </tag:list>
+      </archives:list>
+    </lift:Archives.archives>
+  </div>
 </lift:surround>

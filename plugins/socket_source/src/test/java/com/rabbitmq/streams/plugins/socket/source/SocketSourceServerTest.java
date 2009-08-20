@@ -65,12 +65,16 @@ public class SocketSourceServerTest {
     public boolean matches(Object o) {
       if(o instanceof Message)  {
         Message message = (Message) o;
-        return match.equals(new String(message.body()));
+        //FIXME(alexander): why isn't this a byte-array comparison
+        try {
+            return match.equals(new String(message.body(), "utf-8"));
+        }
+        catch (Exception _) {throw new RuntimeException("Kaboom!");}
       }
       return false;
     }
   }
-  
+
   private void writeToSocket(String content) {
     BufferedWriter wr = null;
     Socket socket = null;

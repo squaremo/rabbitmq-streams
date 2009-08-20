@@ -115,15 +115,23 @@ class Message(GenericContent):
                             application_headers={'foo': 7})
 
         """
-        if isinstance(body, unicode):
-            if properties.get('content_encoding', None) is None:
-                properties['content_encoding'] = 'UTF-8'
-            self.body = body.encode(properties['content_encoding'])
-        else:
-            self.body = body
-
         super(Message, self).__init__(**properties)
+        self.body = body
 
+    def _get_body(self):
+        return self._body
+    def _set_body(self, body):
+        if isinstance(body, unicode):
+            if self.properties.get('content_encoding', None) is None:
+                self.properties['content_encoding'] = 'UTF-8'
+            self.__dict__['_body'] = body.encode(self.properties['content_encoding'])
+        else:
+            self.__dict__['_body'] = body
+    body = property(_get_body, _set_body)
+
+    @property
+    def body_as_string(self):
+        return self.body.decode('utf-8')
 
     def __eq__(self, other):
         """

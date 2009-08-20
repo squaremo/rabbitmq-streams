@@ -4,29 +4,38 @@
 
 package com.rabbitmq.streams.plugins
 
+import java.util.Arrays
+
 import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessage,
                                      NotificationType}
-import net.sf.json.JSONObject
+import net.sf.json.{JSONObject, JSONArray}
 
-//FIXME(alexander): looks like arrays in scala have broken "equals", in
-// any event this doesn't work w/o going thru the indirection of creating
-// strings.
+
+
+
 class UniqPlugin() extends PipelineComponent() {
+  //FIXME(alexander): AARGH. Surely there *must* be a saner way to do this!?
+  //and why does that have to go into the class?
+    def unpickleBody(body: Object): Array[Byte] = {
+      JSONArray.toArray(JSONArray.fromObject(body)).asInstanceOf[Array[Object]].map(
+        _.asInstanceOf[Int].toByte)
+    }
     override def configure(config : JSONObject) {
       var state = getState()
-      var lastMessage:String =
+      var lastMessage:Array[Byte] =
         if (state containsKey "lastMessage") {
-          state.get("lastMessage").asInstanceOf[String] }
+          unpickleBody(state.get("lastMessage"))
+        }
         else {
           null }
+
       object input extends InputReader {
         override def handleMessage(msg : InputMessage) {
-          val thisMessage = new String(msg.body)
           // FIXME(alexander): should (robustly) hash for storage efficiency
-          if (thisMessage != lastMessage) {
+          if (! Arrays.equals(msg.body, lastMessage)) {
             publishToChannel("output", msg)
-            lastMessage = thisMessage
-            state.put("lastMessage", lastMessage)
+            lastMessage = msg.body
+            state.put("lastMessage", JSONArray.fromObject(lastMessage))
             setState(state)
           }
         }

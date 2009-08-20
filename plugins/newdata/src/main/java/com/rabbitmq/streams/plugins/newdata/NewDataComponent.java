@@ -1,6 +1,8 @@
 package com.rabbitmq.streams.plugins.newdata;
 
 import com.rabbitmq.streams.harness.*;
+import java.io.UnsupportedEncodingException;
+import java.util.logging.Level;
 import net.sf.json.JSONObject;
 import org.apache.commons.codec.binary.Base64;
 
@@ -16,7 +18,12 @@ public class NewDataComponent extends PipelineComponent {
   InputReader input = new InputReader() {
     @Override
     public void handleMessage(InputMessage inputMessage) throws PluginException {
-      String digest = new String(digest(inputMessage));
+      String digest;
+      try {
+        digest = new String(digest(inputMessage), "ascii");
+      } catch (UnsupportedEncodingException ex) {
+        throw new RuntimeException("This shouldn't happen.");
+      }
       try {
         if(getDatabase().getDocument(digest) == null) {
           publishToChannel("output", inputMessage);

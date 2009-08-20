@@ -1,3 +1,4 @@
+#-*- encoding: utf-8 -*-
 >PLUGIN_INSTANCE_CONFIG	{"expressions": [{"regexp": "(.)\\1\\1", "replacement": "[3 x \"\\1\"]"}]}
 >input	pooositive
 
@@ -17,4 +18,7 @@
 ...	
 ...	
 ...	
+>input	三三三
+
+<output	[3 x "三"]
 

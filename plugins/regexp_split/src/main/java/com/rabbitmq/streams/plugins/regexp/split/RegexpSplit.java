@@ -2,14 +2,15 @@ package com.rabbitmq.streams.plugins.regexp.split;
 
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
 import com.rabbitmq.streams.harness.PipelineComponent;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
+import java.nio.charset.CharacterCodingException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.InputStreamReader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,29 +37,23 @@ public class RegexpSplit extends PipelineComponent {
 
     @Override
     public void handleMessage(InputMessage msg) throws PluginException {
+        Matcher matcher;
       try {
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(msg.body())));
-        StringBuilder sb = new StringBuilder();
-        String line = br.readLine();
-        while (null != line) {
-          sb.append(line);
-          sb.append(newline);
-          line = br.readLine();
-        }
-
-        // Unless there's no body at all, we've added an extra line ending
-        Matcher matcher = pattern.matcher(sb.substring(0, sb.length() > 0 ? sb.length() - newline.length() : 0));
+        matcher = pattern.matcher(msg.bodyAsString());
+      } catch (CharacterCodingException ex) {
+        notifier.notify(NotificationType.BadData, "msg.body isn't valid utf-8");
+        throw new PluginException("Msg.body isn't valid utf-8", ex);
+      }
         if (matcher.matches()) {
           publishToChannel(POSITIVE, msg);
         }
         else {
           publishToChannel(NEGATIVE, msg);
         }
-      }
-      catch (Exception ex) {
-        ex.printStackTrace();
-        throw new PluginException(ex);
-      }
+      //     catch (Exception ex) {
+      //   ex.printStackTrace();
+      //   throw new PluginException(ex);
+      // }
     }
   };
 }

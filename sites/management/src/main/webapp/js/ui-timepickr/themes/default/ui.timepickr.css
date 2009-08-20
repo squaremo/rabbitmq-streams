@@ -1,0 +1,44 @@
+/* ui.dropslide */
+
+.ui-dropslide      { position:absolute; }
+.ui-dropslide ol   { 
+    margin-top:2px; 
+    list-style-type:none;
+    list-style:none; 
+}
+.ui-dropslide li   { 
+    float:left; 
+    margin:0;
+    padding:0;
+    list-style-type:none;
+    list-style:none;
+}
+.ui-dropslide span {
+    font-size:.7em;
+    padding:4px 6px 4px 6px;
+    margin-left:2px;
+    text-align:center;
+    cursor:pointer;
+    -moz-border-radius:3px;
+    -webkit-border-radius:3px;
+    display:block;
+    text-align:center;
+}
+.ui-timepickr ol li.hour, 
+.ui-timepickr ol li.minute, 
+.ui-timepickr ol li.second { width:30px; }
+
+/* system theme (default) */
+
+span.ui-timepickr span {
+    border-width:1px;
+    border-style:solid;
+    border-color:ThreeDLightShadow ThreeDShadow ThreeDShadow ThreeDLightShadow;
+    color:ButtonText;
+    background:ButtonFace;
+}
+
+span.ui-timepickr span.ui-state-hover {
+    color:HighlightText;
+    background:Highlight;
+}

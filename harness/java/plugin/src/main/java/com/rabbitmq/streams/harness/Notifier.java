@@ -5,10 +5,13 @@ import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.impl.ChannelN;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Notifier implements Runnable {
   private static final Map<String, Object> noheaders = Collections.emptyMap();
@@ -86,7 +89,11 @@ public class Notifier implements Runnable {
     }
 
     public byte[] contents() {
-      return message.getBytes();
+      try {
+        return message.getBytes("utf-8");
+      } catch (UnsupportedEncodingException ex) {
+        throw new RuntimeException("This shouldn't happen.");
+      }
     }
 
     public String typeLabel() {

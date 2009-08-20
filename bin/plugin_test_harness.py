@@ -30,6 +30,15 @@ MODS = frozenset('sleep rk config headers'.split())
 
 class ReplError(Exception): pass
 
+def deunicode(x):
+    if isinstance(x, unicode):
+        return str(x)
+    elif isinstance(x, dict):
+        return dict(map(deunicode, x.iteritems()))
+    elif isinstance(x, (list, tuple)):
+        return type(x)(map(deunicode, x))
+    else:
+        return x
 
 # TODO(alexander): remove hardwired config
 RABBIT_CONNECTION_PARAMS = dict(host='localhost:5672', userid='feedshub_admin',
@@ -116,6 +125,7 @@ class Success(object):
 class TestOutputter(object):
 
     def __init__(self, channel_names, format_output=None):
+        assert all(type(c) is str for c in channel_names)
         self.channel_names = channel_names
         self.outputs = [{}]
         self.results = []
@@ -124,8 +134,11 @@ class TestOutputter(object):
 
     def make_output_callback(self, channel_name):
         assert channel_name in self.channel_names
+        assert type(channel_name) is str
         def output_concer(msg):
-            self.outputs[-1].setdefault(str(channel_name), []).append(Msg(msg.body))
+            assert type(msg.body) is str, "bad msg:%r %r" % (type(msg), msg.body)
+            self.outputs[-1].setdefault(str(channel_name), []).append(
+                Msg(msg.body))
         return output_concer
 
     def expect(self, **kwargs):
@@ -345,9 +358,9 @@ def setup_everything(plugindir, id, config_json, env, Outputter):
     info("#", json_repr(plugin_specs))
     inputspec = [{"name": "input"},
                  {"name": "command"}] if is_server(plugin_specs) \
-                                      else plugin_specs['inputs_specification']
+                                      else deunicode(plugin_specs['inputs_specification'])
     outputspec = [{'name': 'output'}] if is_server(plugin_specs) \
-                                      else plugin_specs['outputs_specification']
+                                      else deunicode(plugin_specs['outputs_specification'])
     wiring = TestWiring(amqp_connection=amqp.Connection(**RABBIT_CONNECTION_PARAMS),
                         inputspec=inputspec,
                         outputspec=outputspec,
@@ -649,6 +662,7 @@ if __name__ == '__main__':
     parser.add_option_group(amqpoptions)
 
     opts, args = parser.parse_args()
+    first_lineno = 1
     if opts.selftest:
         import doctest
         print doctest.testmod()
@@ -671,10 +685,18 @@ if __name__ == '__main__':
                 sys.stdin_bak = sys.stdin
                 sys.stdin = open(filename)
             make_expect = lambda wiring: wiring.outputter.expect
-            field, config_json = sys.stdin.readline().split('\t',1)
-            if field != IN+"PLUGIN_INSTANCE_CONFIG":
-                print >> sys.stderr, "First line of stdin must be the PLUGIN_INSTANCE_CONFIG"
+            for line in iter(sys.stdin.readline, ''):
+                if line.startswith('#'):
+                    first_lineno += 1
+                else:
+                    break
+            else:
+                line = 'BAD'
+            if not re.match(IN+"PLUGIN_INSTANCE_CONFIG\t", line):
+                print >> sys.stderr, "First non-comment line of stdin "\
+                      "must be the PLUGIN_INSTANCE_CONFIG"
                 sys.exit(255)
+            config_json = line.split('\t',1)[1]
             verbosity = 0
         else:
             is_valid_channel=lambda t, c: t==IN and (c in wiring.inputs or c == "SLEEP")
@@ -697,9 +719,10 @@ if __name__ == '__main__':
         if not opts.py:
             try:
                 repl_exit = repl(lines=iter(sys.stdin.readline, ''),
-                              send=send,
-                              expect=make_expect(wiring),
-                              is_valid_channel=is_valid_channel)
+                                 send=send,
+                                 expect=make_expect(wiring),
+                                 is_valid_channel=is_valid_channel,
+                                 lineno=first_lineno)
                 if opts.test:
                     time.sleep(1)
                     if opts.test and opts.verbose:

@@ -1,6 +1,8 @@
 package com.rabbitmq.streams.plugins.xslt;
 
 import com.rabbitmq.streams.harness.*;
+import java.io.UnsupportedEncodingException;
+import java.util.logging.Level;
 import net.sf.json.JSONObject;
 import static org.junit.Assert.fail;
 import org.junit.Before;
@@ -55,7 +57,11 @@ public class XsltProcessorTest {
     processor.configure(config);
 
     InputMessage outputMessage = mock(InputMessage.class);
-    when(message.body()).thenReturn("<things></things>".getBytes());
+    try {
+      when(message.body()).thenReturn("<things></things>".getBytes("utf-8"));
+    } catch (UnsupportedEncodingException ex) {
+      throw new RuntimeException("This shouldn't happen.");
+    }
     when(message.withBody("<?xml version=\"1.0\" encoding=\"UTF-8\"?><things/>")).thenReturn(outputMessage);
     try {
       processor.input.handleMessage(message);
@@ -72,7 +78,11 @@ public class XsltProcessorTest {
     processor.configure(config);
     processor.setLog(log);
 
-    when(message.body()).thenReturn("<things></broken>".getBytes());
+    try {
+      when(message.body()).thenReturn("<things></broken>".getBytes("utf-8"));
+    } catch (UnsupportedEncodingException ex) {
+      throw new RuntimeException("This shouldn't happen.");
+    }
     try {
       processor.input.handleMessage(message);
       fail("An exception should be thrown");

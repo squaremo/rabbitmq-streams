@@ -21,7 +21,7 @@ class XmppPubSubServer() extends Server() {
 
     object input extends Server.ServerInputReader {
       override def handleBodyForTerminal(body : Array[Byte], terminalId : String, msg : InputMessage) {
-        log.debug("Input received: " + new String(body))
+        log.debug("Input received: " + msg.withBody(body).bodyAsStringLax())
         dispatcher ! Entry(body, terminalId, () => msg.ack())
       }
     }
