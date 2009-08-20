@@ -1,7 +1,7 @@
 package com.rabbitmq.streams.management.snippet
 
 import java.text.{ParseException, SimpleDateFormat}
-import java.util.Date
+import java.util.{Calendar, Date}
 import model.LocalServer
 import net.liftweb.http.{RequestVar, SHtml, S}
 import scala.xml._
@@ -14,7 +14,22 @@ class Archives {
   object terminalQuery extends RequestVar[String]("")
 
   def archives(content: NodeSeq): NodeSeq = {
-    var startDate, startTime, endDate, endTime = ""
+    def fiveMinutesPrevious: (String, String, String, String) =  {
+      val calendar = Calendar.getInstance
+      calendar.setTime(new Date)
+      val dateFormatter = new SimpleDateFormat("dd/MM/yyyy")
+      val timeFormatter = new SimpleDateFormat("HH:mm")
+
+      val nowDate = dateFormatter.format(calendar.getTime)
+      val nowTime = timeFormatter.format(calendar.getTime)
+
+      calendar.roll(Calendar.MINUTE, -5)
+      val thenDate = dateFormatter.format(calendar.getTime)
+      val thenTime = timeFormatter.format(calendar.getTime)
+      (thenDate, thenTime, nowDate, nowTime)
+    }
+
+    var (startDate, startTime, endDate, endTime) = fiveMinutesPrevious
     val archives = LocalServer.archives
 
     def filterForDatabase(database: String): Function0[Unit] = {
