@@ -358,7 +358,7 @@ build/src/mochiweb:
 build/opt/mochiweb:
 	@echo Building Mochiweb ...
 	(cd build/src/mochiweb; $(MAKE) all) > build/logs/build-mochiweb.txt 2>&1
-	(mkdir -p build/opt/mochiweb && cp -r build/src/mochiweb/* $<)
+	(mkdir -p build/opt/mochiweb && cp -r build/src/mochiweb/{ebin,include} build/opt/mochiweb)
 
 
 ###########################################################################
