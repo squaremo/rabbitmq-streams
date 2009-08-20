@@ -13,25 +13,57 @@ class Archives {
   object filtered extends RequestVar[Boolean](false)
   object terminalQuery extends RequestVar[String]("")
 
-  def archives(content: NodeSeq): NodeSeq = {
-    def fiveMinutesPrevious: (String, String, String, String) =  {
-      val calendar = Calendar.getInstance
-      calendar.setTime(new Date)
-      val dateFormatter = new SimpleDateFormat("dd/MM/yyyy")
-      val timeFormatter = new SimpleDateFormat("HH:mm")
+  private def fiveMinutesPrevious: (String, String, String, String) =  {
+    val calendar = Calendar.getInstance
+    calendar.setTime(new Date)
+    val now = formatDate(calendar.getTime)
 
-      val nowDate = dateFormatter.format(calendar.getTime)
-      val nowTime = timeFormatter.format(calendar.getTime)
+    calendar.roll(Calendar.MINUTE, -5)
+    val then = formatDate(calendar.getTime)
 
-      calendar.roll(Calendar.MINUTE, -5)
-      val thenDate = dateFormatter.format(calendar.getTime)
-      val thenTime = timeFormatter.format(calendar.getTime)
-      (thenDate, thenTime, nowDate, nowTime)
+    (then._1, then._2, now._1, now._2)
+  }
+
+  private def formatDate(date: Date): (String, String) =  {
+    val dateFormatter = new SimpleDateFormat("dd/MM/yyyy")
+    val timeFormatter = new SimpleDateFormat("HH:mm")
+
+    (dateFormatter.format(date), timeFormatter.format(date))
+  }
+
+  private def filterValues: (String, String, String, String) = {
+    filtered.is match {
+      case true => {
+        val start = formatDate(filterPeriod.is._1)
+        val end = formatDate(filterPeriod.is._2)
+        (start._1, start._2, end._1, end._2)
+      }
+      case false => fiveMinutesPrevious
     }
+  }
 
-    var (startDate, startTime, endDate, endTime) = fiveMinutesPrevious
+  var (startDate, startTime, endDate, endTime) = filterValues
+
+  def archives(content: NodeSeq): NodeSeq = {
     val archives = LocalServer.archives
 
+    bind("archives", content,
+      "list" -> archives.flatMap(archive =>
+      bind("t", chooseTemplate("tag", "list", content),
+        "name" -> Text(archive.name),
+        bindFilterForm(content, archive.name),
+        "entries" -> archive.latestEntries(10).flatMap(entry =>
+        bind("e", chooseTemplate("tag", "entry", content),
+          "updated" -> Text(entry.updated.toLocaleString),
+          "content" -> Text(entry.content)
+          )
+        )
+      )
+     )
+    )
+  }
+
+  private def bindFilterForm(content: NodeSeq, archive: String): BindParam = {
     def filterForDatabase(database: String): Function0[Unit] = {
       return new Function0[Unit]() {
         override def apply(): Unit = {
@@ -44,26 +76,13 @@ class Archives {
       }
     }
 
-    bind("archives", content,
-      "list" -> archives.flatMap(archive =>
-      bind("t", chooseTemplate("tag", "list", content),
-        "name" -> Text(archive.name),
-        "filter" -> bind("f", chooseTemplate("tag", "form", content),
-          "startDate" -> SHtml.text(startDate, startDate = _, ("id", "startDate")),
-          "startTime" -> SHtml.text(startTime, startTime = _, ("id", "startTime")),
-          "endDate" -> SHtml.text(endDate, endDate = _, ("id", "endDate")),
-          "endTime" -> SHtml.text(endTime, endTime = _, ("id", "endTime")),
-          "submit" -> SHtml.submit("Filter", filterForDatabase(archive.name))
-          ),
-        "entries" -> archive.latestEntries(10).flatMap(entry =>
-        bind("e", chooseTemplate("tag", "entry", content),
-          "updated" -> Text(entry.updated.toLocaleString),
-          "content" -> Text(entry.content)
-          )
-        )
-      )
+    "filter" -> bind("f", chooseTemplate("tag", "form", content),
+      "startDate" -> SHtml.text(startDate, startDate = _, ("id", "startDate")),
+      "startTime" -> SHtml.text(startTime, startTime = _, ("id", "startTime")),
+      "endDate" -> SHtml.text(endDate, endDate = _, ("id", "endDate")),
+      "endTime" -> SHtml.text(endTime, endTime = _, ("id", "endTime")),
+      "submit" -> SHtml.submit("Filter", filterForDatabase(archive))
      )
-    )
   }
 
   private def asInterval(startDate: String, startTime: String, endDate: String, endTime: String): (Date, Date) = {
@@ -96,6 +115,7 @@ class Archives {
           "name" -> Text(archiveName.is),
           "from" -> Text(period._1.toString),
           "to" -> Text(period._2.toString),
+          bindFilterForm(content, archiveName.is),
           "entries" -> entries.flatMap(entry =>
             bind("e", chooseTemplate("tag", "entry", content),
               "updated" -> Text(entry.updated.toLocaleString),
