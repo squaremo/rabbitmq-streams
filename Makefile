@@ -21,7 +21,6 @@ SCREEN=screen -S $(SCREEN_SESSION)
 SRC_COUCH=build/src/couchdb-0.9.0
 OPT_COUCH=build/opt/couchdb-0.9.0
 
-
 LISTEN_ORCHESTRATOR_PORT=7565
 LISTEN_RABBIT_PORT=7566
 LISTEN_COUCH_PORT=7567
@@ -60,6 +59,7 @@ RABBITMQ_HG_TAG=rabbitmq_v1_6_0
 ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
 RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
 IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
+MOCHIWEB_SVN_TAG=104
 
 # only needed for older fedora
 MAVEN_SRC=http://apache.mirror.infiniteconflict.com/maven/binaries/apache-maven-2.0.10-bin.tar.bz2
@@ -72,6 +72,7 @@ setup: \
 	install-packages \
 	create-var-dirs \
 	install-couchdb \
+	install-mochiweb \
 	install-erlang-rfc4627 \
 	install-ibrowse \
 	install-rabbitmq
@@ -341,6 +342,24 @@ stop-rabbit:
 stop-all: stop-orchestrator stop-core
 
 full-reset-core: stop-core cleandb start-core create-fresh-accounts
+
+
+###########################################################################
+# CouchDB
+
+install-mochiweb: build/src/mochiweb build/opt/mochiweb
+
+build/src/mochiweb:
+	@echo Checking out Mochiweb from svn ...
+	(mkdir -p build/src && cd build/src && \
+            svn co -r $(MOCHIWEB_SVN_TAG) http://mochiweb.googlecode.com/svn/trunk/ mochiweb) \
+		> build/logs/checkout-mochiweb.txt 2>&1
+
+build/opt/mochiweb:
+	@echo Building Mochiweb ...
+	(cd build/src/mochiweb; $(MAKE) all) > build/logs/build-mochiweb.txt 2>&1
+	(mkdir -p build/opt/mochiweb && cp -r build/src/mochiweb/* $<)
+
 
 ###########################################################################
 # CouchDB
