@@ -7,8 +7,8 @@ start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
 start(normal, []) ->
-    {ok, _} = ibrowse_sup:start_link(),
     api_deps:ensure(),
+    {ok, _} = ibrowse_sup:start_link(),
     orchestrator_root_sup:start_link().
 
 stop(_State) ->
