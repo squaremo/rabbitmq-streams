@@ -48,7 +48,8 @@ new_siblings(Module) ->
 %% @doc Ensure that all ebin and include paths for dependencies
 %%      of the application for Module are on the code path.
 ensure(Module) ->
-    code:add_paths(new_siblings(Module)),
+    % Prefer our deps to installed things
+    code:add_pathsa(new_siblings(Module)),
     code:clash(),
     ok.
 

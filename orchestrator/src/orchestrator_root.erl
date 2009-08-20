@@ -92,6 +92,7 @@ install_view(DbName, ViewDir) ->
 				     rfc4627:set_field(Doc, "_rev", RevId);
 	     _ -> Doc
 	 end,
+    error_logger:info_report({?MODULE, install_view, Path, Doc2}),
     {ok, _} = couchapi:put(Path, Doc2).
 
 read_root_config() ->
