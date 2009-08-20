@@ -1,6 +1,6 @@
 -module(orchestrator).
 
--export([start/0, stop/0, start/2, stop/1, stop_and_halt/0]).
+-export([start/0, stop/0, start/2, stop/1, stop_and_halt/0, status/0]).
 -export([priv_dir/0]).
 
 start() -> application:start(?MODULE).
@@ -27,6 +27,9 @@ stop_and_halt() ->
                   init:stop()
           end),
     case catch stop() of _ -> ok end.
+
+status() ->
+    [{running_applications, application:which_applications()}].
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of

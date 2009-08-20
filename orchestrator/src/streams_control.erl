@@ -78,7 +78,10 @@ action(stop_app, Node, [], Inform) ->
     call(Node, {orchestrator, stop, []});
 action(start_app, Node, [], Inform) ->
     Inform("Starting RabbitMQ Streams application on ~p", [Node]),
-    call(Node, {orchestrator, start, []}).
+    call(Node, {orchestrator, start, []});
+action(status, Node, [], Inform) ->
+    Inform("Status of node ~p", [Node]),
+    call(Node, {orchestrator, status, []}).
 
 splice_localnode(Node) ->
     list_to_atom(lists:append(atom_to_list(Node),
