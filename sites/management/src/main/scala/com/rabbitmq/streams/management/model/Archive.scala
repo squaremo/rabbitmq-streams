@@ -2,7 +2,9 @@ package com.rabbitmq.streams.management.model
 
 import java.lang.String
 import java.net.{URLEncoder, URL}
+import java.text.ParseException
 import java.util.{Calendar, Date}
+import runtime.RichString
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
@@ -117,11 +119,21 @@ class Server(url: String, configDatabaseName: String) {
 
   def terminals(query: String): Seq[String] = {
     val view = new View("terminalconfig/byvalue")
-    view.setStartKey(URLEncoder.encode(query, "UTF-8"))
-    view.setEndKey(URLEncoder.encode(query, "UTF-8"))
+    view.setStartKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
+    view.setEndKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
     configDb.view(view) match {
       case null => Nil
       case v    => for(row <- v.getResults) yield row.getString("value")
+    }
+  }
+
+  def quoteIfNecessary(string:String): String = {
+    try {
+      string.toFloat
+      string
+    }
+    catch  {
+      case ex: NumberFormatException => "\"" + string + "\""
     }
   }
 }
@@ -155,7 +167,6 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
   }
 
   def entries(startKey: String, endKey: String): (Seq[ArchiveEntry], Int) = {
-    println("Fetching view for keys " + startKey + " - " + endKey)
     val entriesView = new View(entriesViewName)
     entriesView.setStartKey(startKey)
     entriesView.setEndKey(endKey)
