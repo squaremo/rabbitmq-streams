@@ -1,6 +1,6 @@
 -module(orchestrator).
 
--export([start/0, stop/0, start/2, stop/1]).
+-export([start/0, stop/0, start/2, stop/1, stop_and_halt/0]).
 -export([priv_dir/0]).
 
 start() -> application:start(?MODULE).
@@ -16,6 +16,17 @@ start(normal, []) ->
 
 stop(_State) ->
     ok.
+
+stop_and_halt() ->
+    spawn(fun () ->
+                  SleepTime = 1000,
+                  error_logger:info_msg("Stop-and-halt request received; "
+                                        "halting in ~p milliseconds~n",
+                                        [SleepTime]),
+                  timer:sleep(SleepTime),
+                  init:stop()
+          end),
+    case catch stop() of _ -> ok end.
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of
