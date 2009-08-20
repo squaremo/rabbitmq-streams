@@ -68,8 +68,9 @@ GIVE_IT_TO_MY_FEDORA=
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
-setup: \
-	install-packages \
+setup: 	install-packages install-local-stuff
+
+install-local-stuff: \
 	create-var-dirs \
 	install-couchdb \
 	install-mochiweb \
@@ -433,7 +434,7 @@ orchestrator/deps/mochiweb: build/opt/mochiweb
 ###########################################################################
 # RabbitMQ
 
-install-rabbitmq: build/opt/rabbitmq orchestrator/deps/rabbitmq-erlang-client
+install-rabbitmq: orchestrator/deps/rabbitmq orchestrator/deps/rabbitmq-erlang-client
 
 update-rabbitmq: build/src/rabbitmq-codegen build/src/rabbitmq-server
 	rm -rf build/scratch build/opt/rabbitmq
@@ -483,6 +484,9 @@ build/opt/rabbitmq-erlang-client: build/src/rabbitmq-erlang-client build/opt/rab
 		>> build/logs/build-rabbitmq-erlang-client.txt 2>&1
 
 orchestrator/deps/rabbitmq-erlang-client: build/opt/rabbitmq-erlang-client
+	ln -s ../../$< $@
+
+orchestrator/deps/rabbitmq: build/opt/rabbitmq
 	ln -s ../../$< $@
 
 
