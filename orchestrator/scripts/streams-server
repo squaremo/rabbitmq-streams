@@ -10,14 +10,16 @@ CONFIG_DB=feedshub_status
 [ "x" = "x$STREAMS_STATE_SERVER" ] && STREAMS_STATE_SERVER=${STATE_SERVER}
 [ "x" = "x$STREAMS_CONFIG_DB" ] && STREAMS_CONFIG_DB=${CONFIG_DB}
 
-START_STREAMS='-s crypto -s orchestrator -noinput'
+START_STREAMS='-s crypto -s orchestrator'
 
-EBIN_DIR="`dirname $0`/../ebin"
+EBIN_DIR="ebin"
 
 ERL_PATH_OPTS="-pa $EBIN_DIR"
+(cd `dirname $0`/..; \
 exec erl ${START_STREAMS} \
     $ERL_PATH_OPTS \
     -boot start_sasl -sname ${STREAMS_NODENAME} \
     -orchestrator couch_base_url "\"${STREAMS_STATE_SERVER}\"" \
     -orchestrator root_config_url "\"${STREAMS_ROOT_CONFIG}\"" \
-    -orchestrator config_db "\"${STREAMS_CONFIG_DB}\""
+    -orchestrator config_db "\"${STREAMS_CONFIG_DB}\"" \
+)

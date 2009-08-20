@@ -34,9 +34,8 @@ status() ->
     [{running_applications, application:which_applications()}].
 
 restart() ->
-    orchestrator_root:install_views(),
-    stop(),
-    start().
+    ok = stop(),
+    ok = start().
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of

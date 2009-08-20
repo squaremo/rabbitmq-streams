@@ -58,6 +58,7 @@ setup_logger(LogCh) ->
     end.
 
 install_views() ->
+    error_logger:info_msg("Installing views in ~p", [streams_config:config_db()]),
     lists:foreach(
       fun({WC, DB}) ->
 	      lists:foreach(fun(Dir) -> install_view(DB, Dir) end,
