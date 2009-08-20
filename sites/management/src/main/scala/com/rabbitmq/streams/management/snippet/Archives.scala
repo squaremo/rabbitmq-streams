@@ -2,7 +2,7 @@ package com.rabbitmq.streams.management.snippet
 
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.Date
-import model.{Archive, LocalServer}
+import model.LocalServer
 import net.liftweb.http.{RequestVar, SHtml, S}
 import scala.xml._
 import net.liftweb.util.Helpers._
@@ -43,10 +43,10 @@ class Archives {
           "updated" -> Text(entry.updated.toLocaleString),
           "content" -> Text(entry.content)
           )
-          )
-        )
         )
       )
+     )
+    )
   }
 
   private def asInterval(startDate: String, startTime: String, endDate: String, endTime: String): (Date, Date) = {
@@ -63,12 +63,11 @@ class Archives {
     catch {
       case ex: ParseException => new Date
     }
-
   }
 
   def browse(content: NodeSeq): NodeSeq = {
     val pageSize = (S.attr("pageSize") openOr "0").toInt
-    LocalServer.archive(archiveName.is) match {
+    LocalServer.byName(archiveName.is) match {
       case None => content
       case Some(archive) => {
         val period = filterPeriod.is
@@ -103,10 +102,18 @@ class Archives {
 
   def terminalResult(content: NodeSeq): NodeSeq = {
     val terminals = LocalServer.terminals(terminalQuery.is)
-    for(t <- terminals) println("TERM IS " + t)
     
     bind("results", content,
-      "query" -> Text(terminalQuery.is)
+      "query" -> Text(terminalQuery.is),
+      "results" -> terminals.flatMap(terminal =>
+        bind("t", chooseTemplate("tag", "terminal", content),
+          "name" -> Text(terminal.name),
+          terminal.archived match {
+            case true  => "archive" -> SHtml.link("/archive/browse", () => {archiveName(terminal.archiveName); println("Bound archive name")}, Text(terminal.archiveName))
+            case false => "archive" -> Text("Not archived")
+          } 
+        )
+      )
     )
   }
 }

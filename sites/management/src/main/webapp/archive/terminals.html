@@ -1,6 +1,14 @@
 <lift:surround with="default" at="content">
-  <h1>Matching terminals</h1>
+
   <lift:Archives.terminalResult>
-    <p><results:query/></p>
+    <h1>Matching terminals - <results:query/></h1>
+    <table>
+      <thead><tr><th>Terminal</th><th>Archives</th></tr></thead>
+      <tbody>
+      <results:results>
+        <tag:terminal><tr><td><t:name/></td><td><t:archive/></td></tr></tag:terminal>
+      </results:results>
+      </tbody>
+    </table>
   </lift:Archives.terminalResult>
 </lift:surround>

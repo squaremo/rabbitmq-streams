@@ -113,17 +113,21 @@ class Server(url: String, configDatabaseName: String) {
     ) yield newArchive(server.getJSONObject("server"), terminal, destination)
   }
 
-  def archive(terminal: String): Option[Archive] = {
+  def byTerminal(terminal: String): Option[Archive] = {
     archives.dropWhile(a => a.terminalName != terminal).firstOption
   }
 
-  def terminals(query: String): Seq[String] = {
+  def byName(name: String): Option[Archive] = {
+    archives.dropWhile(a => a.name != name).firstOption
+  }
+
+  def terminals(query: String): Seq[Terminal] = {
     val view = new View("terminalconfig/byvalue")
     view.setStartKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
     view.setEndKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
     configDb.view(view) match {
       case null => Nil
-      case v    => for(row <- v.getResults) yield row.getString("value")
+      case v    => for(row <- v.getResults) yield new Terminal(row.getString("value"), byTerminal(row.getString("value")))
     }
   }
 
@@ -195,6 +199,18 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
     case null => (Nil, 0)
     case v => (for(row <- v.getResults) yield new ArchiveEntry(row.getJSONObject), v.getInt("total_rows"))
+  }
+}
+
+class Terminal(val name: String, private val archive: Option[Archive]) {
+  def archiveName = archive match {
+    case Some(s) => s.name
+    case None    => "No archive configured"
+  }
+
+  def archived:Boolean = archive match {
+    case Some(s) => true
+    case None    => false
   }
 }
 
