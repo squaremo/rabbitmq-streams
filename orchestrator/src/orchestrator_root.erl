@@ -8,6 +8,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([server_started_callback/1]).
+-export([install_views/0]).
 
 -define(SERVER, ?MODULE).
 
@@ -92,7 +93,7 @@ install_view(DbName, ViewDir) ->
 				     rfc4627:set_field(Doc, "_rev", RevId);
 	     _ -> Doc
 	 end,
-    error_logger:info_report({?MODULE, install_view, Path, Doc2}),
+    error_logger:info_msg("Installing view ~s", [Path]),
     {ok, _} = couchapi:put(Path, Doc2).
 
 read_root_config() ->

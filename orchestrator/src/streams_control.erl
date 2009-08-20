@@ -44,9 +44,12 @@ usage() ->
 
 Available commands:
 
- start_app - starts RabbitMQ Streams in an already running node
- stop_app  - stops RabbitMQ Streams, leaving the node running
- stop      - stops RabbitMQ Streams and halts the node
+ start_app       - starts RabbitMQ Streams in an already running node
+ stop_app        - stops RabbitMQ Streams, leaving the node running
+ stop            - stops RabbitMQ Streams and halts the node
+ status
+ restart          - rereads configuration and restarts the application
+                   (also reinstalls the configuration views)
 
 Output is suppressed using the \"-q\" flag.
 
@@ -79,6 +82,9 @@ action(stop_app, Node, [], Inform) ->
 action(start_app, Node, [], Inform) ->
     Inform("Starting RabbitMQ Streams application on ~p", [Node]),
     call(Node, {orchestrator, start, []});
+action(restart, Node, [], Inform) ->
+    Inform("Restarting RabbitMQ Streams application on ~p", [Node]),
+    call(Node, {orchestrator, restart, []});
 action(status, Node, [], Inform) ->
     Inform("Status of node ~p", [Node]),
     call(Node, {orchestrator, status, []}).

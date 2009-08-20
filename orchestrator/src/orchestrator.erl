@@ -1,6 +1,8 @@
 -module(orchestrator).
 
--export([start/0, stop/0, start/2, stop/1, stop_and_halt/0, status/0]).
+-export([start/0, stop/0, start/2, stop/1]).
+-export([restart/0, stop_and_halt/0, status/0]).
+
 -export([priv_dir/0]).
 
 start() -> application:start(?MODULE).
@@ -30,6 +32,11 @@ stop_and_halt() ->
 
 status() ->
     [{running_applications, application:which_applications()}].
+
+restart() ->
+    orchestrator_root:install_views(),
+    stop(),
+    start().
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of

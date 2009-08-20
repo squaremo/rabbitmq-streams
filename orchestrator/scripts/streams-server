@@ -10,7 +10,7 @@ CONFIG_DB=feedshub_status
 [ "x" = "x$STREAMS_STATE_SERVER" ] && STREAMS_STATE_SERVER=${STATE_SERVER}
 [ "x" = "x$STREAMS_CONFIG_DB" ] && STREAMS_CONFIG_DB=${CONFIG_DB}
 
-START_STREAMS='-s crypto -s orchestrator'
+START_STREAMS='-s crypto -s orchestrator -noinput'
 
 EBIN_DIR="`dirname $0`/../ebin"
 
