@@ -32,6 +32,8 @@ loop(Req, DocRoot) ->
                  'DELETE' -> delete;
                  'PUT' -> put
              end),
+    %% Note re:split is only in versions of Erlang/OTP from
+    %% 12B-5 onward.
     case re:split(Path, "/", [{parts, 4}]) of
         [<<>>, <<"static">> | _] ->
             handle_static(Path, DocRoot, Req, Method);
