@@ -54,7 +54,7 @@ class DataTimeout extends PipelineComponent with Actor {
     val outer = this
     object input extends InputReader {
       override def handleMessage(msg : InputMessage, ignored : JSONObject) {
-        outer ! new Input(msg)
+        outer !? new Input(msg)
       }
     }
     registerInput("input", input)
@@ -80,7 +80,7 @@ class DataTimeout extends PipelineComponent with Actor {
   def loop() {
     receive {
       case Timeout => maybeTriggerTimer; loop
-      case Input(msg) => publishToChannel("output", msg); setAlarmState(now + timeout); loop
+      case Input(msg) => publishToChannel("output", msg); setAlarmState(now + timeout); reply(); loop
       case Stop =>; // don't loop
     }
   }
