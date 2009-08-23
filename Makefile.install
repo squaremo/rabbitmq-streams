@@ -2,6 +2,9 @@
 # This is a makefile that builds Streams into a directory structure
 # that makes installation and packaging easier.
 
+# for brace expansion
+SHELL=bash
+
 # use the date/time of the latest hg log as the version number. Additional
 # tweak: if the repo is stale (outgoing or uncommited changes) or not
 # 'default', give it the magic revision number 666.
@@ -48,7 +51,7 @@ prepare-build-dirs:
 	mkdir -p ${TARGET_DIR}/config
 	mkdir -p ${TARGET_DIR}/examples
 	mkdir -p ${TARGET_DIR}/harness/{java,python}
-	mkdir -p ${TARGET_DIR}/lib/{erlang,java,python}
+	mkdir -p ${TARGET_DIR}/lib/{erlang/orchestrator,java,python}
 
 prepare-install-dirs:
 	mkdir -p ${LIB_TARGET_DIR}/{scripts,harness}
@@ -80,13 +83,13 @@ build-orchestrator: build-libs
 # stuff, irrespective of language. Also, packaging tests as well would be
 # better.
 build-plugins:
-	for p in plugins; do; \
-		mkdir -p ${TARGET_DIR}/plugins/$$p;
-		if [ -n `find plugins/ -regex '.*.py'` ]; \
-			cp -rf plugins/$$p ${TARGET_DIR}/plugins;
-		else; \
-			cp -p plugins/$$p/plugin.js ${TARGET_DIR}/plugins/$$j; \
-			cp -prf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
+	for p in plugins/*/; do \
+		mkdir -p ${TARGET_DIR}/$$p; \
+		if [ -n "`find plugins/ -regex '.*.py'`" ]; then \
+			cp -rf $$p ${TARGET_DIR}/plugins; \
+		else \
+			cp -p $$p/plugin.js ${TARGET_DIR}/$$p; \
+			cp -prf $$p/lib ${TARGET_DIR}/$$p; \
 		fi; \
 	done
 
