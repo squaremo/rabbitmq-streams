@@ -168,7 +168,7 @@ deactivate_thing(ThingId) when is_binary(ThingId) ->
 		ok ->
 		    ok;
 		{error, Err} ->
-		    error_logger:error_report({?MODULE, deactivate_feed, Err, ThingId})
+		    error_logger:error_report({?MODULE, deactivate_thing, Err, ThingId})
 	    end;
 	_ -> Res
     end;
@@ -310,6 +310,9 @@ handle_cast(check_active_servers, State = #state { ch = Ch, amqp_connection = Co
 handle_cast(check_active_terminals, State = #state { ch = Ch, amqp_connection = Connection }) ->
     ok = check_active_terminals(Ch),
     ok = check_active_feeds(Connection),
+    {noreply, State};
+handle_cast({status_change, ThingId}, State = #state{ch = Ch, amqp_connection = Connection}) ->
+    status_change(ThingId, Ch, Connection),
     {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.
