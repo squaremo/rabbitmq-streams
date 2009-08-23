@@ -13,7 +13,7 @@ TARGET=`dirname $TMP`/$DB
 DBURL=http://localhost:5984/$DB
 curl -X PUT $DBURL
 
-STREAMS_NODENAME=$NODENAME STREAMS_CONFIG_DB=$DB ../../scripts/streams-server 2>&1 > server.out &
+STREAMS_NODENAME=$NODENAME STREAMS_CONFIG_DB=$DB ../../scripts/streams-server 2>&1 > tmp/server.out &
 
 TESTS=$1
 [[ "x" = "x$TESTS" ]] && TESTS=test*.js

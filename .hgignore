@@ -43,6 +43,8 @@
 ^(orchestrator/)?doc/.*\.html$
 ^doc/.*\.png$
 
+^orchestrator/test/api/tmp
+
 (^|/)\.libs-done$
 \.iml$
 \.ipr$
