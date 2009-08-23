@@ -5,7 +5,7 @@ for i in lib/*.jar; do CLASSPATH=$i:$CLASSPATH; done
 #echo $CLASSPATH
 
 NODENAME=testing
-TMP=`mktemp -d streamsXXXXX`
+TMP=`mktemp -d tmp/streamsXXXXX`
 DB=`basename $TMP | sed -e 's/\.//' |tr "[:upper:]" "[:lower:]"`
 TARGET=`dirname $TMP`/$DB
 [[ "$TARGET" = "/$DB" ]] && exit
