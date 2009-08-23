@@ -2,6 +2,9 @@ SHELL=/bin/bash
 PYTHON=python -Wignore::DeprecationWarning
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
 RABBITSTREAMS_CONF=etc/rabbitstreams.conf
+#HACK to work around problem in couchdb's configure on fedora 64bit
+WITH_ERLANG=$(shell if test -d /usr/lib64/erlang/usr/include; \
+	then echo "--with-erlang=/usr/lib64/erlang/usr/include"; fi)
 
 CONFIG_DOC=$$(cat $(RABBITSTREAMS_CONF) | bin/json --raw get config_doc)
 COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
@@ -10,8 +13,8 @@ COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
 RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
 RABBITMQ_HOST=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq host)
 RABBITMQ_PASSWORD=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq password)
-OS=$$(if [ -e /etc/redhat-release ]; then echo "redhat"; \
-    elif [ -e /etc/debian_version ]; then echo "debian"; fi)
+OS=$(shell if [ -e /etc/redhat-release ]; then echo "redhat"; \
+	   elif [ -e /etc/debian_version ]; then echo "debian"; fi)
 
 SCREEN_SESSION=feedshub
 # FIXME: would be nice to have different bg colors for rabbit, couch etc.
@@ -45,14 +48,15 @@ COUCH_FIFO=build/scratch/couch_fifo
 PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 
-DEB_AND_RPM_DEPENDENCIES:=automake autoconf libtool help2man erlang mercurial subversion git \
+DEB_AND_RPM_DEPENDENCIES:=curl automake autoconf libtool help2man erlang mercurial subversion git \
 	ant maven2 screen python-simplejson cvs zip elinks
 
 DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
         netcat-openbsd 	build-essential erlang-src libicu38 libicu-dev \
 	libmozjs-dev libcurl4-openssl-dev default-jdk
 
-RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel js-devel
+RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel \
+	js-devel openjdk-1.6.0-devel
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
@@ -81,6 +85,7 @@ install-local-stuff: \
 
 install-packages:
 ifeq ($(OS),redhat)
+export  JAVA_HOME=/usr/lib/jvm/java
 	$(MAKE) install-rpms
 else
 	$(MAKE) install-debs
@@ -88,18 +93,18 @@ endif
 
 install-rpms:
 	sudo yum install -y $(RPM_DEPENDENCIES)
-	give-it-to-my-fedora
+	${MAKE} give-it-to-my-fedora
 
 give-it-to-my-fedora:
 	@echo "WARNING: THIS HORRIBLE KLUDGE TO FIX VERSIONING PROBLEMS WITH FEDORA"; \
 	 echo "         PACKAGES WILL JUST DUMP/OVERWRITE STUFF INTO /usr/local"; \
 	 test -n "$(GIVE_IT_TO_MY_FEDORA)" || \
            (read -p "DO YOU GIVE YOU INFORMED CONSENT? (yes/No)? " ans; \
-	    [ x$${ans} == xyes ] || (echo "ABORTING. Spoilsport!"; exit 1))
-	if ! which escript >/dev/null; then \
+	    [ "$${ans}" = "yes" ] || (echo "ABORTING. Spoilsport!"; exit 1))
+	if ! which escript >&/dev/null; then \
 		sudo ln -s /usr/lib/erlang/bin/escript /usr/local/bin/; \
 	fi; \
-	if ! which erl_call >/dev/null; then \
+	if ! which erl_call >&/dev/null; then \
 		sudo ln -s /usr/lib/erlang/lib/erl_interface-*/bin/erl_call /usr/local/bin; \
 	fi; \
 	if  ! mvn --version | grep 'Maven version: ' | \
@@ -360,7 +365,7 @@ $(OPT_COUCH):
 	@echo Building CouchDB ...
 	(cd $(SRC_COUCH); [ -f ./configure ] || ./bootstrap) \
 		> build/logs/build-couchdb.txt 2>&1
-	(cd $(SRC_COUCH); ./configure --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
+	(cd $(SRC_COUCH); ./configure "$(WITH_ERLANG)" --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
 		>> build/logs/build-couchdb.txt 2>&1
 
 
