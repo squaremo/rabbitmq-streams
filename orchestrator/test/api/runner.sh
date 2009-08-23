@@ -15,7 +15,10 @@ curl -X PUT $DBURL
 
 STREAMS_NODENAME=$NODENAME STREAMS_CONFIG_DB=$DB ../../scripts/streams-server 2>&1 > server.out &
 
-for t in test*.js; do
+TESTS=$1
+[[ "x" = "x$TESTS" ]] && TESTS=test*.js
+
+for t in $TESTS; do
     echo Compiling fixture to $TARGET
     rm -rf $TARGET
     mkdir -p $TARGET
