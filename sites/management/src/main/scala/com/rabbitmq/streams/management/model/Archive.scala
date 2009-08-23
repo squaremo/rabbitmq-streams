@@ -182,18 +182,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
   }
 
   private def toViewKey(date: Date): String = {
-    val array = new JSONArray()
-    val calendar = Calendar.getInstance()
-    calendar.setTime(date)
-
-    array.add(calendar.get(Calendar.YEAR))
-    array.add(calendar.get(Calendar.MONTH) + 1)
-    array.add(calendar.get(Calendar.DAY_OF_MONTH))
-    array.add(calendar.get(Calendar.HOUR))
-    array.add(calendar.get(Calendar.MINUTE))
-    array.add(calendar.get(Calendar.SECOND))
-
-    array.toString
+    "" + date.getTime
   }
 
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
@@ -215,12 +204,12 @@ class Terminal(val name: String, private val archive: Option[Archive]) {
 }
 
 class ArchiveEntry(private val doc: JSONObject) {
-  val updated = toDate(doc.getJSONArray("key"))
+  val updated = toDate(doc.getLong("key"))
   val content = doc.getJSONObject("value").getString("Body")
 
-  def toDate(array: JSONArray): java.util.Date = {
+  def toDate(value: Long): java.util.Date = {
     val calendar = java.util.Calendar.getInstance()
-    calendar.set(array.getInt(0), array.getInt(1) - 1, array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
+    calendar.setTimeInMillis(value)
     calendar.getTime
   }
 }
