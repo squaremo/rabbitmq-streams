@@ -1,4 +1,4 @@
 #!/bin/sh
 EBIN_DIR=./ebin
 
-erl -boot start_sasl -sname orchestrator -s orchestrator -orchestrator couch_base_url '"http://127.0.0.1:5984/"' -orchestrator root_config_url '"http://127.0.0.1:5984/feedshub_status/root_config"'
+erl -pa "$EBIN_DIR" -boot start_sasl -sname orchestrator -s orchestrator -orchestrator couch_base_url '"http://127.0.0.1:5984/"' -orchestrator root_config_url '"http://127.0.0.1:5984/feedshub_status/root_config"'
