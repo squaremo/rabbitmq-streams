@@ -11,6 +11,7 @@
   <name>Streams plugin support</name>
   <version>1.0-SNAPSHOT</version>
   <url>http://www.rabbitmq.com/</url>
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -35,7 +36,23 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <distributionManagement>
+    <repository>
+      <id>internal.repo</id>
+      <url>scp://feedshub/srv/www/maven</url>
+    </repository>
+  </distributionManagement>
+
   <build>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>1.0-alpha-5</version>
+      </extension>
+    </extensions>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -59,6 +76,7 @@
       </plugin>
     </plugins>
   </build>
+
 </project>
 
 
