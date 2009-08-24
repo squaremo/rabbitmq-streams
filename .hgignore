@@ -8,6 +8,9 @@
 \.class$
 \.jar$
 
+# ignore everything in deps (3rd party stuff)
+^orchestrator/deps/.*
+
 # target directories are a Maven thing
 ^sites/[^/]*/target/
 ^plugins/[^/]*/target/
