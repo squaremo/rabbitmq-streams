@@ -150,7 +150,6 @@ object DataTimeoutSpec extends Specification with Mockito {
       dt ! DataTimeout.Stop
       n.notify(any(classOf[NotificationType]), anyString) was notCalled
     }
+   */
   }
-  */
-
 }
