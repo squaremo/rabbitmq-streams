@@ -9,12 +9,12 @@ SHELL=bash
 # tweak: if the repo is stale (outgoing or uncommited changes) or not
 # 'default', give it the magic revision number 666.
 CURRENT_BRANCH:=$(shell hg branch)
-STREAMS_VERSION:=$(shell hg log -b "$(CURRENT_BRANCH)" -l1 --template '{date|isodate}\n' | \
-		         cut -d' ' -f1-2 | sed 's/[:-]//g'  | sed 's/[^0-9]/./g')
-BRANCH_SPEC:=$(shell [ "${CURRENT_BRANCH}" !=  "default" ] && echo "-${CURRENT_BRANCH}")
+BRANCH_SPEC:=$(shell [ "${CURRENT_BRANCH}" !=  "default" ] && echo "${CURRENT_BRANCH}")
 STALE:=$(shell (hg outgoing | grep -q '^no changes found$$' && \
-		test -z "$$(hg diff; hg status -d)") || echo " stale")
-FUNNY:=${BRANCHSPEC}${STALE}
+		test -z "$$(hg diff; hg status -d)") || echo ".stale.")
+FUNNY:=${BRANCH_SPEC}${STALE}
+STREAMS_VERSION:=${FUNNY}$(shell hg log -b "$(CURRENT_BRANCH)" -l1 --template '{date|isodate}\n' | \
+                                 cut -d' ' -f1-2 | sed 's/[:-]//g'  | sed 's/[^0-9]/./g')
 PACKAGE:=rabbitmq-streams-${STREAMS_VERSION}
 TMP_DIR:=packaging/tmp
 TARGET_DIR:=${PACKAGE}
@@ -38,7 +38,6 @@ package-sources:
           (read -p "The repo is funny (${FUNNY}), do you really want to continue? (yes/No)? " ans; \
 	    [ "$${ans}" = yes ] || (echo "ABORTING!"; exit 1))
 	hg clone -r $(CURRENT_BRANCH) . ${TMP_DIR}/${PACKAGE}
-	# ${MAKE} -C ${TMP_DIR}/${PACKAGE} setup
 	(cd ${TMP_DIR}; tar zcf ${PACKAGE_FILE}  ${PACKAGE} \
 	 --exclude='*.tar.gz' --exclude='.hg*' --exclude=.svn)
 
@@ -73,7 +72,7 @@ build-libs: prepare
 ### Build erlang libraries ###
 build-orchestrator: build-libs
 	cp -rp orchestrator/{ebin,include,priv} ${TARGET_DIR}/lib/erlang/orchestrator
-	cp -rp orchestrator/deps/ ${TARGET_DIR}/lib/erlang/orchestrator
+	cp -rpL orchestrator/deps/ ${TARGET_DIR}/lib/erlang/orchestrator
 	cp -p orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
 
 #### Package everything else ####
@@ -85,7 +84,7 @@ build-orchestrator: build-libs
 build-plugins:
 	for p in plugins/*/; do \
 		mkdir -p ${TARGET_DIR}/$$p; \
-		if [ -n "`find plugins/ -regex '.*.py'`" ]; then \
+		if [ -n "`find \"$$p\" -regex '.*.py'`" ]; then \
 			cp -rf $$p ${TARGET_DIR}/plugins; \
 		else \
 			cp -p $$p/plugin.js ${TARGET_DIR}/$$p; \
