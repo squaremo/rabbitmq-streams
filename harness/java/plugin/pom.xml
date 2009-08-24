@@ -40,7 +40,7 @@
   <distributionManagement>
     <repository>
       <id>internal.repo</id>
-      <url>scp://feedshub/srv/www/maven</url>
+      <url>scpexe://feedshub/srv/www/maven</url>
     </repository>
   </distributionManagement>
 
