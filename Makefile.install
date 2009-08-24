@@ -9,9 +9,9 @@ SHELL=bash
 # tweak: if the repo is stale (outgoing or uncommited changes) or not
 # 'default', give it the magic revision number 666.
 CURRENT_BRANCH:=$(shell hg branch)
-BRANCH_SPEC:=$(shell [ "${CURRENT_BRANCH}" !=  "default" ] && echo "${CURRENT_BRANCH}")
+BRANCH_SPEC:=$(shell [ "${CURRENT_BRANCH}" !=  "default" ] && echo "${CURRENT_BRANCH}.")
 STALE:=$(shell (hg outgoing | grep -q '^no changes found$$' && \
-		test -z "$$(hg diff; hg status -d)") || echo ".stale.")
+		test -z "$$(hg diff; hg status -d)") || echo "stale.")
 FUNNY:=${BRANCH_SPEC}${STALE}
 STREAMS_VERSION:=${FUNNY}$(shell hg log -b "$(CURRENT_BRANCH)" -l1 --template '{date|isodate}\n' | \
                                  cut -d' ' -f1-2 | sed 's/[:-]//g'  | sed 's/[^0-9]/./g')
