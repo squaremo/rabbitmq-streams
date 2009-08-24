@@ -83,10 +83,12 @@ install-local-stuff: \
 	install-ibrowse \
 	install-rabbitmq
 
-
-install-packages:
 ifeq ($(OS),redhat)
 export  JAVA_HOME=/usr/lib/jvm/java
+endif
+
+ifeq ($(OS),redhat)
+install-packages:
 	$(MAKE) install-rpms
 else
 	$(MAKE) install-debs
