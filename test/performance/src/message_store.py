@@ -8,7 +8,7 @@ class MessageStore:
     def __init__(self, ipAddress, port):
         if ipAddress == None: ipAddress = DEFAULT_IP_ADDRESS
         if port == None: port = DEFAULT_PORT
-        self._mc = memcache.Client([ipAddress + ':' + port], debug=0)
+        self._mc = memcache.Client([ipAddress + ':' + str(port)], debug=0)
 
     def set(self, messageId, timeMs):
         self._mc.set(str(messageId), str(timeMs))
