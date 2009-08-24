@@ -1,8 +1,13 @@
 <lift:surround with="default" at="content">
+  <head>
+    <style type="text/css">#archive-list {width: 600px;}</style>
+    <script type="text/javascript" src="/js/archive.js"></script>
+  </head>
+  
   <lift:Archives.browse form="POST">
     <h1>Browse archive - <archive:name/> filtered from <archive:from/> until <archive:to/> </h1>
     <span><archive:filter>
-      <tag:form><f:startDate/><f:startTime/> <f:endDate/> <f:endTime/><f:submit/></tag:form>
+      <tag:form><f:startDate/><f:startTime/> <f:endDate/><f:endTime/> <f:submit/></tag:form>
     </archive:filter></span>
     <table>
       <thead>

@@ -11,7 +11,7 @@
 
   <repositories>
     <repository>
-      <id>feedshub</id>
+      <id>streams</id>
       <url>http://maven.feedshub.lshift.net/</url>
     </repository>
   </repositories>
