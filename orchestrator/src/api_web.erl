@@ -10,6 +10,8 @@
 
 -include("api.hrl").
 
+-define(DEFAULT_PIPELINE_FIELDS, ["_rev", "name", "author"]).
+
 %% External API
 
 start(Options) ->
@@ -133,16 +135,26 @@ app_status() ->
            {"version", ?APPLICATION_VERSION}]}.
 
 list_pipelines() ->
-    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(streams_config:config_db())]}.
+    list_pipelines(?DEFAULT_PIPELINE_FIELDS).
+
+list_pipelines(Fields) ->
+    All = streams:all_pipelines(),
+    {obj, [{total, length(All)},
+           {values, [pipeline_row(P, Fields) || P <- All]}]}.
 
 
 % -------------------------------------------------
 
-pipeline_pair(Row) ->
+pipeline_row(Row, Fields) ->
     {ok, Id} = rfc4627:get_field(Row, "key"),
-    {ok, PipelineDesc} = rfc4627:get_field(Row, "value"),
+    {ok, PipelineJoin} = rfc4627:get_field(Row, "value"),
+    {ok, PipelineDesc} = rfc4627:get_field(PipelineJoin, "feed"),
+    FieldValues = lists:map(
+                    fun (F) -> V = rfc4627:get_field(PipelineDesc, F, null),
+                               {F, V} end,
+                    Fields),
     PipelineUrl = api_url(model, pipeline, binary_to_list(Id)),
-    {PipelineUrl, PipelineDesc}.
+    {obj, [{url, list_to_binary(PipelineUrl)}, {value, {obj, FieldValues}}]}.
 
 thing_process_status(ResourceType, ThingId) ->
     StatusDocType = status_doc_type(ResourceType),
