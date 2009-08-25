@@ -32,6 +32,8 @@ loop(Req, DocRoot) ->
                  'DELETE' -> delete;
                  'PUT' -> put
              end),
+    %% Note re:split is only in versions of Erlang/OTP from
+    %% 12B-5 onward.
     case re:split(Path, "/", [{parts, 4}]) of
         [<<>>, <<"static">> | _] ->
             handle_static(Path, DocRoot, Req, Method);
@@ -61,14 +63,18 @@ get_option(Option, Options) ->
 json_response(Req, Code, JsonStructure) ->
     % Content negoitation here?
     Req:respond({Code,
-                 [{content_type, "application/json"}],
+                 [{"Content-Type", "application/json"}],
                  rfc4627:encode(JsonStructure)}).
+
+jsonrpc_result(Obj) ->
+    {obj, [{"version", <<"1.1">>},
+           {"result", Obj}]}.
 
 check_resource_type(<<"terminal">>) -> {ok, terminal};
 check_resource_type(<<"pipeline">>) -> {ok, pipeline};
 check_resource_type(_) -> {error, invalid_resource_type}.
 
-% Adapted from RabbitHub
+%% Adapted from RabbitHub
 handle_static("/" ++ StaticFile, DocRoot, Req, getorhead) ->
     Req:serve_file(StaticFile, DocRoot);
 handle_static(_OtherPath, _DocRoot, Req, getorhead) ->
@@ -76,7 +82,7 @@ handle_static(_OtherPath, _DocRoot, Req, getorhead) ->
 handle_static(_, _, Req, _) ->
     Req:respond({405, [{"Allow", "GET, HEAD"}], "Method not allowed"}).
 
-% TODO Server status
+%% /
 handle_root(DocRoot, Req, getorhead) ->
     json_response(Req, 200, app_status());
 handle_root(_, Req, _) ->
@@ -85,25 +91,40 @@ handle_root(_, Req, _) ->
 %% dispatch to particular facet and resource
 
 %% Handle index requests
+%% GET /<Facet>/<ResourceType>/
 handle_method(ResourceTypeAtom, Facet, <<>>, Req, getorhead) ->
     handle_index(ResourceTypeAtom, Facet, Req);
 
-% This won't be the case when one can create by POSTing
+%% This won't be the case when one can create a resource by POSTing
 handle_method(_, _, <<>>, Req, _) ->
-    Req:response({405, [{"Allow", "GET, HEAD"}], "Method not allowed"});
+    Req:respond({405, [{"Allow", "GET, HEAD"}], "Method not allowed"});
 
+%% GET /process/pipeline/<Id>
 handle_method(pipeline, "process", Id, Req, getorhead) ->
     case thing_process_status(pipeline, Id) of
-        {notfound, _} -> Req:response({404, [], "Not found."});
+        {notfound, _} -> Req:respond({404, [], "Not found."});
         Pair -> json_response(Req, 200, {obj, [Pair]})
+    end;
+%% POST /process/pipeline/<Id>
+%% Expects a JSON-RPC-like  {method: start|stop}
+handle_method(pipeline, "process", Id, Req, post) ->
+    Body = Req:recv_body(),
+    {ok, RpcObj, _} = rfc4627:decode(Body),
+    {ok, Method} = rfc4627:get_field(RpcObj, "method"),
+    case thing_process_control(pipeline, Id, Method) of
+        {notfound, _} -> Req:respond({404, [], "Not found."});
+        ok -> json_response(Req, 202, jsonrpc_result(ok))
     end;
 
 %% Cover all, but note we still want explicit method-not-alloweds above
+%% TODO JSON response here?
 handle_method(_, _, _, Req, _) ->
-    Req:respond({404, [], "Method call not known."}).
+    Req:respond({404, [], "Not found."}).
 
+%% /model/pipeline/
 handle_index(pipeline, "model", Req) ->
     json_response(Req, 200, list_pipelines());
+%% Anything else /.../.../
 handle_index(ResourceTypeAtom, Facet, Req) ->
     Req:respond({404, [], "Not found."}).
 
@@ -112,7 +133,7 @@ app_status() ->
            {"version", ?APPLICATION_VERSION}]}.
 
 list_pipelines() ->
-    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(?FEEDSHUB_STATUS_DBNAME)]}.
+    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(streams_config:config_db())]}.
 
 
 % -------------------------------------------------
@@ -125,12 +146,27 @@ pipeline_pair(Row) ->
 
 thing_process_status(ResourceType, ThingId) ->
     StatusDocType = status_doc_type(ResourceType),
-    case streams:status_doc(ThingId) of
+    case streams:status_doc(binary_to_list(ThingId)) of
         {ok, Doc} ->
             case rfc4627:get_field(Doc, "type") of
                 {ok, StatusDocType}  ->
                     {api_url(process, ResourceType, binary_to_list(ThingId)),
                      streams:process_status(ThingId)};
+                _ -> {notfound, wrongtype}
+            end;
+        _ -> {notfound, nomodelitem}
+    end.
+
+thing_process_control(ResourceType, ThingId, Method) ->
+    StatusDocType = status_doc_type(ResourceType),
+    case streams:status_doc(binary_to_list(ThingId)) of
+        {ok, Doc} ->
+            case rfc4627:get_field(Doc, "type") of
+                {ok, StatusDocType} ->
+                    case Method of
+                        <<"start">> -> streams:activate(ResourceType, ThingId);
+                        <<"stop">> -> streams:deactivate(ResourceType, ThingId)
+                    end;
                 _ -> {notfound, wrongtype}
             end;
         _ -> {notfound, nomodelitem}

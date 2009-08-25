@@ -18,4 +18,5 @@ run: all
 	$(ERL)  -pa ebin/ -boot start_sasl \
 		-sname orchestrator -s crypto -s orchestrator \
 		-orchestrator couch_base_url '"$(COUCH_SERVER)/"'  \
-		-orchestrator root_config_url '"$(CONFIG_DOC)"'
+		-orchestrator root_config_url '"$(CONFIG_DOC)"' \
+		-orchestrator config_db '"$(CONFIG_DB)"'

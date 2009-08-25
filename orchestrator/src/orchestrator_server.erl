@@ -22,7 +22,7 @@ start_link(ServerSupPid, ServerId,
 				    RootPid], []).
 
 find_servers_for_terminal(TermId) when is_binary(TermId) ->
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ binary_to_list(TermId)) of
+    case streams:defn_doc(binary_to_list(TermId)) of
 	{ok, Doc} ->
 	    case rfc4627:get_field(Doc, "servers") of
 		{ok, Servers} -> ServerNames =
@@ -44,7 +44,7 @@ find_servers_for_terminal(TermId) when is_binary(TermId) ->
 -record(state, {subproc, server_id, server_sup_pid, shovel_in_pid, pipeline_channel}).
 
 get_server_instance_config(ServerId) when is_list(ServerId) ->
-    {ok, ServerInstanceConfig} = couchapi:get(?FEEDSHUB_STATUS_DBNAME ++ ServerId),
+    {ok, ServerInstanceConfig} = streams:defn_doc(ServerId),
     ServerInstanceConfig.
 
 get_server_static_config(ServerType) when is_list(ServerType) ->
@@ -194,7 +194,7 @@ handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
                   {"inputs", Inputs},
                   {"outputs", Outputs},
                   {"database", list_to_binary(couchapi:expand(StateDb))},
-                  {"terminals_database", list_to_binary(couchapi:expand(?FEEDSHUB_STATUS_DBNAME))}
+                  {"terminals_database", list_to_binary(couchapi:expand(streams_config:config_db()))}
 		 ]},
     Subproc = orchestrator_subprocess:start({?MODULE, ServerType, ServerId},
                                             Port,

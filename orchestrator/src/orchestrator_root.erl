@@ -8,6 +8,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([server_started_callback/1]).
+-export([install_views/0]).
 
 -define(SERVER, ?MODULE).
 
@@ -56,14 +57,14 @@ setup_logger(LogCh) ->
 	{error, {already_started, _Pid}} -> ok
     end.
 
-
 install_views() ->
+    error_logger:info_msg("Installing views in ~p", [streams_config:config_db()]),
     lists:foreach(
       fun({WC, DB}) ->
 	      lists:foreach(fun(Dir) -> install_view(DB, Dir) end,
 			    filelib:wildcard(orchestrator:priv_dir() ++ WC))
       end, [
-	    {"/feedshub_status/views/*", ?FEEDSHUB_STATUS_DBNAME}
+	    {"/feedshub_status/views/*", streams_config:config_db()}
 	   ]),
     ok.
 
@@ -84,7 +85,7 @@ install_view(DbName, ViewDir) ->
                                             dict:store(FunctionName, FunctionText, dict:new()),
                                             V)
                         end, dict:new(), filelib:wildcard(ViewDir++"/*.*.js")),
-    Path = DbName ++ "_design/" ++ ViewCollectionName,
+    Path = DbName ++ "/_design/" ++ ViewCollectionName,
     Doc = {obj, [{"views", Views},
 		 {"language", <<"javascript">>}]},
     Doc2 =
@@ -93,6 +94,7 @@ install_view(DbName, ViewDir) ->
 				     rfc4627:set_field(Doc, "_rev", RevId);
 	     _ -> Doc
 	 end,
+    error_logger:info_msg("Installing view ~s", [Path]),
     {ok, _} = couchapi:put(Path, Doc2).
 
 read_root_config() ->
@@ -121,11 +123,11 @@ startup_couch_scan() ->
                                          rfc4627:get_field(CouchInfo, "couchdb")},
     {ok, CouchVersion} = rfc4627:get_field(CouchInfo, "version"),
     {couchdb_version_check, true} = {couchdb_version_check, lists:prefix("0.9.", binary_to_list(CouchVersion))},
-    case couchapi:get(?FEEDSHUB_STATUS_DBNAME) of
+    case couchapi:get(streams_config:config_db()) of
         {ok, _DbInfo} ->
             ok;
         {error, 404, _} ->
-            exit({no_status_db, "You need to create " ++ ?FEEDSHUB_STATUS_DBNAME ++
+            exit({no_status_db, "You need to create " ++ streams_config:config_db() ++
                   "before running the orchestrator"})
     end,
     install_views(),
@@ -166,7 +168,7 @@ deactivate_thing(ThingId) when is_binary(ThingId) ->
 		ok ->
 		    ok;
 		{error, Err} ->
-		    error_logger:error_report({?MODULE, deactivate_feed, Err, ThingId})
+		    error_logger:error_report({?MODULE, deactivate_thing, Err, ThingId})
 	    end;
 	_ -> Res
     end;
@@ -189,7 +191,7 @@ id_from_status(Status) ->
 
 check_active_servers(Channel, Connection) ->
     ServerIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-		 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "servers", "active")],
+		 || R <- couchapi:get_view_rows(streams_config:config_db(), "servers", "active")],
     lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
 							      Channel, Connection,
@@ -204,7 +206,7 @@ deactivate_feed(FeedId, _Args) ->
 
 check_active_feeds(Connection) ->
     FeedIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-               || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "feeds", "active")],
+               || R <- couchapi:get_view_rows(streams_config:config_db(), "feeds", "active")],
     lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection]) end, FeedIds),
     ok.
 
@@ -227,7 +229,7 @@ activate_terminal(TermId, Channel) ->
 check_active_terminals(Channel) ->
     TermIds =
 	[id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
-	 || R <- couchapi:get_view_rows(?FEEDSHUB_STATUS_DBNAME, "terminals", "active")],
+	 || R <- couchapi:get_view_rows(streams_config:config_db(), "terminals", "active")],
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
 
@@ -308,6 +310,9 @@ handle_cast(check_active_servers, State = #state { ch = Ch, amqp_connection = Co
 handle_cast(check_active_terminals, State = #state { ch = Ch, amqp_connection = Connection }) ->
     ok = check_active_terminals(Ch),
     ok = check_active_feeds(Connection),
+    {noreply, State};
+handle_cast({status_change, ThingId}, State = #state{ch = Ch, amqp_connection = Connection}) ->
+    status_change(ThingId, Ch, Connection),
     {noreply, State};
 handle_cast(_Message, State) ->
     {stop, unhandled_cast, State}.

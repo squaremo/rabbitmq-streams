@@ -54,11 +54,8 @@ stop-grinder-receiver:
 	pkill -fx "java.*net.grinder.Grinder.*receiver.properties"
 
 init-rabbit-streams:
-	make stop-core-nox 
-	make cleandb
-	make start-core-nox
-	make create-fresh-accounts
-	make start-orchestrator-nox
+	make full-reset-core
+	make start-orchestrator
 
 
 run-short-thrash-test:
@@ -88,8 +85,8 @@ start-grinder-receiver: create-cachedir
 		test/performance/tests/${TEST}/receiver.properties &
 
 init-orchestrator: start-grinder-receiver
-	sbin/import_config.py test/performance/streams/${STREAM}
-	make start-orchestrator-nox 
+	python sbin/import_config.py test/performance/streams/${STREAM}
+	make start-orchestrator
 
 run-perf-test: create-cachedir init-orchestrator
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \

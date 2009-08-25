@@ -21,12 +21,14 @@ public abstract class InputMessage implements Message {
   /** Silently replaces bad code points by '�' ('\ufffd')
    */
   public String bodyAsStringLax(){
-    //NB String(this.body(), "utf-8") is **not** the same.
-    return new String(this.body(), Charset.forName("utf-8"));
+    // This does default replacements
+    return Charset.forName("utf-8").decode(ByteBuffer.wrap(this.body())).toString();
   }
   /** This will complain about bad code points
    */
   public String bodyAsString() throws CharacterCodingException {
+    // This also does default replacements, and won't actually throw the
+    // declared exception.  We've fixed this in branch bug21442.
     return Charset.forName("utf-8").decode(ByteBuffer.wrap(this.body())).toString();
   }
   public InputMessage withBody(String body) {
