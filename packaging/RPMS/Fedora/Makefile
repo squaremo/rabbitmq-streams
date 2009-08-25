@@ -1,12 +1,18 @@
-SOURCE_TARBALL_DIR=../../..
+STREAMS_VERSION=0.1
+FUNNY=
+PACKAGE_FILE=rabbit-streams-${STREAMS_VERSION}.tar.gz
 TOP_DIR=$(shell pwd)
 
 all: clean rpms
 
 prepare:
 	mkdir -p BUILD SOURCES SPECS SRPMS RPMS tmp
-	cp streams.spec SPECS/
-	cp $(SOURCE_TARBALL_DIR)/rabbitmq-streams-0.1.tar.gz SOURCES
+	cat streams.spec | sed "s/^Version: \\(.*\\)/Version: $(STREAMS_VERSION)/" | \
+	    (if [ -z "$(FUNNY)" ]; then \
+		sed "s/^Revision: \\(.*\\)/Revision: 666/"; \
+	    else cat; fi) \
+          > SPECS/streams.spec
+	cp -p -- "${PACKAGE_FILE}" SOURCES
 
 rpms: prepare
 	rpmbuild -ba --nodeps SPECS/streams.spec \
@@ -18,5 +24,5 @@ rpms: prepare
 		#--define '_tmppath $(TOP_DIR)/tmp' \
 		#--target x86_64
 
-clean: 
+clean:
 	rm -rf SOURCES SPECS RPMS SRPMS BUILD tmp
