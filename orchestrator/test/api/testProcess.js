@@ -11,8 +11,8 @@ function test_pipeline_state() {
   var url = '/process/pipeline/' + feedname;
   var res = jsonGetResponse(url);
   var body = res.getText();
-  var bodyObj = JSON.parse(new String(body));
-  Test.isTrue(bodyObj.hasOwnProperty(url));
+  var obj = JSON.parse(new String(body));
+  Test.isTrue(obj.hasOwnProperty('/process/pipeline/'+feedname));
 }
 
 function test_pipeline_unknown() {

@@ -15,3 +15,10 @@ function jsonGetResponse(path) {
   Test.areEqual(200, res.getResponseCode());
   return res;
 }
+
+function verifyQueryResult(obj, expectedRows) {
+  Test.isTrue(obj.hasOwnProperty('total'));
+  Test.areEqual(expectedRows, obj['total']);
+  Test.isTrue(obj.hasOwnProperty("values"));
+  return obj['values'];
+}
