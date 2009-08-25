@@ -39,8 +39,8 @@ sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/sc
 %{_sbindir}
 
 %post
-/usr/sbin/rabbitmq-server &
-sleep 3
+/etc/init.d/rabbitmq-server start
+/etc/init.d/couchdb start
 /usr/sbin/rabbitmqctl delete_user guest
 /usr/sbin/rabbitmqctl delete_user feedshub_admin
 /usr/sbin/rabbitmqctl add_user feedshub_admin feedshub_admin
