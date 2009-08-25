@@ -43,6 +43,11 @@ new_siblings(Module) ->
                                 filename:join([X, "include"])] ||
                                   X <- Siblings])).
 
+-ifdef(debug).
+clash() -> code:clash().
+-else.
+clash() -> ok.
+-endif. 
 
 %% @spec ensure(Module) -> ok
 %% @doc Ensure that all ebin and include paths for dependencies
@@ -50,7 +55,7 @@ new_siblings(Module) ->
 ensure(Module) ->
     % Prefer our deps to installed things
     code:add_pathsa(new_siblings(Module)),
-    code:clash(),
+    clash(),
     ok.
 
 %% @spec ensure() -> ok
