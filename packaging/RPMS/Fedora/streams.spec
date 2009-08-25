@@ -6,11 +6,11 @@ Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
 BuildRequires: erlang
-Requires: erlang
-Requires: rabbitmq-server
-Requires: couchdb
+Requires: erlang >= 5.6.5
+Requires: rabbitmq-server >= 1.6
+Requires: couchdb >= 0.9
 Requires: python-simplejson
-Requires: java
+Requires: java >= 1.6
 Prereq: erlang
 Buildroot: %{_tmppath}/%{name}-%{version}
 
@@ -40,8 +40,9 @@ sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/sc
 
 %post
 /etc/init.d/rabbitmq-server start
-/etc/init.d/couchdb start
 /usr/sbin/rabbitmqctl delete_user guest
 /usr/sbin/rabbitmqctl delete_user feedshub_admin
 /usr/sbin/rabbitmqctl add_user feedshub_admin feedshub_admin
 /usr/sbin/rabbitmqctl set_permissions feedshub_admin '.*' '.*' '.*'
+/etc/init.d/couchdb start
+python /usr/lib/rabbitmq-streams/scripts/import_config.py /usr/lib/rabbitmq-streams/examples/basic_config/
