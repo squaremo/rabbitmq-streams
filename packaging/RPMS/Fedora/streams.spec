@@ -39,6 +39,9 @@ sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/sc
 %{_sbindir}
 
 %post
+# horrible hack
+ln -fs %{buildroot}%{_streams_libdir}/erlang/orchestrator/scripts/* %{buildroot}%{_sbindir}
+
 /etc/init.d/rabbitmq-server start
 /usr/sbin/rabbitmqctl delete_user guest
 /usr/sbin/rabbitmqctl delete_user feedshub_admin
