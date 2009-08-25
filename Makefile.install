@@ -42,7 +42,7 @@ package-sources:
 	 --exclude='*.tar.gz' --exclude='.hg*' --exclude=.svn)
 
 clean:
-	rm -rf -- ${TARGET_DIR} ${TMP_DIR} ${PACKAGE_FILE}
+	-rm -rf -- ${TARGET_DIR} ${TMP_DIR} ${PACKAGE_FILE}
 
 prepare: prepare-build-dirs prepare-install-dirs
 
