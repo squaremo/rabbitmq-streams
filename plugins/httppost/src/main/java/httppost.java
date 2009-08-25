@@ -124,7 +124,6 @@ public class httppost extends Server implements RequestHandler {
         String path = u.getPath();
         if (paths.containsKey(path)) {
             String terminalId = paths.get(path);
-            System.err.println(u.toString());
             Map<String, String> params = HttpQuery.parse(u.getQuery());
             String hubMode = params.get("hub.mode");
 
