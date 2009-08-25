@@ -1,6 +1,6 @@
 #!/bin/sh
 exec erl \
-    -pa "`dirname $0`/../ebin" \
+    -pa "$(readlink -f $(dirname $0))/../ebin" \
     -noinput -hidden \
     -sname streamsctl \
     -s streams_control \

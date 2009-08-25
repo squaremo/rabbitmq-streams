@@ -1,35 +1,28 @@
 #!/bin/bash
+set -eu
 
-NODENAME=streams
-ROOT_CONFIG=http://localhost:5984/feedshub_status/root_config
-STATE_SERVER=http://localhost:5984/
-CONFIG_DB=feedshub_status
-LOG_BASE=`dirname $0`/../../var/log/
-LOG_BASE=`(cd $LOG_BASE; pwd)`
+# substitute defaults if necessary
+STREAMS_NODENAME=${STREAMS_NODENAME:-streams}
+STREAMS_ROOT_CONFIG=${STREAMS_ROOT_CONFIG:-http://localhost:5984/feedshub_status/root_config}
+STREAMS_STATE_SERVER=${STREAMS_STATE_SERVER:-http://localhost:5984/}
+STREAMS_CONFIG_DB=${STREAMS_CONFIG_DB:-feedshub_status}
+STREAMS_HOME=${STREAMS_HOME:-$(readlink -f `dirname $0`)/../../..}
+#FIXME: the below isn't quite ideal
+STREAMS_LOG_BASE=${STREAMS_LOG_BASE:-/var/log/}
+STREAMS_LOG=${STREAMS_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}.log}
+STREAMS_SASL_LOG=${STREAMS_SASL_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}-sasl.log}
 
-[ "x" = "x$STREAMS_NODENAME" ] && STREAMS_NODENAME=${NODENAME}
-[ "x" = "x$STREAMS_ROOT_CONFIG" ] && STREAMS_ROOT_CONFIG=${ROOT_CONFIG}
-[ "x" = "x$STREAMS_STATE_SERVER" ] && STREAMS_STATE_SERVER=${STATE_SERVER}
-[ "x" = "x$STREAMS_CONFIG_DB" ] && STREAMS_CONFIG_DB=${CONFIG_DB}
-[ "x" = "x$STREAMS_LOG_BASE" ] && STREAMS_LOG_BASE=${LOG_BASE}
-
-STREAMS_LOG=${STREAMS_LOG_BASE}/${STREAMS_NODENAME}.log
-STREAMS_SASL_LOG=${STREAMS_LOG_BASE}/${STREAMS_NODENAME}-sasl.log
-
-START_STREAMS='-s crypto'
-[[ "x" = "x$STREAMS_NODE_ONLY" ]] && START_STREAMS="-s crypto -s orchestrator -noinput"
-
+START_STREAMS="-s crypto `[ -z "${STREAMS_NODE_ONLY:-}" ] && echo ' -s orchestrator -noinput'`"
 EBIN_DIR="ebin"
-
 ERL_PATH_OPTS="-pa $EBIN_DIR"
-(cd `dirname $0`/..; \
-exec erl ${START_STREAMS} \
+
+
+cd "$STREAMS_HOME/erlang/orchestrator/"; exec erl ${START_STREAMS} \
     $ERL_PATH_OPTS \
-    -boot start_sasl -sname ${STREAMS_NODENAME} \
+    -boot start_sasl -sname "${STREAMS_NODENAME}" \
     -sasl errlog_type error \
     -kernel error_logger '{file, "'${STREAMS_LOG}'"}' \
     -sasl sasl_error_logger '{file, "'${STREAMS_SASL_LOG}'"}' \
     -orchestrator couch_base_url "\"${STREAMS_STATE_SERVER}\"" \
     -orchestrator root_config_url "\"${STREAMS_ROOT_CONFIG}\"" \
-    -orchestrator config_db "\"${STREAMS_CONFIG_DB}\"" \
-)
+    -orchestrator config_db "\"${STREAMS_CONFIG_DB}\""
