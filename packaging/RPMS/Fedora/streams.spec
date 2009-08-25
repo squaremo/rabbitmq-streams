@@ -6,7 +6,7 @@ Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
 BuildRequires: erlang
-Requires: erlang >= 5.6.5
+Requires: erlang >= 5.6
 Requires: rabbitmq-server >= 1.6
 Requires: couchdb >= 0.9
 Requires: python-simplejson
@@ -39,8 +39,9 @@ sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/sc
 %{_sbindir}
 
 %post
-# horrible hack
-ln -fs %{buildroot}%{_streams_libdir}/erlang/orchestrator/scripts/* %{buildroot}%{_sbindir}
+# FIXME hack
+ln -fs %{_streams_libdir}/erlang/orchestrator/scripts/streamsctl %{_sbindir}
+ln -fs %{_streams_libdir}/erlang/orchestrator/scripts/streams-server %{_sbindir}
 
 /etc/init.d/rabbitmq-server start
 /usr/sbin/rabbitmqctl delete_user guest
@@ -49,3 +50,8 @@ ln -fs %{buildroot}%{_streams_libdir}/erlang/orchestrator/scripts/* %{buildroot}
 /usr/sbin/rabbitmqctl set_permissions feedshub_admin '.*' '.*' '.*'
 /etc/init.d/couchdb start
 python /usr/lib/rabbitmq-streams/scripts/import_config.py /usr/lib/rabbitmq-streams/examples/basic_config/
+
+%postun
+#FIXME hack
+rm -f %{_sbindir}/streamsctl
+rm -f %{_sbindir}/streams-server
