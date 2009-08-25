@@ -6,18 +6,25 @@ STREAMS_NODENAME=${STREAMS_NODENAME:-streams}
 STREAMS_ROOT_CONFIG=${STREAMS_ROOT_CONFIG:-http://localhost:5984/feedshub_status/root_config}
 STREAMS_STATE_SERVER=${STREAMS_STATE_SERVER:-http://localhost:5984/}
 STREAMS_CONFIG_DB=${STREAMS_CONFIG_DB:-feedshub_status}
-STREAMS_HOME=${STREAMS_HOME:-$(readlink -f `dirname $0`)/../../..}
+
+# Chase down $0 if it was a symlink.  readlink(8) doesn't have a
+# -f(ollow) option on BSD/MacOSX, so we do it the ugly way.
+CMD=$0
+while [[ -L "$CMD" ]]; do CMD=`readlink "$CMD"`; done
+ORCHESTRATOR_HOME=${ORCHESTRATOR_HOME:-$(dirname ${CMD})/..}
+
 #FIXME: the below isn't quite ideal
-STREAMS_LOG_BASE=${STREAMS_LOG_BASE:-/var/log/}
+STREAMS_LOG_BASE=${STREAMS_LOG_BASE:-/var/log}
 STREAMS_LOG=${STREAMS_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}.log}
 STREAMS_SASL_LOG=${STREAMS_SASL_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}-sasl.log}
 
-START_STREAMS="-s crypto `[ -z "${STREAMS_NODE_ONLY:-}" ] && echo ' -s orchestrator -noinput'`"
+START_STREAMS="-s crypto"
+[[ -z "${STREAMS_NODE_ONLY:-}" ]] && START_STREAMS="-s crypto -s orchestrator -noinput"
+
 EBIN_DIR="ebin"
 ERL_PATH_OPTS="-pa $EBIN_DIR"
 
-
-cd "$STREAMS_HOME/erlang/orchestrator/"; exec erl ${START_STREAMS} \
+cd "$ORCHESTRATOR_HOME"; exec erl ${START_STREAMS} \
     $ERL_PATH_OPTS \
     -boot start_sasl -sname "${STREAMS_NODENAME}" \
     -sasl errlog_type error \
