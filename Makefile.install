@@ -34,8 +34,8 @@ all: package-sources
 
 package-sources:
 	mkdir -p ${TMP_DIR}
-	-sh -c "rm -rf -- ${TMP_DIR}/*" # what the #@! is going on here?
-	@test -n "${FUNNY}" && \
+	rm -rf -- ${TMP_DIR}/*
+	test -z "${FUNNY}" || \
           (read -p "The repo is funny (${FUNNY}), do you really want to continue? (yes/No)? " ans; \
 	    [ "$${ans}" = yes ] || (echo "ABORTING!"; exit 1))
 	hg clone -r $(CURRENT_BRANCH) . ${TMP_DIR}/${PACKAGE}
