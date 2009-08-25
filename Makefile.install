@@ -74,7 +74,6 @@ build-libs: prepare
 build-orchestrator: build-libs
 	cp -rp orchestrator/{ebin,include,priv,scripts} ${TARGET_DIR}/lib/erlang/orchestrator
 	cp -rpL orchestrator/deps/ ${TARGET_DIR}/lib/erlang/orchestrator
-	cp -p orchestrator/scripts/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
 
 #### Package everything else ####
 # python dirs get copied whole, for everything else we just copy plugin.js and
@@ -101,7 +100,7 @@ install: prepare build
 	cp -prf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
 	cp -prf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
 	cp -prf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
-	cp -pf ${TARGET_DIR}/orchestrator/scripts/* ${SBIN_TARGET_DIR}
+	cp -pf ${TARGET_DIR}/lib/erlang/orchestrator/scripts/* ${SBIN_TARGET_DIR}
 	cp -prf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
 	cp -prf ${TARGET_DIR}/harness ${LIB_TARGET_DIR}
 	cd ${LIB_TARGET_DIR}/erlang; ln -s ../harness; ln -s ../plugins
