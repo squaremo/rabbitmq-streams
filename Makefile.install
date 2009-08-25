@@ -1,160 +1,108 @@
+# -*- makefile -*-
 # This is a makefile that builds Streams into a directory structure
 # that makes installation and packaging easier.
 
-PACKAGE_FILE=rabbitmq-streams-0.1.tar.gz
-TARGET_DIR=rabbitmq-streams-0.1
-TMP_DIR=tmp
-LIB_TARGET_DIR=${TMP_DIR}/lib
-SBIN_TARGET_DIR=${TMP_DIR}/sbin
-INSTALL_CONFIG_DIR=${TMP_DIR}/config
-PLUGIN_TARGET_DIR=${TMP_DIR}/plugins
-INSTALL_INC_DIR=${TMP_DIR}/include
+# for brace expansion
+SHELL=bash
 
-all: package
-	${MAKE} -C packaging/RPMS/Fedora clean rpms
+# use the date/time of the latest hg log as the version number. Additional
+# tweak: if the repo is stale (outgoing or uncommited changes) or not
+# 'default', give it the magic revision number 666.
+CURRENT_BRANCH:=$(shell hg branch)
+BRANCH_SPEC:=$(shell [ "${CURRENT_BRANCH}" !=  "default" ] && echo "${CURRENT_BRANCH}.")
+STALE:=$(shell (hg outgoing | grep -q '^no changes found$$' && \
+		test -z "$$(hg diff; hg status -d)") || echo "stale.")
+FUNNY:=${BRANCH_SPEC}${STALE}
+STREAMS_VERSION:=${FUNNY}$(shell hg log -b "$(CURRENT_BRANCH)" -l1 --template '{date|isodate}\n' | \
+                                 cut -d' ' -f1-2 | sed 's/[:-]//g'  | sed 's/[^0-9]/./g')
+PACKAGE:=rabbitmq-streams-${STREAMS_VERSION}
+TMP_DIR:=packaging/tmp
+TARGET_DIR:=${PACKAGE}
+PACKAGE_FILE:=${CURDIR}/${TMP_DIR}/${PACKAGE}.tar.gz
 
-prepare:
-	mkdir -p ${TARGET_DIR}
+LIB_TARGET_DIR:=${TMP_DIR}/lib
+SBIN_TARGET_DIR:=${TMP_DIR}/sbin
+INSTALL_CONFIG_DIR:=${TMP_DIR}/config
+PLUGIN_TARGET_DIR:=${TMP_DIR}/plugins
+INSTALL_INC_DIR:=${TMP_DIR}/include
+
+# NB: THE SPEC FILE CALLS BACK THIS MAKEFILE!!!
+all: package-sources
+	${MAKE} PACKAGE_FILE="${PACKAGE_FILE}" STREAMS_VERSION="${STREAMS_VERSION}" FUNNY="${FUNNY}" \
+                -C packaging/RPMS/Fedora clean rpms
+
+package-sources:
+	mkdir -p ${TMP_DIR}
+	rm -rf -- $(wildcard ${TMP_DIR}/*)
+	@test -n "${FUNNY}" && \
+          (read -p "The repo is funny (${FUNNY}), do you really want to continue? (yes/No)? " ans; \
+	    [ "$${ans}" = yes ] || (echo "ABORTING!"; exit 1))
+	hg clone -r $(CURRENT_BRANCH) . ${TMP_DIR}/${PACKAGE}
+	(cd ${TMP_DIR}; tar zcf ${PACKAGE_FILE}  ${PACKAGE} \
+	 --exclude='*.tar.gz' --exclude='.hg*' --exclude=.svn)
 
 clean:
-	rm -rf ${TARGET_DIR}
-	rm -rf ${TMP_DIR}
-	rm -rf ${PACKAGE_FILE}
+	rm -rf -- ${TARGET_DIR} ${TMP_DIR} ${PACKAGE_FILE}
 
-build: build-libs build-harness build-plugins build-config build-sbin build-doc build-examples
+prepare: prepare-build-dirs prepare-install-dirs
 
-build-libs: prepare-libs \
-	build-orchestrator \
-	build-rfc4627 \
-	build-ibrowse \
-	build-couch \
-	build-amqp \
-	build-rabbit
-	cp -rf harness/python/lib/* ${TARGET_DIR}/lib/python
-
-prepare-libs: prepare
-	mkdir -p ${TARGET_DIR}/lib/erlang
-	mkdir -p ${TARGET_DIR}/lib/java
-	mkdir -p ${TARGET_DIR}/lib/python
-	mkdir -p ${TARGET_DIR}/examples
-
-build-harness: prepare-harness
-	cd harness/java; mvn clean package
-	cp harness/java/plugin/target/plugin-1.0-SNAPSHOT.jar ${TARGET_DIR}/harness/java/feedshub_harness.jar
-	cp harness/java/run_plugin.sh ${TARGET_DIR}/harness/java
-	cp -r harness/python/* ${TARGET_DIR}/harness/python
-
-prepare-harness: prepare
-	mkdir -p ${TARGET_DIR}/harness/java
-	mkdir -p ${TARGET_DIR}/harness/python
-
-### Build erlang libraries ###
-
-build-orchestrator: prepare-orchestrator
-	$(MAKE) -C orchestrator EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/orchestrator/ebin all
-	cp orchestrator/ebin/* ${TARGET_DIR}/lib/erlang/orchestrator/ebin
-	cp -r orchestrator/priv ${TARGET_DIR}/lib/erlang/orchestrator
-	cp orchestrator/include/* ${TARGET_DIR}/lib/erlang/orchestrator/include
-	cp orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
-
-prepare-orchestrator:
-	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/ebin
-	mkdir -p ${TARGET_DIR}/lib/erlang/orchestrator/include
-
-build-rfc4627: prepare-rfc4627
-	$(MAKE) -C build/src/erlang-rfc4627 EBIN_DIR=${CURDIR}/${TARGET_DIR}/lib/erlang/rfc4627/ebin all
-
-prepare-rfc4627:
-	mkdir -p ${TARGET_DIR}/lib/erlang/rfc4627
-
-build-ibrowse: prepare-ibrowse
-	$(MAKE) -C build/src/ibrowse
-	cp -r build/src/ibrowse/ebin ${CURDIR}/${TARGET_DIR}/lib/erlang/ibrowse
-
-prepare-ibrowse:
-	mkdir -p ${TARGET_DIR}/lib/erlang/ibrowse/ebin
-
-build-couch: prepare-couch
-	cp -r build/opt/couchdb-0.9.0/lib/couchdb/erlang/lib/couch-0.9.0/ebin/* ${TARGET_DIR}/lib/erlang/couch/ebin
-
-prepare-couch:
-	mkdir -p ${TARGET_DIR}/lib/erlang/couch/ebin
-
-build-amqp: prepare-amqp
-	cp -r build/opt/rabbitmq-erlang-client/ebin/* ${TARGET_DIR}/lib/erlang/amqp/ebin
-
-prepare-amqp:
-	mkdir -p ${TARGET_DIR}/lib/erlang/amqp/ebin
-
-build-rabbit: prepare-rabbit
-	cp -r build/opt/rabbitmq/ebin/* ${TARGET_DIR}/lib/erlang/rabbit/ebin
-	cp -r build/opt/rabbitmq/include/* ${TARGET_DIR}/lib/erlang/rabbit/include
-
-prepare-rabbit:
-	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/ebin
-	mkdir -p ${TARGET_DIR}/lib/erlang/rabbit/include
-
-#### Package everything else ####
-JAVA_PLUGINS := websubscriber javascript regexp_split socket_source \
-notification httppost relay xslt xmpppubsub archive socket_destination \
-logger email_sender timeout uniq newdata lastvalue
-PYTHON_PLUGINS := regexp_replace
-
-build-plugins: prepare-plugins
-	for j in $(JAVA_PLUGINS); \
-		do mkdir -p ${TARGET_DIR}/plugins/$$j; cp plugins/$$j/plugin.js ${TARGET_DIR}/plugins/$$j; cp -rf plugins/$$j/lib ${TARGET_DIR}/plugins/$$j; \
-	done
-	for p in $(PYTHON_PLUGINS); \
-		do mkdir -p ${TARGET_DIR}/plugins/$$p; cp -rf plugins/$$p ${TARGET_DIR}/plugins; \
-	done
-
-prepare-plugins: prepare
-	mkdir -p ${TARGET_DIR}/plugins
-
-build-config: prepare-config
-
-prepare-config: prepare
+prepare-build-dirs:
 	mkdir -p ${TARGET_DIR}/config
-
-build-sbin: prepare-sbin
-	cp sbin/* ${TARGET_DIR}/sbin
-
-prepare-sbin: prepare
-	mkdir -p ${TARGET_DIR}/sbin
-
-build-examples: prepare-examples
-	cp -rf examples/* ${TARGET_DIR}/examples
-
-prepare-examples:
 	mkdir -p ${TARGET_DIR}/examples
+	mkdir -p ${TARGET_DIR}/harness/{java,python}
+	mkdir -p ${TARGET_DIR}/lib/{erlang/orchestrator,java,python}
 
-build-doc: prepare-doc
-
-prepare-doc:
-	mkdir -p ${TARGET_DIR}/doc
-
-install: build prepare-install
-	cp -rf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
-	cp -rf ${TARGET_DIR}/sbin/streamsctl ${SBIN_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
-	cp -rf ${TARGET_DIR}/harness ${LIB_TARGET_DIR}
-	cd ${LIB_TARGET_DIR}/erlang; ln -s ../harness; ln -s ../plugins
-
-prepare-install:
-	mkdir -p ${LIB_TARGET_DIR}
-	mkdir -p ${LIB_TARGET_DIR}/scripts
-	mkdir -p ${LIB_TARGET_DIR}/harness
+prepare-install-dirs:
+	mkdir -p ${LIB_TARGET_DIR}/{scripts,harness}
 	mkdir -p ${SBIN_TARGET_DIR}
 	mkdir -p ${INSTALL_CONFIG_DIR}
 	mkdir -p ${PLUGIN_TARGET_DIR}
 
-CURRENT_BRANCH=$(shell hg branch)
-package: 
-	rm -f ${PACKAGE_FILE}
-	mkdir -p tmp
-	hg clone -r $(CURRENT_BRANCH) . tmp/rabbitmq-streams-0.1
-	$(MAKE) -C tmp/rabbitmq-streams-0.1 create-var-dirs build/src/couchdb-0.9.0 build/src/erlang-rfc4627 build/src/ibrowse build/src/rabbitmq-codegen build/src/rabbitmq-server build/src/rabbitmq-erlang-client
-	cd tmp; tar zcvf ../${PACKAGE_FILE} --exclude=*.tar.gz --exclude=.hg --exclude=.hgignore  --exclude=.svn rabbitmq-streams-0.1
-	rm -rf tmp
+
+build: build-libs build-orchestrator build-plugins build-other
+
+build-libs: prepare
+	cp -rpf harness/python/lib/* ${TARGET_DIR}/lib/python
+	cp -p   harness/java/plugin/target/plugin-1.0-SNAPSHOT.jar \
+		 ${TARGET_DIR}/harness/java/feedshub_harness.jar
+	cp -p   harness/java/run_plugin.sh ${TARGET_DIR}/harness/java
+#FIXME there is some duplication here
+	cp -pr  harness/python/* ${TARGET_DIR}/harness/python
+
+### Build erlang libraries ###
+build-orchestrator: build-libs
+	cp -rp orchestrator/{ebin,include,priv} ${TARGET_DIR}/lib/erlang/orchestrator
+	cp -rpL orchestrator/deps/ ${TARGET_DIR}/lib/erlang/orchestrator
+	cp -p orchestrator/streamsctl ${TARGET_DIR}/lib/erlang/orchestrator
+
+#### Package everything else ####
+# python dirs get copied whole, for everything else we just copy plugin.js and
+# lib FIXME: we should seperate out src and target directories or have some
+# other convention that would allow us to automatically copy just the right
+# stuff, irrespective of language. Also, packaging tests as well would be
+# better.
+build-plugins:
+	for p in plugins/*/; do \
+		mkdir -p ${TARGET_DIR}/$$p; \
+		if [ -n "`find \"$$p\" -regex '.*.py'`" ]; then \
+			cp -rf $$p ${TARGET_DIR}/plugins; \
+		else \
+			cp -p $$p/plugin.js ${TARGET_DIR}/$$p; \
+			cp -prf $$p/lib ${TARGET_DIR}/$$p; \
+		fi; \
+	done
+
+build-other:
+	cp -prf {examples,sbin} ${TARGET_DIR}
+
+
+install: prepare build
+	cp -prf ${TARGET_DIR}/lib/* ${LIB_TARGET_DIR}
+	cp -prf ${TARGET_DIR}/plugins/* ${PLUGIN_TARGET_DIR}
+	cp -prf ${TARGET_DIR}/sbin/* ${LIB_TARGET_DIR}/scripts
+	cp -prf ${TARGET_DIR}/sbin/streamsctl ${SBIN_TARGET_DIR}
+	cp -prf ${TARGET_DIR}/examples ${LIB_TARGET_DIR}
+	cp -prf ${TARGET_DIR}/harness ${LIB_TARGET_DIR}
+	cd ${LIB_TARGET_DIR}/erlang; ln -s ../harness; ln -s ../plugins
+
+

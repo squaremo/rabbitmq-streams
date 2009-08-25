@@ -57,7 +57,8 @@ DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
 	libmozjs-dev libcurl4-openssl-dev default-jdk
 
 RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel \
-	js-devel openjdk-1.6.0-devel
+	js-devel java-1.6.0-openjdk-devel \
+	rpmdevtools
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
@@ -83,10 +84,12 @@ install-local-stuff: \
 	install-ibrowse \
 	install-rabbitmq
 
-
-install-packages:
 ifeq ($(OS),redhat)
 export  JAVA_HOME=/usr/lib/jvm/java
+endif
+
+ifeq ($(OS),redhat)
+install-packages:
 	$(MAKE) install-rpms
 else
 	$(MAKE) install-debs
