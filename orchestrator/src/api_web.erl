@@ -10,6 +10,8 @@
 
 -include("api.hrl").
 
+-define(DEFAULT_PIPELINE_FIELDS, ["_rev", "name", "author"]).
+
 %% External API
 
 start(Options) ->
@@ -124,6 +126,8 @@ handle_method(_, _, _, Req, _) ->
 %% /model/pipeline/
 handle_index(pipeline, "model", Req) ->
     json_response(Req, 200, list_pipelines());
+handle_index(pipeline, "process", Req) ->
+    json_response(Req, 200, list_pipelines_status());
 %% Anything else /.../.../
 handle_index(ResourceTypeAtom, Facet, Req) ->
     Req:respond({404, [], "Not found."}).
@@ -133,16 +137,36 @@ app_status() ->
            {"version", ?APPLICATION_VERSION}]}.
 
 list_pipelines() ->
-    {obj, [pipeline_pair(P) || P <- streams:all_pipelines(streams_config:config_db())]}.
+    list_pipelines(?DEFAULT_PIPELINE_FIELDS).
+
+list_pipelines(Fields) ->
+    All = streams:all_pipelines(),
+    {obj, [{total, length(All)},
+           {values, [pipeline_row(P, Fields) || P <- All]}]}.
+
+list_pipelines_status() ->
+    All = streams:all_pipelines(),
+    {obj, [{total, length(All)},
+           {values, [pipeline_status_row(P) || P <- All]}]}.
 
 
 % -------------------------------------------------
 
-pipeline_pair(Row) ->
+pipeline_row(Row, Fields) ->
     {ok, Id} = rfc4627:get_field(Row, "key"),
-    {ok, PipelineDesc} = rfc4627:get_field(Row, "value"),
+    {ok, PipelineJoin} = rfc4627:get_field(Row, "value"),
+    {ok, PipelineDesc} = rfc4627:get_field(PipelineJoin, "feed"),
+    FieldValues = lists:map(
+                    fun (F) -> V = rfc4627:get_field(PipelineDesc, F, null),
+                               {F, V} end,
+                    Fields),
     PipelineUrl = api_url(model, pipeline, binary_to_list(Id)),
-    {PipelineUrl, PipelineDesc}.
+    {obj, [{url, list_to_binary(PipelineUrl)}, {value, {obj, FieldValues}}]}.
+
+pipeline_status_row(Row) ->
+    {ok, Id} = rfc4627:get_field(Row, "key"),
+    {obj, [{url, list_to_binary(api_url(process, pipeline, binary_to_list(Id)))},
+           {status, streams:process_status(Id)}]}.
 
 thing_process_status(ResourceType, ThingId) ->
     StatusDocType = status_doc_type(ResourceType),
