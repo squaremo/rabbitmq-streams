@@ -31,9 +31,10 @@ all: package-sources
 	${MAKE} PACKAGE_FILE="${PACKAGE_FILE}" STREAMS_VERSION="${STREAMS_VERSION}" FUNNY="${FUNNY}" \
                 -C packaging/RPMS/Fedora clean rpms
 
+
 package-sources:
 	mkdir -p ${TMP_DIR}
-	-rm -rf -- ${TMP_DIR}/*
+	-sh -c "rm -rf -- ${TMP_DIR}/*" # what the #@! is going on here?
 	@test -n "${FUNNY}" && \
           (read -p "The repo is funny (${FUNNY}), do you really want to continue? (yes/No)? " ans; \
 	    [ "$${ans}" = yes ] || (echo "ABORTING!"; exit 1))
