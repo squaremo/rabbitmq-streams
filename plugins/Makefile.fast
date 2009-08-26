@@ -1,0 +1,17 @@
+JAVA_PLUGINS=$(shell find . -mindepth 2 -name pom.xml)
+PLUGIN_DIRS=$(foreach plugin, $(JAVA_PLUGINS), $(shell dirname $(plugin)))
+
+all: mvn
+	$(foreach dir, $(PLUGIN_DIRS), $(shell mkdir -p $(dir)/lib; cp $(dir)/target/*.jar $(dir)/lib))
+
+
+mvn: websubscriber/target socket_destination/target  window/target  javascript/target  archive/target  xpathselect/target  xmpppubsub/target  lastvalue/target  logger/target data_empty/target  socket_source/target  uniq/target  notification/target  httppost/target  regexp_split/target  relay/target  email_sender/target  xslt
+
+%/target:
+	make -C	$(shell dirname $@)
+
+clean:
+	mvn clean
+	$(foreach dir, $(PLUGIN_DIRS), $(shell rm -rf $(dir)/lib))
+
+
