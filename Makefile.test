@@ -22,6 +22,8 @@ GRINDER_CMD:=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
 DEB_DEPENDENCIES:=jython
 
+STREAM_DIR=test/performance/streams
+
 # *** Top level targets ***
 
 default:
@@ -84,11 +86,14 @@ start-grinder-receiver: create-cachedir
 	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
 		test/performance/tests/${TEST}/receiver.properties &
 
-init-orchestrator: start-grinder-receiver
-	python sbin/import_config.py test/performance/streams/${STREAM}
+${STREAM_DIR}/%: ${STREAM_DIR}/%.js
+	mkdir -p $@/feedshub_status
+	bin/compile.sh $@/feedshub_status ${STREAM_DIR}/endpoints.js $^
+
+init-orchestrator: start-grinder-receiver ${STREAM_DIR}/${STREAM}
+	python sbin/import_config.py ${STREAM_DIR}/${STREAM}
 	make start-orchestrator
 
 run-perf-test: create-cachedir init-orchestrator
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
 		test/performance/tests/${TEST}/sender.properties &
-
