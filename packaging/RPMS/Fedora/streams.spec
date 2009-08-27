@@ -6,7 +6,7 @@ Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
 BuildRequires: erlang
-Requires: erlang >= 5.6
+Requires: erlang
 Requires: rabbitmq-server >= 1.6
 Requires: couchdb >= 0.9
 Requires: python-simplejson
