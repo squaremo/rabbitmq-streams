@@ -143,7 +143,7 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 
 update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
-all: all-orchestrator all-harnesses all-plugins
+all: all-orchestrator all-plugins
 
 # run this to "make" after code changes
 test: all
