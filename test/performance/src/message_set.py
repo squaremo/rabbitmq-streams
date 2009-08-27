@@ -6,16 +6,21 @@ class MessageSet:
     expression can be used to extract the content from the line."""
     def __init__(self, filename, extractRE = None):
         rawMessages = None
-        
-        with open(filename, 'r') as f:
-            rawMessages = f.readlines()
+
+        # Release version of Jython does not support
+        # 'with open(filename, 'r') as f'
+        f = open(filename, 'r')        
+        try:
+            rawMessages = f.readlines()            
+        finally:
+            f.close()
 
         if(extractRE == None):
             self._messages = rawMessages
         else:
             self._messages = self._extractMessages(rawMessages, extractRE)
-            
-        self._iter = self._messages.__iter__()
+
+        self._iter = iter(self._messages)
 
     def next(self):
         """Return the next message in the set. If all messages have been
@@ -23,7 +28,7 @@ class MessageSet:
         try:
             return self._iter.next()
         except StopIteration:
-            self._iter = self._messages.__iter__()
+            self._iter = iter(self._messages)
             return self._iter.next()
 
     def _extractMessages(self, rawMessages, extractRE):
