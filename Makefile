@@ -88,8 +88,8 @@ ifeq ($(OS),redhat)
 export  JAVA_HOME=/usr/lib/jvm/java
 endif
 
-ifeq ($(OS),redhat)
 install-packages:
+ifeq ($(OS),redhat)
 	$(MAKE) install-rpms
 else
 	$(MAKE) install-debs
