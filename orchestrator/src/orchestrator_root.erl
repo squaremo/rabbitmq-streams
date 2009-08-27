@@ -212,6 +212,7 @@ check_active_feeds(Connection) ->
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
     case orchestrator_server:find_servers_for_terminal(TermId) of
+        {ok, []} -> ok;
 	{ok, ServerIds} ->
 	    Props = (amqp_util:basic_properties()) #'P_basic' { delivery_mode = 2 },
             RK = lists:foldl(fun (Sid, Acc) ->
