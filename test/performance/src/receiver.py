@@ -91,6 +91,9 @@ class NetworkReceiver(Thread, Receiver):
         self._isListening = False
 
     def _handleData(self, socket, data):
+        """Handle data received on a socket. As data may be received in chunks,
+        these need to be assembled per-socket and then checked to see if a
+        complete message has been received"""
         val = self._clientBuffers.get(socket, '')
         newVal = val + data
 
