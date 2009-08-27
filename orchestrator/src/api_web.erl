@@ -134,7 +134,8 @@ handle_index(ResourceTypeAtom, Facet, Req) ->
 
 app_status() ->
     {obj, [{"application", ?APPLICATION_NAME},
-           {"version", ?APPLICATION_VERSION}]}.
+           {"version", ?APPLICATION_VERSION},
+           {"uptime", format_uptime(statistics(wall_clock))}]}.
 
 list_pipelines() ->
     list_pipelines(?DEFAULT_PIPELINE_FIELDS).
@@ -152,6 +153,23 @@ list_pipelines_status() ->
 
 % -------------------------------------------------
 
+%% An inexact but OK representation of uptime
+format_uptime({Total, _}) ->
+    MillisPerHour = 1000 * 3600,
+    MilliSecondsPerDay = MillisPerHour * 24,
+    Days = Total div (MilliSecondsPerDay),
+    RemMillis = Total rem MilliSecondsPerDay,
+    Hours = RemMillis div MillisPerHour,
+    RemMillis2 = RemMillis rem MillisPerHour,
+    Minutes = RemMillis2 div 60000,
+    {obj, [{milliseconds, Total},
+           {as_string, list_to_binary(
+                         io_lib:format("~p days, ~p hours, ~2.10.0B minutes, ~2.10.0B seconds.",
+                                       [Days,
+                                        Hours,
+                                        Minutes,
+                                        RemMillis2 rem 60000 div 1000]))}]}.
+                                     
 pipeline_row(Row, Fields) ->
     {ok, Id} = rfc4627:get_field(Row, "key"),
     {ok, PipelineJoin} = rfc4627:get_field(Row, "value"),
