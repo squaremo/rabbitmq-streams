@@ -1,3 +1,5 @@
+import re
+
 from net.grinder.script.Grinder import grinder
 from net.grinder.script import Test
 
@@ -9,6 +11,8 @@ grinder.statistics.registerDataLogExpression("Received time", "userLong0")
 grinder.statistics.registerDataLogExpression("Delivery time (ms)", "userLong1")
 grinder.statistics.registerSummaryExpression("Mean delivery time (ms)",
                                              "(/ userLong1 (count timedTests))")
+
+EXTRACT_ID_RE = re.compile(r".*\|\|MSG_ID=(.*)\|\|$")
 
 class ReceiverTestRunner(FeedsTestRunner):
 
@@ -27,17 +31,14 @@ class ReceiverTestRunner(FeedsTestRunner):
             # Get next received message, blocking if necessary
             msg, receivedT = self._receiver.getMessage()
 
-            print "Got " + str(msg) + ", " + str(long(receivedT))
-
             # Get from message store
             msgId = self._getMessageId(msg)
             sentT = self._messageStore.get(msgId)
 
             if sentT is None:
-                print "Putting message back"
-                self._receiver.putBackMessage(msgId, receivedT)
+                # No sent time available from message store, put message back
+                self._receiver.putBackMessage(msg, receivedT)
             else:
-                print "Recording message"
                 deliveryT = receivedT - sentT
 
                 self._recordReceivedTime(long(receivedT))
@@ -52,5 +53,8 @@ class ReceiverTestRunner(FeedsTestRunner):
         grinder.statistics.forCurrentTest.setLong("userLong1", deliveryTime)
 
     def _getMessageId(self, message):
-        # TODO: Implement regex based ID extractor
-        return message[:1]
+        match = EXTRACT_ID_RE.match(message)
+        if match == None:
+            raise Exception("Could not find message ID in: %s" % message)
+                            
+        return match.group(1)
