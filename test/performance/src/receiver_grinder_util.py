@@ -50,3 +50,7 @@ class ReceiverTestRunner(FeedsTestRunner):
         
     def _recordDeliveryTime(self, deliveryTime):
         grinder.statistics.forCurrentTest.setLong("userLong1", deliveryTime)
+
+    def _getMessageId(self, message):
+        # TODO: Implement regex based ID extractor
+        return message[:1]

@@ -22,11 +22,3 @@ class FeedsTestRunner:
 
     def log(self, message):
         log(message)
-
-    def _getMessageId(self, message):
-        # TODO: Implement regex based ID extractor
-        return message[:1]
-
-    def _insertMessageId(self, id, message):
-        # TODO: Implement regex based ID inserter
-        return message
