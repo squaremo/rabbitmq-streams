@@ -2,9 +2,7 @@ package com.rabbitmq.streams.management.model
 
 import java.lang.String
 import java.net.{URLEncoder, URL}
-import java.text.ParseException
-import java.util.{Calendar, Date}
-import runtime.RichString
+import java.util.{Date}
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
@@ -125,9 +123,20 @@ class Server(url: String, configDatabaseName: String) {
     val view = new View("terminalconfig/byvalue")
     view.setStartKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
     view.setEndKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
-    configDb.view(view) match {
+    val exactMatches = configDb.view(view) match {
       case null => Nil
       case v    => for(row <- v.getResults) yield new Terminal(row.getString("value"), byTerminal(row.getString("value")))
+    }
+
+    exactMatches ++ inexactMatches(query)
+  }
+
+  private def inexactMatches(query: String): Seq[Terminal] = {
+    val regexp = query.r
+    val view = new View("terminalconfig/byvalue")
+    configDb.view(view) match {
+      case null => Nil
+      case v    => for(row <- v.getResults; if(regexp.findFirstMatchIn(row.getString("value")) != None)) yield new Terminal(row.getString("value"), byTerminal(row.getString("value")))
     }
   }
 
