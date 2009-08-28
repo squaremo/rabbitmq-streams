@@ -1,0 +1,42 @@
+participant <<FeedsHub>> as FeedsHub
+participant <<Grinder>> as Grinder
+Grinder->TestRunner:__init__()
+activate TestRunner
+TestRunner->NetworkReceiver:__init__()
+activate NetworkReceiver
+TestRunner->NetworkReceiver:start()
+note left of NetworkReceiver
+  Start socket listener
+  in separate thread
+end note
+NetworkReceiver->TimestampedQueue:__init()__
+activate TimestampedQueue
+TestRunner->MessageStore:__init__()
+activate MessageStore
+MessageStore->memcache.Client:__init__()
+activate memcache.Client
+
+loop one per message received
+  FeedsHub->TestRunner:<<message received on socket>>
+  TestRunner->TestRunner:receiveMessage()
+  TestRunner->TimestampedQueue:append()
+end
+
+loop one per Grinder test run
+  Grinder->TestRunner:__call__()
+  TestRunner->NetworkReceiver:getMessage()
+  NetworkReceiver->TimestampedQueue:pop()
+  TimestampedQueue-->NetworkReceiver:message
+  NetworkReceiver-->TestRunner:message
+  TestRunner->MessageStore:get()
+  MessageStore->memcache.Client:get()
+  memcache.Client-->MessageStore:sentTime
+ 
+  alt sent time exists
+    MessageStore->memcache.Client:delete()
+    MessageStore-->TestRunner:sentTime
+  else no time exists
+    MessageStore-->TestRunner:None
+    TestRunner->NetworkReceiver:putBackMessage()
+    NetworkReceiver->TimestampedQueue:append()
+end
