@@ -4,7 +4,7 @@
 <output	bar
 >input	foo boo
 
-<output	bar baz
+<output	bar boo
 
 >input	foof
 
