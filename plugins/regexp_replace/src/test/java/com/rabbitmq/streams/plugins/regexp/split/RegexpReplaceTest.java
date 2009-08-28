@@ -1,4 +1,3 @@
-/*
 package com.rabbitmq.streams.plugins.regexp.replace;
 
 import java.nio.charset.CharacterCodingException;
@@ -14,21 +13,18 @@ import com.rabbitmq.streams.harness.PluginException;
 import net.sf.json.JSONObject;
 
 public class RegexpReplaceTest {
-  private RegexpReplace splitter;
+  private RegexpReplace replacer;
   private JSONObject config = new JSONObject();
   private MessageChannel channel;
   private InputMessage message;
 
-  private String testString = "sausages";
+  private String testString = "foof";
 
   @Before
   public void setup() {
-    config.put("regexp", testString);
-    config.put("multiline", true);
-    config.put("caseinsensitive", true);
-    config.put("dotall", true);
-    splitter = new RegexpReplace();
-
+    replacer = new RegexpReplace();
+    config = JSONObject.fromObject("{\"expressions\": [{\"regexp\":\"foo\",\"replacement\":\"bar\"},"+
+                                       "{\"regexp\":\"barf\",\"replacement\":\"burp\"}]}");
     channel = mock(MessageChannel.class);
     message = mock(InputMessage.class);
   }
@@ -36,60 +32,40 @@ public class RegexpReplaceTest {
   @Test
   public void testConfigureWithNullConfig() {
     try {
-      splitter.configure(null);
+      replacer.configure(null);
       fail("Cannot configure a plugin with a null configuration");
     }
     catch (PluginBuildException ignore) {
     }
   }
 
-  @Test
-  public void testConfigureWithNoRegexp() {
-    // TODO
-  }
 
   @Test
   public void testConfigure() throws PluginBuildException {
-    splitter.setMessageChannel(channel);
-    splitter.configure(config);
+    replacer.setMessageChannel(channel);
+    replacer.configure(config);
+  }
+
+
+  @Test
+  public void testNoReplacement() throws Exception {
+    InputMessage output = mock(InputMessage.class);
+    replacer.setMessageChannel(channel);
+    replacer.configure(config);
+    when(message.bodyAsString()).thenReturn("nothing to replace");
+    when(message.withBody("nothing to replace")).thenReturn(output);
+    replacer.input.handleMessage(message);
+    verify(channel).publish("output", output);
   }
 
   @Test
-  public void testPositiveMessage() throws PluginBuildException {
-    splitter.setMessageChannel(channel);
-    splitter.configure(config);
-    try {
-        when(message.bodyAsString()).thenReturn(testString);
-    }
-    catch (CharacterCodingException e) {
-      e.printStackTrace();
-    }
-    try {
-      splitter.input.handleMessage(message);
-      verify(channel).publish(RegexpReplace.POSITIVE, message);
-    }
-    catch (PluginException e) {
-      e.printStackTrace();
-    }
-  }
-
-  @Test
-  public void testNegativeMessage() throws PluginBuildException {
-    splitter.setMessageChannel(channel);
-    splitter.configure(config);
-    try {
-      when(message.bodyAsString()).thenReturn("bangers");
-    }
-    catch (CharacterCodingException e) {
-      e.printStackTrace();
-    }
-    try {
-      splitter.input.handleMessage(message);
-      verify(channel).publish(RegexpReplace.NEGATIVE, message);
-    }
-    catch (PluginException e) {
-      e.printStackTrace();
-    }
+  public void testReplacement() throws Exception {
+    InputMessage output = mock(InputMessage.class);
+    replacer.setMessageChannel(channel);
+    replacer.configure(config);
+    when(message.bodyAsString()).thenReturn("foof");
+    when(message.withBody("burp")).thenReturn(output);
+    replacer.input.handleMessage(message);
+    verify(channel).publish("output",  output);
   }
 }
-*/
