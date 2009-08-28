@@ -18,7 +18,7 @@ def calculateRate(data):
 	return rate
 
 def main():
-	parser = optparse.OptionParser(usage="%prog [options] sender_data_file receiver_data_file")
+	parser = optparse.OptionParser(usage="%prog [options] receiver_data_file sender_data_file")
 	parser.add_option('--show', action='store_true', default=False, help='show graphs in viewer')
 	parser.add_option('-o', action='store', default='plot.png', dest='output_file', help='store plot in file')
 	(options, args) = parser.parse_args()
