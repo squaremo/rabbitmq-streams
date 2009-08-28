@@ -7,20 +7,21 @@ from message_set import MessageSet
 from net.grinder.script.Grinder import grinder
 from net.grinder.script import Test
 
-#log = grinder.logger.output
+extractMsgReStr = grinder.properties.getProperty("streams.test.extract_msg_re",
+                                                 r"<label network=\".*\">(.*)</label>")
+EXTRACT_MSG_RE = re.compile(extractMsgReStr)
 
-# TODO: Var
-EXTRACT_MSG_RE = re.compile('<label network=".*">(.*)</label>')
+insertIdReStr = grinder.properties.getProperty("streams.test.insert_id_re", r"$")
+INSERT_ID_RE = re.compile(insertIdReStr)
 
-# TODO: Var
-INSERT_ID_RE = re.compile('$')
+MESSAGE_SET_FILE = grinder.properties.getProperty("streams.test.message_set_file")
 
 
 class SenderTestRunner(FeedsTestRunner):
 
-    def __init__(self, sender, messageFile):
+    def __init__(self, sender):
         self._sender = sender
-        self._messageSet = MessageSet(messageFile, EXTRACT_MSG_RE)
+        self._messageSet = MessageSet(MESSAGE_SET_FILE, EXTRACT_MSG_RE)
         FeedsTestRunner.__init__(self)
         
     def __call__(self):
