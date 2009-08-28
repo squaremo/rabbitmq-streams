@@ -44,11 +44,12 @@ ln -fs %{_streams_libdir}/erlang/orchestrator/scripts/streamsctl %{_sbindir}
 ln -fs %{_streams_libdir}/erlang/orchestrator/scripts/streams-server %{_sbindir}
 
 /etc/init.d/rabbitmq-server start
+/etc/init.d/couchdb start
+sleep 3
 /usr/sbin/rabbitmqctl delete_user guest
 /usr/sbin/rabbitmqctl delete_user feedshub_admin
 /usr/sbin/rabbitmqctl add_user feedshub_admin feedshub_admin
 /usr/sbin/rabbitmqctl set_permissions feedshub_admin '.*' '.*' '.*'
-/etc/init.d/couchdb start
 python /usr/lib/rabbitmq-streams/scripts/import_config.py /usr/lib/rabbitmq-streams/examples/basic_config/
 
 %postun

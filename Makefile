@@ -74,7 +74,8 @@ GIVE_IT_TO_MY_FEDORA=
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
-setup: 	install-packages install-local-stuff
+setup:
+	$(MAKE) install-packages install-local-stuff
 
 install-local-stuff: \
 	create-var-dirs \
@@ -142,10 +143,11 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 
 update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
-all: all-orchestrator all-harnesses all-plugins
+all: all-orchestrator all-plugins
 
 # run this to "make" after code changes
-test: all test-plugins
+test: all
+	$(MAKE) test-plugins
 
 all-orchestrator:
 	$(MAKE) -C orchestrator all
@@ -153,7 +155,7 @@ all-orchestrator:
 all-harnesses:
 	$(MAKE) -C harness/java all
 
-all-plugins:
+all-plugins: all-harnesses
 	$(MAKE) -C plugins all
 
 docs:
@@ -198,7 +200,8 @@ create-var-dirs:
 #
 
 
-run: run-core run-orchestrator
+run:
+	$(MAKE) run-core run-orchestrator
 
 run-core: run-couch run-rabbit
 
@@ -242,7 +245,8 @@ start-orchestrator: stop-orchestrator
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
 	sleep 6
 
-run-orchestrator: listen-orchestrator start-orchestrator
+run-orchestrator:
+	$(MAKE) listen-orchestrator start-orchestrator
 
 listen-couch: create-var-dirs
 	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -266,7 +270,8 @@ start-couch: stop-couch
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-couch: listen-couch start-couch
+run-couch: listen-couch
+	$(MAKE) start-couch
 
 listen-rabbit: create-var-dirs
 	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -292,7 +297,8 @@ start-rabbit: stop-rabbit
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-rabbit: listen-rabbit start-rabbit
+run-rabbit: listen-rabbit
+	$(MAKE) start-rabbit
 
 listen-core: listen-couch listen-rabbit
 
@@ -319,7 +325,8 @@ listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rab
 start-core: start-couch start-rabbit
 	sleep 3
 
-start-all: start-core start-orchestrator
+start-all: start-core
+	$(MAKE) start-orchestrator
 	sleep 3
 
 
@@ -502,12 +509,14 @@ orchestrator/deps/rabbitmq: build/opt/rabbitmq
 ###########################################################################
 # Demos
 
-demo-test: listen-all full-reset-core start-orchestrator
+demo-test:
+	$(MAKE) listen-all full-reset-core start-orchestrator
 	sleep 5
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/test
 	$(MAKE) start-orchestrator
 
-demo-showandtell: full-reset-core demo-showandtell-stop start-orchestrator
+demo-showandtell:
+	$(MAKE) full-reset-core  demo-showandtell-stop start-orchestrator
 	@echo 'Running show and tell demo'
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \
