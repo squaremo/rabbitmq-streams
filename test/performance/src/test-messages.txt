@@ -1,0 +1,3 @@
+<label network="TEST_NETWORK">Test message #1</label>
+<label network="TEST_NETWORK">Test message #2</label>
+<label network="TEST_NETWORK">Test message #3</label>

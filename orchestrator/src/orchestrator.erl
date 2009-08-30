@@ -53,8 +53,24 @@ print_banner() ->
     Settings = [{"node", node()},
                 {"state server", streams_config:state_server()},
                 {"config URL", streams_config:config_doc_url()},
-                {"config database", streams_config:config_db()}],
-    DescrLen = lists:max([length(K) || {K, _} <- Settings]),
+                {"config database", streams_config:config_db()},
+                {"log", log_location(kernel)},
+                {"sasl log", log_location(sasl)}],
+    DescrLen = lists:max([length(K) || {K, _} <- Settings]) + 1,
     Format = "~-" ++ integer_to_list(DescrLen) ++ "s: ~s~n",
     lists:foreach(fun ({K, V}) -> io:format(Format, [K, V]) end, Settings),
     io:nl().
+
+%% Taken verbatim from rabbit.erl
+log_location(Type) ->
+    case application:get_env(Type, case Type of 
+                                       kernel -> error_logger;
+                                       sasl   -> sasl_error_logger
+                                   end) of
+        {ok, {file, File}} -> File;
+        {ok, false}        -> undefined;
+        {ok, tty}          -> tty;
+        {ok, silent}       -> undefined;
+        {ok, Bad}          -> throw({error, {cannot_log_to_file, Bad}});
+        _                  -> undefined
+    end.

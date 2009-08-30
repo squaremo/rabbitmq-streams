@@ -1,0 +1,21 @@
+participant <<Grinder>> as Grinder
+Grinder->TestRunner:__init__()
+activate TestRunner
+TestRunner->HttpSender:__init__()
+activate HttpSender
+TestRunner->MessageSet:__init__()
+activate MessageSet
+TestRunner->MessageStore:__init__()
+activate MessageStore
+MessageStore->memcache.Client:__init__()
+activate memcache.Client
+participant <<FeedsHub>> as FeedsHub
+loop 
+  Grinder->TestRunner:__call__()
+  TestRunner->MessageSet:next()
+  MessageSet-->TestRunner:message
+  TestRunner->HttpSender:send()
+  HttpSender->FeedsHub:<<HTTP call>>
+  TestRunner->MessageStore:set()
+  MessageStore->memcache.Client:set()
+end

@@ -50,8 +50,7 @@ class Archives {
     bind("archives", content,
       "list" -> archives.flatMap(archive =>
       bind("t", chooseTemplate("tag", "list", content),
-        "name" -> Text(archive.name),
-        bindFilterForm(content, archive.name),
+        "name" -> SHtml.link("/archive/browse", () => archiveName(archive.name), Text(archive.name)), //Text(archive.name),
         "entries" -> archive.latestEntries(10).flatMap(entry =>
         bind("e", chooseTemplate("tag", "entry", content),
           "updated" -> Text(entry.updated.toLocaleString),
@@ -107,10 +106,7 @@ class Archives {
       case None => content
       case Some(archive) => {
         val period = filterPeriod.is
-        val entries =filtered.is match  {
-          case false => archive.latestEntries(20)
-          case true => archive.entries(period._1, period._2)._1
-        }
+        val entries = archive.entries(period._1, period._2)._1
         bind("archive", content,
           "name" -> Text(archiveName.is),
           "from" -> Text(period._1.toString),
@@ -149,7 +145,7 @@ class Archives {
         bind("t", chooseTemplate("tag", "terminal", content),
           "name" -> Text(terminal.name),
           terminal.archived match {
-            case true  => "archive" -> SHtml.link("/archive/browse", () => {archiveName(terminal.archiveName); println("Bound archive name")}, Text(terminal.archiveName))
+            case true  => "archive" -> SHtml.link("/archive/browse", () => archiveName(terminal.archiveName), Text(terminal.archiveName))
             case false => "archive" -> Text("Not archived")
           } 
         )

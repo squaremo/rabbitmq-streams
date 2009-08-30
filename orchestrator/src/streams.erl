@@ -1,6 +1,6 @@
 -module(streams).
 
--export([all_pipelines/1, defn_doc/1, status_doc/1, process_status/1, activate/2, deactivate/2]).
+-export([all_pipelines/0, defn_doc/1, status_doc/1, process_status/1, activate/2, deactivate/2]).
 
 -include("orchestrator.hrl").
 
@@ -39,8 +39,10 @@ deactivate(pipeline, ThingId) ->
     gen_server:cast(orchestrator_root, {status_change, ThingId}),
     ok.
 
-all_pipelines(DbName) ->
-    Rows = couchapi:get_view_rows(DbName, "feeds", "join?group=true"),
+all_pipelines() ->
+    %% This view is used because it is the only one that includes the whole document,
+    %% and only includes feeds.
+    Rows = couchapi:get_view_rows(streams_config:config_db(), "feeds", "join?group=true"),
     Rows.
 
 process_status(ThingId) ->

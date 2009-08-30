@@ -1,6 +1,7 @@
 # This is a makefile for running performance tests
 
 GRINDER_HOME=build/opt/grinder-3.2
+PYTHON_HOME=/var/lib/python-support/python2.6
 JYTHON_HOME=/usr/share/jython
 
 # Must be absolute
@@ -14,13 +15,15 @@ CLASSPATH:=${GRINDER_HOME}/lib/grinder.jar
 JVM_ARGS:=-Dgrinder.logDirectory=$(LOG_DIR)
 
 GRINDER_JVM_ARGS:="-Dpython.cachedir=${PYTHON_CACHEDIR} \
-	-Dpython.home=${JYTHON_HOME}"
+	-Dpython.home=${JYTHON_HOME} -Dpython.path=${PYTHON_HOME}"
 
 JAVA_ARGS:=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
 
 GRINDER_CMD:=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
-DEB_DEPENDENCIES:=jython
+DEB_DEPENDENCIES:=jython memcached python-memcache python-nose
+
+STREAM_DIR=test/performance/streams
 
 # *** Top level targets ***
 
@@ -61,6 +64,9 @@ init-rabbit-streams:
 run-short-thrash-test:
 	${MAKE} -f Makefile.test TEST=short-thrash STREAM=empty run-perf-test
 
+run-new-thrash-test:
+	${MAKE} -f Makefile.test TEST=new-thrash STREAM=empty run-perf-test
+
 run-soak-test:
 	${MAKE} -f Makefile.test TEST=soak STREAM=empty run-perf-test
 
@@ -84,11 +90,14 @@ start-grinder-receiver: create-cachedir
 	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
 		test/performance/tests/${TEST}/receiver.properties &
 
-init-orchestrator: start-grinder-receiver
-	python sbin/import_config.py test/performance/streams/${STREAM}
+${STREAM_DIR}/%: ${STREAM_DIR}/%.js
+	mkdir -p $@/feedshub_status
+	bin/compile.sh $@/feedshub_status ${STREAM_DIR}/endpoints.js $^
+
+init-orchestrator: start-grinder-receiver ${STREAM_DIR}/${STREAM}
+	python sbin/import_config.py ${STREAM_DIR}/${STREAM}
 	make start-orchestrator
 
 run-perf-test: create-cachedir init-orchestrator
 	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
 		test/performance/tests/${TEST}/sender.properties &
-

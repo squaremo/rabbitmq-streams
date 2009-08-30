@@ -2,6 +2,9 @@ SHELL=/bin/bash
 PYTHON=python -Wignore::DeprecationWarning
 RABBITMQCTL=./build/opt/rabbitmq/sbin/rabbitmqctl -q
 RABBITSTREAMS_CONF=etc/rabbitstreams.conf
+#HACK to work around problem in couchdb's configure on fedora 64bit
+WITH_ERLANG=$(shell if test -d /usr/lib64/erlang/usr/include; \
+	then echo "--with-erlang=/usr/lib64/erlang/usr/include"; fi)
 
 CONFIG_DOC=$$(cat $(RABBITSTREAMS_CONF) | bin/json --raw get config_doc)
 COUCH_SERVER=$$(echo $(CONFIG_DOC) | egrep -o 'http://[^/]+')
@@ -11,8 +14,8 @@ CONFIG_DB=$$(echo $(CONFIG_DOC) | sed -e 's/http:\/\/.*\/\(.*\)\/.*/\1/')
 RABBITMQ_USER=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq user)
 RABBITMQ_HOST=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq host)
 RABBITMQ_PASSWORD=$$(curl -sX GET $(CONFIG_DOC) | bin/json --raw get rabbitmq password)
-OS=$$(if [ -e /etc/redhat-release ]; then echo "redhat"; \
-    elif [ -e /etc/debian_version ]; then echo "debian"; fi)
+OS=$(shell if [ -e /etc/redhat-release ]; then echo "redhat"; \
+	   elif [ -e /etc/debian_version ]; then echo "debian"; fi)
 
 SCREEN_SESSION=feedshub
 # FIXME: would be nice to have different bg colors for rabbit, couch etc.
@@ -46,14 +49,16 @@ COUCH_FIFO=build/scratch/couch_fifo
 PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 
-DEB_AND_RPM_DEPENDENCIES:=automake autoconf libtool help2man erlang mercurial subversion git \
+DEB_AND_RPM_DEPENDENCIES:=curl automake autoconf libtool help2man erlang mercurial subversion git \
 	ant maven2 screen python-simplejson cvs zip elinks
 
 DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
         netcat-openbsd 	build-essential erlang-src libicu38 libicu-dev \
 	libmozjs-dev libcurl4-openssl-dev default-jdk
 
-RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel js-devel
+RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel \
+	js-devel java-1.6.0-openjdk-devel \
+	rpmdevtools
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
@@ -69,7 +74,8 @@ GIVE_IT_TO_MY_FEDORA=
 default-target:
 	@echo "Please choose a target from the makefile. (setup? update? all? clean? run?)"
 
-setup: 	install-packages install-local-stuff
+setup:
+	$(MAKE) install-packages install-local-stuff
 
 install-local-stuff: \
 	create-var-dirs \
@@ -79,6 +85,9 @@ install-local-stuff: \
 	install-ibrowse \
 	install-rabbitmq
 
+ifeq ($(OS),redhat)
+export  JAVA_HOME=/usr/lib/jvm/java
+endif
 
 install-packages:
 ifeq ($(OS),redhat)
@@ -89,18 +98,18 @@ endif
 
 install-rpms:
 	sudo yum install -y $(RPM_DEPENDENCIES)
-	give-it-to-my-fedora
+	${MAKE} give-it-to-my-fedora
 
 give-it-to-my-fedora:
 	@echo "WARNING: THIS HORRIBLE KLUDGE TO FIX VERSIONING PROBLEMS WITH FEDORA"; \
 	 echo "         PACKAGES WILL JUST DUMP/OVERWRITE STUFF INTO /usr/local"; \
 	 test -n "$(GIVE_IT_TO_MY_FEDORA)" || \
            (read -p "DO YOU GIVE YOU INFORMED CONSENT? (yes/No)? " ans; \
-	    [ x$${ans} == xyes ] || (echo "ABORTING. Spoilsport!"; exit 1))
-	if ! which escript >/dev/null; then \
+	    [ "$${ans}" = "yes" ] || (echo "ABORTING. Spoilsport!"; exit 1))
+	if ! which escript >&/dev/null; then \
 		sudo ln -s /usr/lib/erlang/bin/escript /usr/local/bin/; \
 	fi; \
-	if ! which erl_call >/dev/null; then \
+	if ! which erl_call >&/dev/null; then \
 		sudo ln -s /usr/lib/erlang/lib/erl_interface-*/bin/erl_call /usr/local/bin; \
 	fi; \
 	if  ! mvn --version | grep 'Maven version: ' | \
@@ -134,10 +143,11 @@ install-dist: install-erlang-rfc4627 install-ibrowse install-rabbitmq
 
 update: update-erlang-rfc4627 update-rabbitmq update-rabbitmq-erlang-client update-ibrowse
 
-all: all-orchestrator all-harnesses all-plugins
+all: all-orchestrator all-plugins
 
 # run this to "make" after code changes
-test: all test-plugins
+test: all
+	$(MAKE) test-plugins
 
 all-orchestrator:
 	$(MAKE) -C orchestrator all
@@ -145,7 +155,7 @@ all-orchestrator:
 all-harnesses:
 	$(MAKE) -C harness/java all
 
-all-plugins:
+all-plugins: all-harnesses
 	$(MAKE) -C plugins all
 
 docs:
@@ -190,7 +200,8 @@ create-var-dirs:
 #
 
 
-run: run-core run-orchestrator
+run:
+	$(MAKE) run-core run-orchestrator
 
 run-core: run-couch run-rabbit
 
@@ -234,7 +245,8 @@ start-orchestrator: stop-orchestrator
 	  nc localhost $(LISTEN_ORCHESTRATOR_PORT) > $(ORCHESTRATOR_FIFO) 2>&1 ; rm -f $(ORCHESTRATOR_FIFO) ) 2>/dev/null &
 	sleep 6
 
-run-orchestrator: listen-orchestrator start-orchestrator
+run-orchestrator:
+	$(MAKE) listen-orchestrator start-orchestrator
 
 listen-couch: create-var-dirs
 	if ! ( test -e $(COUCH_LISTENER_PIDFILE)  &&  kill -0 "`cat $(COUCH_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -258,7 +270,8 @@ start-couch: stop-couch
 	  nc localhost $(LISTEN_COUCH_PORT) > $(COUCH_FIFO) 2>&1 ; rm -f $(COUCH_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-couch: listen-couch start-couch
+run-couch: listen-couch
+	$(MAKE) start-couch
 
 listen-rabbit: create-var-dirs
 	if ! ( test -e $(RABBIT_LISTENER_PIDFILE)  &&  kill -0 "`cat $(RABBIT_LISTENER_PIDFILE)`" )2>/dev/null; then \
@@ -284,7 +297,8 @@ start-rabbit: stop-rabbit
 	  nc localhost $(LISTEN_RABBIT_PORT) > $(RABBIT_FIFO) 2>&1 ; rm -f $(RABBIT_FIFO) ) 2>/dev/null &
 	sleep 3
 
-run-rabbit: listen-rabbit start-rabbit
+run-rabbit: listen-rabbit
+	$(MAKE) start-rabbit
 
 listen-core: listen-couch listen-rabbit
 
@@ -311,7 +325,8 @@ listen-all-nox: dummy-screen listen-orchestrator-nox listen-couch-nox listen-rab
 start-core: start-couch start-rabbit
 	sleep 3
 
-start-all: start-core start-orchestrator
+start-all: start-core
+	$(MAKE) start-orchestrator
 	sleep 3
 
 
@@ -361,7 +376,7 @@ $(OPT_COUCH):
 	@echo Building CouchDB ...
 	(cd $(SRC_COUCH); [ -f ./configure ] || ./bootstrap) \
 		> build/logs/build-couchdb.txt 2>&1
-	(cd $(SRC_COUCH); ./configure --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
+	(cd $(SRC_COUCH); ./configure "$(WITH_ERLANG)" --prefix="$(CURDIR)/$(OPT_COUCH)" && $(MAKE) && $(MAKE) install) \
 		>> build/logs/build-couchdb.txt 2>&1
 
 
@@ -494,12 +509,14 @@ orchestrator/deps/rabbitmq: build/opt/rabbitmq
 ###########################################################################
 # Demos
 
-demo-test: listen-all full-reset-core start-orchestrator
+demo-test:
+	$(MAKE) listen-all full-reset-core start-orchestrator
 	sleep 5
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/test
 	$(MAKE) start-orchestrator
 
-demo-showandtell: full-reset-core demo-showandtell-stop start-orchestrator
+demo-showandtell:
+	$(MAKE) full-reset-core  demo-showandtell-stop start-orchestrator
 	@echo 'Running show and tell demo'
 	$(PYTHON) sbin/import_config.py --couchdb $(COUCH_SERVER) examples/showandtell_demo
 	xterm -T 'Show&tell Listener' -g 80x24 -fg white -bg '#44dd00' -e 'nc -l 12345'& \

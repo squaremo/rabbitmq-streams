@@ -2,9 +2,7 @@ package com.rabbitmq.streams.management.model
 
 import java.lang.String
 import java.net.{URLEncoder, URL}
-import java.text.ParseException
-import java.util.{Calendar, Date}
-import runtime.RichString
+import java.util.{Date}
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
@@ -125,9 +123,20 @@ class Server(url: String, configDatabaseName: String) {
     val view = new View("terminalconfig/byvalue")
     view.setStartKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
     view.setEndKey(URLEncoder.encode(quoteIfNecessary(query), "UTF-8"))
-    configDb.view(view) match {
+    val exactMatches = configDb.view(view) match {
       case null => Nil
       case v    => for(row <- v.getResults) yield new Terminal(row.getString("value"), byTerminal(row.getString("value")))
+    }
+
+    exactMatches ++ inexactMatches(query)
+  }
+
+  private def inexactMatches(query: String): Seq[Terminal] = {
+    val regexp = query.r
+    val view = new View("terminalconfig/byvalue")
+    configDb.view(view) match {
+      case null => Nil
+      case v    => for(row <- v.getResults; if(regexp.findFirstMatchIn(row.getString("value")) != None)) yield new Terminal(row.getString("value"), byTerminal(row.getString("value")))
     }
   }
 
@@ -182,18 +191,7 @@ class Archive(private val couch: Session, private val terminal: JSONObject, priv
   }
 
   private def toViewKey(date: Date): String = {
-    val array = new JSONArray()
-    val calendar = Calendar.getInstance()
-    calendar.setTime(date)
-
-    array.add(calendar.get(Calendar.YEAR))
-    array.add(calendar.get(Calendar.MONTH) + 1)
-    array.add(calendar.get(Calendar.DAY_OF_MONTH))
-    array.add(calendar.get(Calendar.HOUR))
-    array.add(calendar.get(Calendar.MINUTE))
-    array.add(calendar.get(Calendar.SECOND))
-
-    array.toString
+    "" + date.getTime
   }
 
   private def performViewQuery(view: View): (Seq[ArchiveEntry], Int) = db.view(view) match {
@@ -215,12 +213,12 @@ class Terminal(val name: String, private val archive: Option[Archive]) {
 }
 
 class ArchiveEntry(private val doc: JSONObject) {
-  val updated = toDate(doc.getJSONArray("key"))
+  val updated = toDate(doc.getLong("key"))
   val content = doc.getJSONObject("value").getString("Body")
 
-  def toDate(array: JSONArray): java.util.Date = {
+  def toDate(value: Long): java.util.Date = {
     val calendar = java.util.Calendar.getInstance()
-    calendar.set(array.getInt(0), array.getInt(1) - 1, array.getInt(2), array.getInt(3), array.getInt(4), array.getInt(5))
+    calendar.setTimeInMillis(value)
     calendar.getTime
   }
 }

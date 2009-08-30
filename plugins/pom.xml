@@ -53,6 +53,14 @@
   </modules>
 
   <build>
+     <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>1.0-alpha-5</version>
+      </extension>
+    </extensions>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -64,6 +72,13 @@
       </plugin>
     </plugins>
   </build>
+
+  <distributionManagement>
+    <repository>
+      <id>internal.repo</id>
+      <url>scpexe://feedshub/srv/www/maven</url>
+    </repository>
+  </distributionManagement>
 
   <dependencies>
     <dependency>

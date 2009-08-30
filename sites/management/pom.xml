@@ -15,6 +15,11 @@
 
   <repositories>
     <repository>
+      <id>streams</id>
+      <name>RabbitMQ Streams</name>
+      <url>http://maven.feedshub.lshift.net/</url>
+    </repository>
+    <repository>
       <id>scala-tools.org</id>
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
@@ -28,6 +33,13 @@
       <url>http://scala-tools.org/repo-releases</url>
     </pluginRepository>
   </pluginRepositories>
+
+  <distributionManagement>
+    <repository>
+      <id>internal.repo</id>
+      <url>scpexe://feedshub/srv/www/maven</url>
+    </repository>
+  </distributionManagement>
 
   <dependencies>
     <dependency>
@@ -92,7 +104,7 @@
     <dependency>
       <groupId>couchdb4j</groupId>
       <artifactId>couchdb4j</artifactId>
-      <version>0.3.0-SNAPSHOT</version>
+      <version>0.3.0-rabbitstreams-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -115,6 +127,14 @@
   </dependencies>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-ssh-external</artifactId>
+        <version>1.0-alpha-5</version>
+      </extension>
+    </extensions>
+
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
     <plugins>

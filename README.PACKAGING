@@ -10,42 +10,25 @@ Eventually an RPM file will be produced in packaging/RPMS/Fedora/RPMS/i386
 
 2. How do i deploy the RPM on Fedora?
 
-Make sure that you have couchdb, rabbitmq, python-simplejson and java deployed
-deployed on your fedora (use the gui tool or yum to install as necessary).
+First you will need to make sure that you've got fedora 10 (later versions
+probably will also work, but haven't been tested. Earlier versions of fedora
+will not work). You can update an older version like so:
 
-Get the RPM file on the box.
+   > sudo yum -y update
+   > sudo yum clean all
+   > sudo rpm -Uhv "ftp://download.fedora.redhat.com/pub/fedora/linux/releases/10/Fedora/${ARCH}/os/Packages/fedora-release-*.noarch.rpm"
+   > sudo yum clean all
+   > sudo yum -y update
 
-Start couchdb:
+Should yum complain about conflicts, delete the offending packages with ``sudo
+rpm -e --nodeps $PACKAGE-$REVISION`` and re-issue ``sudo yum -y update``.
 
-  > sudo /etc/init.d/couchdb start
+Get the rabbitmq-streams RPM file on the box and install with 
 
-Make sure rabbitmq is stopped:
-
-  > sudo rabbitmqctl stop
-
-In the directory where you have the RPM file do this or something similar:
-
-  > sudo rpm -Uhvv rabbitmq-streams-0.1-1.i386.rpm
-
-Now start the orchestrator:
-
-	> streamsctl
-
-Using another terminal load a streams configuration:
-
-	> cd /usr/lib/rabbitmq-streams/scripts
-  > python import_config.py ../examples/showandtell_demo
-
-Happy, happy, joy!
+   > yum install --nogpgcheck rabbitmq-streams-*.rpm
 
 3. How do I remove the RPM since it has all gone wrong?
 
 Do this:
 
-  > sudo rpm -e rabbitmq-streams-0.1-1.i386
-
-4. How can I tell what RPMS I have installed?
-
-If you want to know if you have rabbit installed:
-  
-  > sudo rpm -qa | grep rabbit
+   > sudo yum remove rabbitmq-streams
