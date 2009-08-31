@@ -18,7 +18,27 @@ function getResponse(path) {
 function jsonGetResponse(path) {
   var res = getResponse(path, {"Accept": "application/json"});
   Test.areEqual("application/json", res.getContentType());
-  Test.areEqual(200, res.getResponseCode());
+  return res;
+}
+
+function postResponse(path, postdata, contenttype) {
+  var c = new http.WebConversation();
+  var is = new java.io.ByteArrayInputStream(new java.lang.String(postdata).getBytes());
+  var req = new http.PostMethodWebRequest(baseUrl+path, is, contenttype);
+  if (postResponse.arguments.length > 3) {
+    var headers = postResponse.arguments[3];
+    for (k in headers) {
+      req.setHeaderField(k, headers[k]);
+    }
+  }
+  var res = c.getResponse(req);
+  return res;
+}
+
+function jsonPostResponse(path, obj) {
+  var res = postResponse(path, JSON.stringify(obj), "application/json",
+    {"accept": "application/json"});
+  Test.areEqual("application/json", res.getContentType());
   return res;
 }
 
