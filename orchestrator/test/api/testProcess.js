@@ -18,7 +18,7 @@ function test_pipeline_state() {
 function test_pipeline_unknown() {
   var url = '/process/pipeline/notknown';
   try {
-    var res = getResponse(url);
+    var res = jsonGetResponse(url);
     Test.fail("Should have reported an 404");
   }
   catch (e) {

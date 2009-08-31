@@ -1,4 +1,9 @@
 -module(orchestrator).
+-author('Tony Garnock-Jones <tonyg@lshift.net>').
+-author('Matthew Sackman <matthew@lshift.net>').
+-author('Michael Bridgen <mikeb@lshift.net>').
+
+-behaviour(application).
 
 -export([start/0, stop/0, start/2, stop/1]).
 -export([restart/0, stop_and_halt/0, status/0]).
@@ -8,16 +13,22 @@
 start() -> application:start(?MODULE).
 stop() -> application:stop(?MODULE).
 
+% -- Application callbacks --
+
 start(normal, []) ->
-    %% Report this if not empty
+    %% TODO Report this if not empty
     [] = streams_config:check_config(),
     print_banner(),
     ok = api_deps:ensure(),
+    ensure_started(crypto),
+    ensure_started(webmachine),
     {ok, _} = ibrowse_sup:start_link(),
     orchestrator_root_sup:start_link().
 
 stop(_State) ->
     ok.
+
+% -- Extra for streams_control et al --
 
 stop_and_halt() ->
     spawn(fun () ->
@@ -74,3 +85,13 @@ log_location(Type) ->
         {ok, Bad}          -> throw({error, {cannot_log_to_file, Bad}});
         _                  -> undefined
     end.
+
+%% Taken from webmachine/mochiweb
+ensure_started(App) ->
+    case application:start(App) of
+	ok ->
+	    ok;
+	{error, {already_started, App}} ->
+	    ok
+    end.
+	

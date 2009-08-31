@@ -66,6 +66,7 @@ ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
 RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
 IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
 MOCHIWEB_SVN_TAG=104
+WEBMACHINE_HG_TAG=webmachine-1.4
 
 # only needed for older fedora
 MAVEN_SRC=http://apache.mirror.infiniteconflict.com/maven/binaries/apache-maven-2.0.10-bin.tar.bz2
@@ -81,6 +82,7 @@ install-local-stuff: \
 	create-var-dirs \
 	install-couchdb \
 	install-mochiweb \
+	install-webmachine \
 	install-erlang-rfc4627 \
 	install-ibrowse \
 	install-rabbitmq
@@ -445,7 +447,24 @@ build/opt/mochiweb: build/src/mochiweb
 orchestrator/deps/mochiweb: build/opt/mochiweb
 	ln -s ../../$< $@
 
+################################################################################
+# Webmachine (http://bitbucket.org/justin/webmachine/wiki/Home)
 
+install-webmachine: orchestrator/deps/webmachine
+
+build/src/webmachine:
+	@echo Checking out webmachine from hg ...
+	(mkdir -p build/src && cd build/src && \
+		hg clone http://bitbucket.org/justin/webmachine/ && \
+		cd webmachine && hg up -C -r ${WEBMACHINE_HG_TAG})
+
+build/opt/webmachine: build/src/webmachine
+	@echo Building webmachine
+	(cd $<; $(MAKE)) > build/logs/build-webmachine.text 2>&1
+	(mkdir -p $@ && cp -r $</{ebin,include} $@)
+
+orchestrator/deps/webmachine: build/opt/webmachine
+	ln -s ../../$< $@
 
 ###########################################################################
 # RabbitMQ

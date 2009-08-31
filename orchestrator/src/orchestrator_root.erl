@@ -234,6 +234,8 @@ check_active_terminals(Channel) ->
     lists:foreach(fun (TermId) -> activate_terminal(TermId, Channel) end, TermIds),
     ok.
 
+status_change(ThingId, Channel, Connection) when is_list(ThingId) ->
+    status_change(list_to_binary(ThingId), Channel, Connection);
 status_change(ThingId, Channel, Connection) when is_binary(ThingId) ->
     case streams:status_doc(ThingId) of
 	{ok, Doc} ->
