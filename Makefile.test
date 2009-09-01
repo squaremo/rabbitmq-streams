@@ -1,8 +1,14 @@
 # This is a makefile for running performance tests
 
 GRINDER_HOME=build/opt/grinder-3.2
-PYTHON_HOME=/var/lib/python-support/python2.6
-JYTHON_HOME=/usr/share/jython
+
+# You may need to supply these, in particular on MacOSX.
+# MacPorts installs Jython standalone, that is, without the libraries.  Really useful!
+# So you'll have to install it manually using the installer from http://jython.org/.
+# Jython 2.5.1rc1 seems to have broken threading; use 2.2.1 and supply its location:
+# make -f Makefile.test JYTHON_HOME=~/bin/jython2.2.1 run-short-thrash-test
+PYTHON_HOME ?= /var/lib/python-support/python2.6
+JYTHON_HOME ?= /usr/share/jython
 
 # Must be absolute
 TMP_DIR:=$(CURDIR)/tmp
