@@ -1,4 +1,5 @@
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import com.rabbitmq.streams.harness.Server;
@@ -33,6 +34,7 @@ public class email_sender extends Server {
           }
         }
         catch (MessagingException e) {
+          notifier.notify(NotificationType.Unavailable, "Could not deliver email " + e.getMessage());
           throw new PluginException(e);
         }
 
