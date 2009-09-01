@@ -1,6 +1,7 @@
 package com.rabbitmq.streams.plugins.regexp.split;
 
 import java.nio.charset.CharacterCodingException;
+import java.util.Locale;
 
 import org.junit.Test;
 import org.junit.Before;
@@ -18,11 +19,10 @@ public class RegexpSplitTest {
   private MessageChannel channel;
   private InputMessage message;
 
-  private String testString = "sausages";
-
+  private String testString = "WÜRSTCHEN";
   @Before
   public void setup() {
-    config.put("regexp", testString);
+    config.put("regexp", testString.toLowerCase(Locale.ENGLISH));
     config.put("multiline", true);
     config.put("caseinsensitive", true);
     config.put("dotall", true);

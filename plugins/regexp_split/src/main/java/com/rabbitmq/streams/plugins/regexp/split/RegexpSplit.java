@@ -28,7 +28,8 @@ public class RegexpSplit extends PipelineComponent {
     String regexp = config.getString("regexp");
     int flags = (config.optBoolean("multiline", false) ? Pattern.MULTILINE : 0)
       | (config.optBoolean("caseinsensitive", false) ? Pattern.CASE_INSENSITIVE : 0)
-      | (config.optBoolean("dotall", false) ? Pattern.DOTALL : 0);
+      | (config.optBoolean("dotall", false) ? Pattern.DOTALL : 0)
+      | Pattern.UNICODE_CASE; // FIXME: should we add Pattern.CANON_EQ?
     pattern = Pattern.compile(regexp, flags);
     registerInput("input", input);
   }
