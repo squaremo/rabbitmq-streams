@@ -58,7 +58,7 @@ public class loggerTest {
     log.setMessageChannel(handlerBox);
     log.configure(config);
     InputMessage m = mock(InputMessage.class);
-    when(m.body()).thenReturn("hello".getBytes());
+    when(m.body()).thenReturn("hello".getBytes("UTF-8"));
     handlerBox.handlers.get("input").handleMessage(m, new JSONObject());
     verify(l).debug("hello");
   }
