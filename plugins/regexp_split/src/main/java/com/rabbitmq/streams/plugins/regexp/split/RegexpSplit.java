@@ -51,10 +51,6 @@ public class RegexpSplit extends PipelineComponent {
         else {
           publishToChannel(NEGATIVE, msg);
         }
-      //     catch (Exception ex) {
-      //   ex.printStackTrace();
-      //   throw new PluginException(ex);
-      // }
     }
   };
 }
