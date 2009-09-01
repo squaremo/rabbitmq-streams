@@ -97,7 +97,7 @@ public class Notifier implements Runnable {
     }
 
     public String typeLabel() {
-      return type.getLabel();
+      return type.toString();
     }
 
     public BasicProperties basicProperties() {
