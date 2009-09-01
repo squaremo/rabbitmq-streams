@@ -89,7 +89,7 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
 	case rfc4627:get_field(FromJson, "channel") of
 	    {ok, FromChannel} -> {[list_to_binary(resource_name(FeedId, FromNode, FromChannel))], <<>>};
 	    _ -> %% reading from a terminal. But we need to find the servers
-		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)),
+		{ok, TerminalNode} = rfc4627:get_field({obj, NodeDefs}, binary_to_list(FromNode)), % FIXME default ropey
 		{ok, TerminalName} = rfc4627:get_field(TerminalNode, "terminal"),
 		{ok, ServerNames} = orchestrator_server:find_servers_for_terminal(TerminalName),
 		{ServerNames, TerminalName}
@@ -114,6 +114,7 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
                                     case supervisor:start_child(
                                            PluginSupPid,
                                            {binary_to_list(Exchange) ++ "_" ++
+                                            binary_to_list(TerminalName2) ++ "_" ++
                                             binary_to_list(ExchangeName2),
                                             {shovel, start_link, [PipelineBroker, undefined,
                                                                   EgressBroker, ExchangeName2]},
@@ -123,7 +124,11 @@ bind_edges(FeedId, PluginSupPid, Channel, EdgeJson, NodeDefs, PipelineBroker, Eg
                                             [shovel]
                                            }) of
                                         {ok, Pid2} -> {ok, Pid2};
-                                        {error, {already_started, Pid2}} -> {ok, Pid2};
+                                        {error, {already_started, Pid2}} ->
+                                            error_logger:error_report({?MODULE, bind_edges,
+                                                                       {Exchange, TerminalName2, ExchangeName2},
+                                                                       "Edge shovel already started."}),
+                                            {ok, Pid2};
                                         Err -> error_logger:error_report({?MODULE, bind_edges, FeedId, Err}),
                                                error
                                     end,
