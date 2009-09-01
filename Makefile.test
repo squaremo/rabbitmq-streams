@@ -97,7 +97,7 @@ start-grinder-receiver: create-cachedir
 
 ${STREAM_DIR}/%: ${STREAM_DIR}/%.js
 	mkdir -p $@/feedshub_status
-	(cd ${STREAM_DIR}; ${DIR}/bin/compile.sh ${DIR}/$@/feedshub_status require.js $(basename ${DIR}/$^.js))
+	./bin/compile.sh $@/feedshub_status $^.js
 
 init-orchestrator: start-grinder-receiver ${STREAM_DIR}/${STREAM}
 	python sbin/import_config.py ${STREAM_DIR}/${STREAM}
