@@ -33,7 +33,8 @@ public class RegexpReplace extends PipelineComponent {
       String regexp = rexConfig.getString("regexp");
       int flags = (rexConfig.optBoolean("multiline", false) ? Pattern.MULTILINE : 0)
                  | (rexConfig.optBoolean("caseinsensitive", false) ? Pattern.CASE_INSENSITIVE : 0)
-                 | (rexConfig.optBoolean("dotall", false) ? Pattern.DOTALL : 0);
+                 | (rexConfig.optBoolean("dotall", false) ? Pattern.DOTALL : 0)
+                 | Pattern.UNICODE_CASE;
       patReps.addFirst(new PatRep(Pattern.compile(regexp, flags), rexConfig.getString("replacement")));
       registerInput("input", input);
     }
