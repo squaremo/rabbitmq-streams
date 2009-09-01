@@ -33,6 +33,7 @@ public class NewDataComponent extends PipelineComponent {
         }
       }
       catch (IOException e) {
+        notifier.notify(NotificationType.FatalError, "Unable to connect to database: " + e.getMessage());
         throw new PluginException("Unable to connect to database", e);
       }
     }
@@ -45,14 +46,16 @@ public class NewDataComponent extends PipelineComponent {
   byte[] digest(byte[] content) throws PluginException {
     if(null == content) {
       return new byte[0];
-    }
+   }
 
     try {
       MessageDigest messageDigest = MessageDigest.getInstance("SHA-512");
       return Base64.encodeBase64(messageDigest.digest(content));
     }
     catch (NoSuchAlgorithmException e) {
-      throw new PluginException("Unable to construct digest", e);
+      String msg = "Fatal system error: can't create SHA-512 digest; check your java install";
+      notifier.notify(NotificationType.FatalError, msg + ": "  + e.getMessage());
+      throw new PluginException(msg + ".", e);
     }
   }
 
