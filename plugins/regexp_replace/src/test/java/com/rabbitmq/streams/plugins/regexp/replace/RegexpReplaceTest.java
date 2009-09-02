@@ -46,6 +46,17 @@ public class RegexpReplaceTest {
     replacer.configure(config);
   }
 
+  @Test
+  public void testNoExpressions() throws Exception {
+    InputMessage output = mock(InputMessage.class);
+    JSONObject config = JSONObject.fromObject("{\"expressions\": []}");
+    replacer.setMessageChannel(channel);
+    replacer.configure(config);
+    when(message.bodyAsString()).thenReturn("nothing to replace");
+    when(message.withBody("nothing to replace")).thenReturn(output);
+    replacer.input.handleMessage(message);
+    verify(channel).publish("output", output);
+  }
 
   @Test
   public void testNoReplacement() throws Exception {

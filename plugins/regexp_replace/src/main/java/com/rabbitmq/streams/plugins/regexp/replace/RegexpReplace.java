@@ -36,8 +36,8 @@ public class RegexpReplace extends PipelineComponent {
                  | (rexConfig.optBoolean("dotall", false) ? Pattern.DOTALL : 0)
                  | Pattern.UNICODE_CASE;
       patReps.addFirst(new PatRep(Pattern.compile(regexp, flags), rexConfig.getString("replacement")));
-      registerInput("input", input);
     }
+    registerInput("input", input);
   }
 
   InputReader input = new InputReader() {
