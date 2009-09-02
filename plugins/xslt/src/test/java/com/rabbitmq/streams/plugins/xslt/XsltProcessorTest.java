@@ -22,12 +22,14 @@ public class XsltProcessorTest {
   private MessageChannel channel;
   private InputMessage message;
   private Logger log;
+  private Notifier notifier;
 
   @Before
   public void setup() throws IOException {
     channel = mock(MessageChannel.class);
     message = mock(InputMessage.class);
     log = mock(Logger.class);
+    notifier = mock(Notifier.class);
 
     String identityTransform = "<?xml version=\"1.0\"?>\n" +
       "<xsl:stylesheet xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n" +
@@ -77,6 +79,7 @@ public class XsltProcessorTest {
     processor.setMessageChannel(channel);
     processor.configure(config);
     processor.setLog(log);
+    processor.setNotifier(notifier);
 
     try {
       when(message.body()).thenReturn("<things></broken>".getBytes("utf-8"));

@@ -2,6 +2,7 @@ package com.rabbitmq.streams.plugins.xslt;
 
 import com.rabbitmq.streams.harness.InputReader;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
 import com.rabbitmq.streams.harness.PipelineComponent;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
@@ -18,8 +19,8 @@ import java.net.URL;
 import java.net.URLConnection;
 
 public class XsltProcessor extends PipelineComponent {
-  private Transformer transformer;
 
+  private Transformer transformer;
   private final ErrorListener xsltErrorLogger = new ErrorListener() {
 
     public void error(TransformerException exception) throws TransformerException {
@@ -47,9 +48,11 @@ public class XsltProcessor extends PipelineComponent {
       connection.connect();
       content = (InputStream) connection.getContent();
     }
-    catch (IOException ex) {
-      ex.printStackTrace();
-      throw new PluginBuildException("Unable to read stylesheet", ex);
+    catch (IOException e) {
+      log.fatal(e);
+      String msg = "Unable to read stylesheet";
+      notifier.notify(NotificationType.Unavailable, msg + ": " + e.getMessage());
+      throw new PluginBuildException(msg + ".", e);
     }
     StreamSource xsltSource = new StreamSource(content);
     TransformerFactory factory = TransformerFactory.newInstance();
@@ -60,14 +63,15 @@ public class XsltProcessor extends PipelineComponent {
     }
     catch (TransformerConfigurationException e) {
       log.fatal(e);
-      throw new PluginBuildException("Cannot compile configured stylesheet", e);
+      String msg = "Cannot compile configured stylesheet";
+      notifier.notify(NotificationType.FatalError, msg + ":" + e.getMessage());
+      throw new PluginBuildException(msg, e);
     }
     transformer = temp;
     transformer.setErrorListener(xsltErrorLogger);
 
     registerInput("input", input);
   }
-
   InputReader input = new InputReader() {
 
     @Override
@@ -81,11 +85,13 @@ public class XsltProcessor extends PipelineComponent {
         XsltProcessor.this.publishToChannel("output", msg.withBody(output.toString()));
       }
       catch (TransformerException e) {
-        throw new PluginException("Unable to transform document", e);
+        String ms = "Unable to transform document";
+        notifier.notify(NotificationType.BadData, ms + ": " + e.getMessage());
+        throw new PluginException(ms + ".", e);
+
       }
 
     }
-
   };
 }
 
