@@ -1,5 +1,6 @@
 package com.rabbitmq.streams.plugins.socket.destination;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.PluginException;
@@ -34,6 +35,7 @@ public class SocketDestinationServer extends Server {
         ack.ack();
       }
       catch (Exception e) {
+        notifier.notify(NotificationType.Unavailable, "Couldn't send msg to socket: " + e.getMessage());
         throw new PluginException(e);
       }
     }
@@ -55,6 +57,7 @@ public class SocketDestinationServer extends Server {
         }
         catch (IOException e) {
           SocketDestinationServer.this.log.error(e);
+          notifier.notify(NotificationType.FatalError, "Couldn't change terminal status: "+e.getMessage());
         }
       }
     }
@@ -118,13 +121,15 @@ public class SocketDestinationServer extends Server {
         catch (InterruptedException ignore) {
         }
         catch (IOException e) {
-          SocketDestinationServer.this.log.error(e);
+          log.error(e);
+          notifier.notify(NotificationType.Unavailable, "Couldn't send message to socket: "+e.getMessage());
           synchronized (lockObj)  {
             try {
               initialiseSocket();
             }
             catch (IOException ex) {
-              SocketDestinationServer.this.log.error(ex);
+              log.error(ex);
+              notifier.notify(NotificationType.Unavailable, "Couldn't re-initialise socket after failure: " + e.getMessage());
             }
           }
         }
