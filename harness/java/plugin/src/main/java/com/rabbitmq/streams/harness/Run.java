@@ -14,21 +14,22 @@ public class Run {
   private AMQPLogger buildlog;
 
   public Run()  {
-    Runtime.getRuntime().addShutdownHook(new Thread(){
-        public void run() {
-          if(buildlog != null)  {
-            buildlog.shutdown();
-          }
-          if(connection != null)  {
-            try {
+    Thread thread = new Thread()  {
+      public void run() {
+        if(connection != null)  {
+          try {
+            if(connection.isOpen()) {
               connection.close();
-          }
-            catch (IOException e) {
-              e.printStackTrace();
             }
           }
+          catch (IOException e) {
+            System.out.println("IO Exception thrown when shutting down plugin" + e);
+          }
         }
-      });
+      }
+    };
+    thread.setDaemon(true);
+    Runtime.getRuntime().addShutdownHook(thread);
   }
   
   public void setConfig(JSONObject config) {
