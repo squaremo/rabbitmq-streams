@@ -7,8 +7,6 @@ import com.rabbitmq.streams.harness.PipelineComponent;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import com.rabbitmq.streams.harness.PluginException;
 import java.nio.charset.CharacterCodingException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.sf.json.JSONObject;
 
 import java.util.regex.Matcher;

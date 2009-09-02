@@ -32,6 +32,7 @@
   <modules>
     <module>websubscriber</module>
     <module>regexp_split</module>
+    <module>regexp_replace</module>
     <module>socket_source</module>
     <module>relay</module>
     <module>xslt</module>
