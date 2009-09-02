@@ -105,12 +105,12 @@ ${TMP_DIR}/streams/%: ${STREAM_DIR}/%.js
 	mkdir -p $@/feedshub_status
 	./bin/compile.sh $@/feedshub_status $^
 
-init-orchestrator: start-grinder-receiver ${TMP_DIR}/streams/${STREAM}
+init-orchestrator: ${TMP_DIR}/streams/${STREAM}
 	python sbin/import_config.py ${TMP_DIR}/streams/${STREAM}
 	make start-orchestrator
 	#sleep 30 # a chance for the orchestrator to start everything
 
-run-perf-test: create-cachedir init-orchestrator
+run-perf-test: create-cachedir
 	for s in ${PROFILE_DIR}/${TEST}/sender*.properties; \
 		do (${GRINDER_CMD} -Dgrinder.hostID=`basename "$$s" .properties` net.grinder.Grinder \
 		"$$s" &); \
