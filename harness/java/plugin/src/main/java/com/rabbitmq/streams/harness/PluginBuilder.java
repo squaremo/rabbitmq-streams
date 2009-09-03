@@ -146,7 +146,7 @@ class PluginBuilder {
   }
 
   protected Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
-    AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration));
+    AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration), configuration.optBoolean("debug", false));
     Thread logThread = new Thread(logger);
     logThread.setDaemon(true);
     logThread.start();
