@@ -6,8 +6,11 @@ import net.sf.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.BitSet;
 
 public class Run {
+  static final int DEBUG = 1;
+  static final int TRACE = 2;
 
   private JSONObject config;
   private Connection connection;
@@ -15,6 +18,7 @@ public class Run {
 
   public Run()  {
     Thread thread = new Thread()  {
+      @Override
       public void run() {
         if(connection != null)  {
           try {
@@ -39,7 +43,11 @@ public class Run {
   public void runPlugin() throws IOException  {
     connection = new AMQPConnectionFactory().connectionFromConfig(config.getJSONObject("messageserver"));
     try {
-      AMQPLogger buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"));
+      BitSet flags = new BitSet();
+      if (config.optBoolean("debug", false)) flags.set(DEBUG);
+      if (config.optBoolean("trace", false)) flags.set(TRACE);
+
+      buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"), flags);
       // TODO: why does this need to run in a thread, rather than just being synchronous
       // TODO: encapsulate this
       Thread logThread = new Thread(buildlog);
@@ -48,7 +56,9 @@ public class Run {
 
       SessionFactory sf = new SessionFactory();
       PluginResourceFactory factory = new PluginResourceFactory(connection, sf, buildlog);
+      factory.setFlags(flags);
       PluginBuilder builder = new PluginBuilder(buildlog, factory);
+      builder.setFlags(flags);
       builder.buildPlugin(config);
 
       try {

@@ -14,6 +14,7 @@ import com.rabbitmq.client.QueueingConsumer;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import net.sf.json.JSONObject;
@@ -24,14 +25,22 @@ import net.sf.json.JSONObject;
  * @author mikeb@lshift.net
  */
 class PluginResourceFactory {
+
   private final Connection connection;
   private final SessionFactory sessionFactory;
   private final Logger log;
+  private boolean debug;
+  private boolean trace;
 
   PluginResourceFactory(Connection connection, SessionFactory dbSessionFactory, Logger log) {
     this.connection = connection;
     this.sessionFactory = dbSessionFactory;
     this.log = log;
+  }
+
+  protected void setFlags(BitSet flags) {
+    this.debug = flags.get(Run.DEBUG);
+    this.trace = flags.get(Run.TRACE);
   }
 
   protected String stripTrailingSlash(String url) {
@@ -48,11 +57,11 @@ class PluginResourceFactory {
   }
 
   public MessageResource getComponentMessageResource(JSONObject config) throws IOException {
-    return new AMQPComponentMessageChannel(connection.createChannel(), config, log);
+    return new AMQPComponentMessageChannel(connection.createChannel(), config, log, trace);
   }
 
   public MessageResource getMessageResource(JSONObject config) throws IOException {
-    return new AMQPMessageChannel(connection.createChannel(), config, log);
+    return new AMQPMessageChannel(connection.createChannel(), config, log, trace);
   }
 
   public StateResource getStateResource(String stateString) throws PluginBuildException {
@@ -103,13 +112,15 @@ class AMQPMessageChannel implements MessageResource {
   protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
   private final JSONObject config;
   private final Logger log;
+  protected final boolean trace;
 
-  AMQPMessageChannel(Channel channel, JSONObject config, Logger log) {
+  AMQPMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) {
     this.channel = channel;
     this.config = config;
     this.outputs = new HashMap(1);
     this.inputs = new HashMap(1);
     this.log = log;
+    this.trace = traceOn;
   }
 
   public void declareExchange(String name, String exchange) {
@@ -159,8 +170,8 @@ class AMQPMessageChannel implements MessageResource {
 }
 
 class AMQPComponentMessageChannel extends AMQPMessageChannel {
-  AMQPComponentMessageChannel(Channel channel, JSONObject config, Logger log) throws IOException {
-    super(channel, config, log);
+  AMQPComponentMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) throws IOException {
+    super(channel, config, log, traceOn);
     synchronized(channel) {
       channel.txSelect();
     }
@@ -169,7 +180,7 @@ class AMQPComponentMessageChannel extends AMQPMessageChannel {
   private final Object mutex = new Object();
   @Override
   protected AMQPInputConsumer inputConsumer(QueueingConsumer queuer, InputHandler handler, JSONObject config, Logger log) {
-    return new SerialisedInputConsumer(queuer, handler, config, log, mutex);
+    return new SerialisedInputConsumer(queuer, handler, config, log, mutex, trace);
   }
 }
 

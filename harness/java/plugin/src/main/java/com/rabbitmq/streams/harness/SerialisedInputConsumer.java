@@ -31,21 +31,31 @@ class SerialisedInputConsumer extends AMQPInputConsumer {
    * @param lock The object used as a mutex between consumers; give the same
    * lock to all the input consumers that should be mutually serialised.
    */
-  SerialisedInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
-    super(consumer, handler, config, log);
+  SerialisedInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock, boolean trace) {
+    super(consumer, handler, config, log, trace);
     this.lock = lock;
+  }
+
+  SerialisedInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject config, Logger log, Object lock) {
+    this(consumer, handler, config, log, lock, false);
   }
 
   public void run() {
     while (consumer.getChannel().isOpen()) {
       try {
+        StringBuilder timings = null;
+        if (trace) timings = new StringBuilder("TIMING ");
         Delivery delivery = consumer.nextDelivery();
+        if (trace) timings.append(System.currentTimeMillis() + " ");
         synchronized (lock) {
           try {
             try {
               InputMessage msg = new AMQPMessage(consumer.getChannel(), delivery);
+              if (trace) timings.append(System.currentTimeMillis() + " ");
               handler.handleMessage(msg, mergeConfigWithHeaders(delivery.getProperties().headers));
+              if (trace) timings.append(System.currentTimeMillis() + " ");
               msg.ack();
+              if (trace) timings.append(System.currentTimeMillis() + " ");
             }
             catch (Exception e) {
               // is this block needed? the exception will be caught outside,
@@ -54,17 +64,26 @@ class SerialisedInputConsumer extends AMQPInputConsumer {
               throw e;
             }
             consumer.getChannel().txCommit();
+            if (trace) timings.append(System.currentTimeMillis() + " ");
           }
           catch (Exception ex) {
             try {
               log.error(ex);
               consumer.getChannel().txRollback();
+              if (trace) {
+                timings.append(System.currentTimeMillis() + " ERR");
+                log.info(timings.toString());
+              }
             }
             catch (IOException e) {
               log.fatal(e); // we cannot continue if we can't use txns
-              return;
+              return; // FIXME we should signal this with an exception
             }
           }
+        }
+        if (trace) {
+          timings.append(System.currentTimeMillis() + " OK");
+          log.info(timings.toString());
         }
       }
       catch (InterruptedException ignored) {

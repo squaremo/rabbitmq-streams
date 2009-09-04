@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.BitSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.Map;
@@ -29,16 +30,16 @@ public class AMQPLogger implements Runnable, Logger {
   private final BlockingQueue<LogMessage> logQueue = new SynchronousQueue<LogMessage>();
   private final boolean debug;
 
-  public AMQPLogger(Channel logChannel, String logRoutingKey, boolean debugOn) {
+  public AMQPLogger(Channel logChannel, String logRoutingKey, BitSet flags) {
     this.logChannel = logChannel;
     this.logRoutingKey = logRoutingKey;
-    this.debug = debugOn;
+    this.debug = flags.get(Run.DEBUG);
   }
 
   public AMQPLogger(Channel logChannel, String logRoutingKey) {
-    this(logChannel, logRoutingKey, false);
+    this(logChannel, logRoutingKey, new BitSet());
   }
-
+  
   private String throwableToString(Throwable t) {
     StringWriter out = new StringWriter();
     t.printStackTrace(new PrintWriter(out));

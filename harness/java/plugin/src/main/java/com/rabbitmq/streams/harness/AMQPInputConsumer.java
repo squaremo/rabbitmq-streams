@@ -20,13 +20,19 @@ public abstract class AMQPInputConsumer implements Runnable {
   private final JSONObject originalConfiguration;
   private JSONObject staticConfiguration;
   protected final Logger log;
+  protected final boolean trace;
 
-  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject originalConfig, Logger log) {
+  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject originalConfig, Logger log, boolean traceOn) {
+    this.trace = traceOn;
     this.log = log;
     this.consumer = consumer;
     this.handler = handler;
     this.originalConfiguration = originalConfig;
     this.staticConfiguration = interpolateConfig(originalConfiguration, EMPTY_MAP);
+  }
+
+  protected AMQPInputConsumer(QueueingConsumer consumer, InputHandler handler, JSONObject originalConfig, Logger log) {
+    this(consumer, handler, originalConfig, log, false);
   }
 
   /**

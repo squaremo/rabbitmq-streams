@@ -14,16 +14,23 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Iterator;
 import net.sf.json.JSONArray;
 
 class PluginBuilder {
+
   private final Logger log;
   private final PluginResourceFactory resources;
+  private BitSet flags;
 
   public PluginBuilder(Logger log, PluginResourceFactory resourceFactory) {
     this.log = log;
     resources = resourceFactory;
+  }
+
+  protected void setFlags(BitSet flags) {
+    this.flags = flags;
   }
 
   // Methods that interpret the JSONObject
@@ -146,7 +153,7 @@ class PluginBuilder {
   }
 
   protected Logger connectLoggerToPlugin(Plugin plugin, JSONObject configuration, Connection connection) throws IOException {
-    AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration), configuration.optBoolean("debug", false));
+    AMQPLogger logger = new AMQPLogger((ChannelN) connection.createChannel(), routingKey(configuration), flags);
     Thread logThread = new Thread(logger);
     logThread.setDaemon(true);
     logThread.start();

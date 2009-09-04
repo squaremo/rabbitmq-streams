@@ -87,7 +87,10 @@ action(restart, Node, [], Inform) ->
     call(Node, {orchestrator, restart, []});
 action(status, Node, [], Inform) ->
     Inform("Status of node ~p", [Node]),
-    call(Node, {orchestrator, status, []}).
+    call(Node, {orchestrator, status, []});
+action(Flag, Node, [Value], Inform) when Flag =:= debug; Flag =:= trace ->
+    Inform("Setting ~p to ~p on ~p", [Flag, Value, Node]),
+    call(Node, {orchestrator, set_flag, [atom_to_list(Flag), Value]}).
 
 splice_localnode(Node) ->
     list_to_atom(lists:append(atom_to_list(Node),

@@ -1,7 +1,7 @@
 -module(orchestrator).
 
 -export([start/0, stop/0, start/2, stop/1]).
--export([restart/0, stop_and_halt/0, status/0]).
+-export([restart/0, stop_and_halt/0, status/0, set_flag/2]).
 
 -export([priv_dir/0]).
 
@@ -36,6 +36,16 @@ status() ->
 restart() ->
     ok = stop(),
     ok = start().
+
+set_flag(Flag, Val) when Flag =:= <<"debug">>; Flag =:= <<"trace">> ->
+    FlagAtom = list_to_atom(binary_to_list(Flag)),
+    ValAtom = 
+    case Val of
+        <<"true">> -> true;
+        <<"false">> -> false
+    end,
+    application:set_env(orchestrator, FlagAtom, ValAtom),
+    {FlagAtom, ValAtom}.
 
 priv_dir() ->
     case code:priv_dir(?MODULE) of

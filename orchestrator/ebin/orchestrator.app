@@ -15,5 +15,7 @@
  COMMANDLINE:  http://localhost:5984/"},
          {root_config_url, "YOU WILL HAVE TO SUPPLY SOMETHING LIKE THIS ON THE \
  COMMANDLINE: http://localhost:5984/feedshub_status/root_config"},
-         {config_db, "Supply on command line e.g., feedshub_status"}]}
+         {config_db, "Supply on command line e.g., feedshub_status"},
+         {debug, false},
+         {trace, false}]}
  ]}.
