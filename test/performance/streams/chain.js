@@ -29,6 +29,20 @@ function split() {
                    {"regexp": ".*"}});
 }
 
+function replace() {
+  return f.plugin({"type": "regexp_replace",
+                   "configuration":
+                   {"expressions": [
+                     {"regexp": "(.*)", "replacement": "$1", "dotall": true}
+                   ]}});
+}
+
+function xpath() {
+  return f.plugin({"type": "xpathselect",
+                   "configuration":
+                   {"expression": "/foo/text()"}});
+}
+
 function js_conn(p, other) {
   f.connect(resource(p, "output"), other);
 }
@@ -38,8 +52,8 @@ function split_conn(p, other) {
   f.connect(resource(p, "negative"), other);
 }
 
-var plugin = split;
-var connect = split_conn;
+var plugin = xpath;
+var connect = js_conn;
 
 var p = plugin();
 f.connect(input, resource(p, "input"));
