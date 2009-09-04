@@ -4,6 +4,8 @@
 // 1. running one JVM per plugin
 // 2. running one JVM per feed
 
+require("endpoints.js");
+
 var links = 1;
 
 var f = feed("chain");

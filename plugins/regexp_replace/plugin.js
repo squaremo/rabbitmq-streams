@@ -1,12 +1,12 @@
 {
     "name": "Regular Expression Replacer",
-    "author": {"name": "Matthew Sackman", "email": "matthew@lshift.net"},
-    "help": "Replace the input, using the regular expressions and replacements given, in sequence.  These follow Python regular expression syntax.",
+    "author": {"name": "Alexander Schmolck", "email": "alexander@lshift.net"},
+    "help": "Replace the input, using the regular expressions and replacements given, in sequence.  These follow Perl regular expression syntax.",
 
     "type": "plugin-specification",
-    "harness": "python",
+    "harness": "java",
     "subtype": "pipeline_component",
-    
+
     "global_configuration_specification": [],
     "configuration_specification": [
       {"label": "Replacements",

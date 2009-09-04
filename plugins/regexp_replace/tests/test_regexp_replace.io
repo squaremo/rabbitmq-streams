@@ -1,5 +1,5 @@
 #-*- encoding: utf-8 -*-
->PLUGIN_INSTANCE_CONFIG	{"expressions": [{"regexp": "(.)\\1\\1", "replacement": "[3 x \"\\1\"]"}]}
+>PLUGIN_INSTANCE_CONFIG	{"expressions": [{"regexp": "(.)\\1\\1", "replacement": "[3 x \"$1\"]"}]}
 >input	pooositive
 
 <output	p[3 x "o"]sitive

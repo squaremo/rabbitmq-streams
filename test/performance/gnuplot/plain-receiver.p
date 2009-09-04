@@ -11,5 +11,5 @@ set ylabel "Time (ms)"
 set terminal png
 set output "tmp/gnuplot/receiver.png"
 
-plot "tmp/logs/data_receiver-0.log" using 2:7
+plot "tmp/logs/data_receiver-0.log" using 2:8
 

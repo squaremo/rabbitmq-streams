@@ -37,8 +37,18 @@ function writeJsonToFile(doc, dir, filename) {
   out.close();
 }
 
+var requireBase = "./";
+function require(file) {
+  load([requireBase+'/'+file]);
+}
+
 var outputDir = arguments.shift();
 if (arguments.length < 1) throw "No files supplied";
 print("Compiling " + arguments + " to directory " + outputDir);
-for (var i in arguments) load(arguments[i]);
+for (var i in arguments) {
+  var arg = arguments[i];
+  var file = new java.io.File(arg);
+  requireBase = file.getAbsoluteFile().getParent();
+  load(arguments[i]);
+}
 writeToFiles(outputDir, AST);

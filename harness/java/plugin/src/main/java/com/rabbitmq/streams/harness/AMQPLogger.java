@@ -14,7 +14,6 @@ import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.impl.ChannelN;
 
 public class AMQPLogger implements Runnable, Logger {
   private static final Map<String, Object> noheaders = Collections.emptyMap();
@@ -28,10 +27,16 @@ public class AMQPLogger implements Runnable, Logger {
   private final String logRoutingKey;
 
   private final BlockingQueue<LogMessage> logQueue = new SynchronousQueue<LogMessage>();
+  private final boolean debug;
 
-  public AMQPLogger(Channel logChannel, String logRoutingKey) {
+  public AMQPLogger(Channel logChannel, String logRoutingKey, boolean debugOn) {
     this.logChannel = logChannel;
     this.logRoutingKey = logRoutingKey;
+    this.debug = debugOn;
+  }
+
+  public AMQPLogger(Channel logChannel, String logRoutingKey) {
+    this(logChannel, logRoutingKey, false);
   }
 
   private String throwableToString(Throwable t) {
@@ -112,11 +117,13 @@ public class AMQPLogger implements Runnable, Logger {
   }
 
   public void debug(String message, Map<String, Object> headers) {
-    try {
-      logQueue.put(new LogMessage(LogLevel.Debug, message, headers));
-    }
-    catch (InterruptedException e) {
-      debug(message, headers);
+    if (debug) {
+      try {
+        logQueue.put(new LogMessage(LogLevel.Debug, message, headers));
+      }
+      catch (InterruptedException e) {
+        debug(message, headers);
+      }
     }
   }
 

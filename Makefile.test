@@ -1,8 +1,14 @@
 # This is a makefile for running performance tests
 
 GRINDER_HOME=build/opt/grinder-3.2
-PYTHON_HOME=/var/lib/python-support/python2.6
-JYTHON_HOME=/usr/share/jython
+
+# You may need to supply these, in particular on MacOSX.
+# MacPorts installs Jython standalone, that is, without the libraries.  Really useful!
+# So you'll have to install it manually using the installer from http://jython.org/.
+# Jython 2.5.1rc1 seems to have broken threading; use 2.2.1 and supply its location:
+# make -f Makefile.test JYTHON_HOME=~/bin/jython2.2.1 run-short-thrash-test
+PYTHON_HOME ?= /var/lib/python-support/python2.6
+JYTHON_HOME ?= /usr/share/jython
 
 # Must be absolute
 TMP_DIR:=$(CURDIR)/tmp
@@ -23,7 +29,10 @@ GRINDER_CMD:=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
 DEB_DEPENDENCIES:=jython memcached python-memcache python-nose
 
-STREAM_DIR=test/performance/streams
+STREAM_DIR ?= test/performance/streams
+PROFILE_DIR ?= test/performance/tests
+
+DIR:=$(shell pwd)
 
 # *** Top level targets ***
 
@@ -87,17 +96,22 @@ create-cachedir:
 	chmod a+rw ${PYTHON_CACHEDIR}
 
 start-grinder-receiver: create-cachedir
-	${GRINDER_CMD} -Dgrinder.hostID=receiver net.grinder.Grinder \
-		test/performance/tests/${TEST}/receiver.properties &
+	for r in ${PROFILE_DIR}/${TEST}/receiver*.properties; \
+		do (${GRINDER_CMD} -Dgrinder.hostID=`basename "$$r" .properties` net.grinder.Grinder \
+		"$$r" &); \
+	done
 
-${STREAM_DIR}/%: ${STREAM_DIR}/%.js
+${TMP_DIR}/streams/%: ${STREAM_DIR}/%.js
 	mkdir -p $@/feedshub_status
-	bin/compile.sh $@/feedshub_status ${STREAM_DIR}/endpoints.js $^
+	./bin/compile.sh $@/feedshub_status $^
 
-init-orchestrator: start-grinder-receiver ${STREAM_DIR}/${STREAM}
-	python sbin/import_config.py ${STREAM_DIR}/${STREAM}
+init-orchestrator: ${TMP_DIR}/streams/${STREAM}
+	python sbin/import_config.py ${TMP_DIR}/streams/${STREAM}
 	make start-orchestrator
+	#sleep 30 # a chance for the orchestrator to start everything
 
-run-perf-test: create-cachedir init-orchestrator
-	${GRINDER_CMD} -Dgrinder.hostID=sender1 net.grinder.Grinder \
-		test/performance/tests/${TEST}/sender.properties &
+run-perf-test: create-cachedir
+	for s in ${PROFILE_DIR}/${TEST}/sender*.properties; \
+		do (${GRINDER_CMD} -Dgrinder.hostID=`basename "$$s" .properties` net.grinder.Grinder \
+		"$$s" &); \
+	done

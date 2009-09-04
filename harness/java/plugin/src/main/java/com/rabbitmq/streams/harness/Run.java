@@ -13,32 +13,36 @@ public class Run {
   private Connection connection;
   private AMQPLogger buildlog;
 
-  public Run()  {
-    Runtime.getRuntime().addShutdownHook(new Thread(){
-        public void run() {
-          if(buildlog != null)  {
-            buildlog.shutdown();
-          }
-          if(connection != null)  {
-            try {
+  public Run() {
+    Thread thread = new Thread() {
+      public void run() {
+        if (connection != null) {
+          try {
+            if (connection.isOpen()) {
+              if (buildlog != null) {
+                buildlog.shutdown();
+              }
               connection.close();
-          }
-            catch (IOException e) {
-              e.printStackTrace();
             }
           }
+          catch (IOException e) {
+            System.out.println("IO Exception thrown when shutting down plugin" + e);
+          }
         }
-      });
+      }
+    };
+    thread.setDaemon(true);
+    Runtime.getRuntime().addShutdownHook(thread);
   }
-  
+
   public void setConfig(JSONObject config) {
     this.config = config;
   }
 
-  public void runPlugin() throws IOException  {
+  public void runPlugin() throws IOException {
     connection = new AMQPConnectionFactory().connectionFromConfig(config.getJSONObject("messageserver"));
     try {
-      AMQPLogger buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"));
+      buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"));
       // TODO: why does this need to run in a thread, rather than just being synchronous
       // TODO: encapsulate this
       Thread logThread = new Thread(buildlog);

@@ -2,6 +2,7 @@ package com.rabbitmq.streams.plugins.socket.destination;
 
 import com.rabbitmq.streams.harness.InputMessage;
 import com.rabbitmq.streams.harness.PluginException;
+import com.rabbitmq.streams.harness.Logger;
 import net.sf.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,7 +36,8 @@ public class SocketDestinationServerTest {
     terminal.put("destination", JSONObject.fromObject("{\"port\":24067, \"host\":\"localhost\"}"));
     List<JSONObject> terminals = new ArrayList<JSONObject>();
     terminals.add(terminal);
-    
+
+    server.setLog(mock(Logger.class));
     try {
       server.terminalStatusChange("destination", terminals, true);
       server.input.handleBodyForTerminal("sausages".getBytes(), "destination", message);
