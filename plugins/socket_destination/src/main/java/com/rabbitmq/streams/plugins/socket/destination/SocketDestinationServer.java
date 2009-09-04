@@ -40,7 +40,6 @@ public class SocketDestinationServer extends Server {
         }
         terminalMap.put(terminalId, dests);
       }
-
     }
     else {
       terminalMap.remove(terminalId);
@@ -127,6 +126,7 @@ public class SocketDestinationServer extends Server {
         address = InetAddress.getByName(config.getString("host"));
       }
       catch (UnknownHostException e) {
+        notifier.notify(NotificationType.FatalError, "Unable to resolve host for inet address from configuration: " + config);
         throw new IllegalArgumentException("Unable to resolve host for inet address from configuration: " + config, e);
       }
     }
@@ -139,6 +139,7 @@ public class SocketDestinationServer extends Server {
         return true;
       }
       catch (IOException e) {
+        notifier.notify(NotificationType.FatalError, "IOException thrown whilst writing to socket: " + e.getMessage());
         e.printStackTrace();
       }
       return false;
