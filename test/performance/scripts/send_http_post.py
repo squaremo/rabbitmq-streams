@@ -34,9 +34,9 @@ class TestRunner:
         test = Test(1, "HTTP post")
         request = test.wrap(HTTPRequest())
 
-        timestamp = "|timestamp=" + str(System.currentTimeMillis()) + "|"
-        padding = 'X' * (MSG_SIZE - len(timestamp))
-        data = timestamp + padding + '\n'
+        timestamp = "<foo>|timestamp=" + str(System.currentTimeMillis()) + "|"
+        padding = 'X' * (MSG_SIZE - len(timestamp) - len("</foo>"))
+        data = timestamp + padding + "</foo>"
 
         result = request.POST(URL, data)
 

@@ -39,7 +39,7 @@ grinder.statistics.registerSummaryExpression("Mean delivery time (ms)",
 
 # Compile the regex pattern outside of a class method
 # See http://osdir.com/ml/java.grinder.user/2005-11/msg00060.html
-tsPattern = re.compile(r"\|timestamp=([0-9]*)\|.*")
+tsPattern = re.compile(r"\.*|timestamp=([0-9]*)\|")
 
 # Test timing is meaningless for this scenario, record the delivery time instead
 def recordDeliveryTime(deliveryTime):
