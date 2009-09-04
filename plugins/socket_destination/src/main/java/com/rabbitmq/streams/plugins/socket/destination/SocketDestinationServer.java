@@ -15,7 +15,8 @@ import java.util.concurrent.CountDownLatch;
 
 public class SocketDestinationServer extends Server {
 
-  public final Map<String, List<Destination>> terminalMap = new ConcurrentHashMap<String, List<Destination>>();
+  private final Map<String, List<Destination>> terminalMap = new ConcurrentHashMap<String, List<Destination>>();
+  private final byte[] NEWLINE = "\n".getBytes();
   public final Server.ServerInputReader input = new Server.ServerInputReader() {
 
     @Override
@@ -135,6 +136,7 @@ public class SocketDestinationServer extends Server {
       try {
         Socket socket = new Socket(address, port);
         socket.getOutputStream().write(body);
+        socket.getOutputStream().write(NEWLINE);
         socket.close();
         return true;
       }
