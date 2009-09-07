@@ -1,3 +1,4 @@
+# -*- makefile -*-
 # This is a makefile for running performance tests
 
 GRINDER_HOME=build/opt/grinder-3.2
@@ -18,6 +19,9 @@ LOG_DIR:=$(TMP_DIR)/logs
 JAVA_CMD:=java
 CLASSPATH:=${GRINDER_HOME}/lib/grinder.jar
 
+OS=$(shell if [ -e /etc/redhat-release ]; then echo "redhat"; \
+	   elif [ -e /etc/debian_version ]; then echo "debian"; fi)
+
 JVM_ARGS:=-Dgrinder.logDirectory=$(LOG_DIR)
 
 GRINDER_JVM_ARGS:="-Dpython.cachedir=${PYTHON_CACHEDIR} \
@@ -27,7 +31,9 @@ JAVA_ARGS:=-Dgrinder.jvm.arguments=$(GRINDER_JVM_ARGS) $(JVM_ARGS)
 
 GRINDER_CMD:=${JAVA_CMD} -classpath ${CLASSPATH} $(JAVA_ARGS)
 
-DEB_DEPENDENCIES:=jython memcached python-memcache python-nose
+DEB_AND_RPM_DEPENDENCIES:=jython memcached python-nose
+DEB_DEPENDENCIES:=$(DEB_AND_RPM_DEPENDENCIES) python-memcache
+RPM_DEPENDENCIES:=$(DEB_AND_RPM_DEPENDENCIES) python-memcached
 
 STREAM_DIR ?= test/performance/streams
 PROFILE_DIR ?= test/performance/tests
@@ -39,7 +45,18 @@ DIR:=$(shell pwd)
 default:
 	echo Try a run-* target e.g,. run-short-thrash-test
 
-setup: install-debs install-grinder
+setup: install-packages install-grinder
+
+install-packages:
+ifeq ($(OS),redhat)
+	$(MAKE) install-rpms
+else
+	$(MAKE) install-debs
+endif
+
+
+install-rpms:
+	yum install $(RPM_DEPENDENCIES)
 
 install-debs:
 	- [ -z "`dpkg-query -W -f '$${status}' $(DEB_DEPENDENCIES) 2>&1 | grep -v 'install ok installed'`" ] || \
