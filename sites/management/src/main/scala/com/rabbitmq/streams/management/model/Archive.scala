@@ -3,11 +3,14 @@ package com.rabbitmq.streams.management.model
 import java.lang.String
 import java.net.{URLEncoder, URL}
 import java.util.{Date}
+import net.liftweb.http.LiftRules
 import scala.collection.jcl.Conversions._
 import com.fourspaces.couchdb._
 import net.sf.json._
 
 class Server(url: String, configDatabaseName: String) {
+  require(url != null && url.length > 0, "A url must be provided")
+  require(configDatabaseName != null && configDatabaseName.length > 0, "A couch database name must be provided")
   private val couch = Server.sessionFromString(url)
   private val configDb = couch.getDatabase(configDatabaseName)
 
@@ -153,12 +156,18 @@ class Server(url: String, configDatabaseName: String) {
 
 object Server {
   def sessionFromString(urlStr: String): Session = {
+    println("URL IS " + urlStr)
     val url = new URL(urlStr)
     new Session(url.getHost(), url.getPort())
   }
 }
 
-object LocalServer extends Server("http://localhost:5984", "feedshub_status") // todo remove hardcoded localhost
+private object couchConfig {
+  val url = LiftRules.context.getInitParameter("couch_server")
+  val database = LiftRules.context.getInitParameter("couch_database")
+}
+
+object LocalServer extends Server(couchConfig.url, couchConfig.database)
 
 /**
  * Represents an archive available as a feed
