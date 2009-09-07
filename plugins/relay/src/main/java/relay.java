@@ -1,6 +1,7 @@
 import com.rabbitmq.streams.harness.PluginException;
 import com.rabbitmq.streams.harness.Server;
 import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
 import com.rabbitmq.streams.harness.PluginBuildException;
 import net.sf.json.JSONObject;
 
@@ -34,8 +35,9 @@ public class relay extends Server {
           }
           ack.ack();
         }
-        catch (Exception ex) {
-          throw new PluginException(ex);
+        catch (Exception e) {
+          notifier.notify(NotificationType.FatalError, "Couldn't relay msg: " + e.getMessage());
+          throw new PluginException(e);
         }
       }
   };

@@ -3,7 +3,7 @@ package com.rabbitmq.streams.plugins.newdata;
 import com.rabbitmq.streams.harness.*;
 import net.sf.json.JSONObject;
 import org.junit.After;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 import static org.mockito.Mockito.*;
@@ -16,6 +16,7 @@ public class NewDataComponentTest {
   private InputMessage message;
   private DatabaseResource database;
   private Logger logger;
+  private Notifier notifier;
   private static final String MESSAGE_BODY = "1234";
 
   @Before
@@ -29,7 +30,10 @@ public class NewDataComponentTest {
 
     message = mock(InputMessage.class);
     logger = mock(Logger.class);
+    notifier = mock(Notifier.class);
     component.setLog(logger);
+    component.setNotifier(notifier);
+    assert(true);
   }
 
   @After
@@ -61,6 +65,8 @@ public class NewDataComponentTest {
   public void shouldThrowExceptionIfDatabaseUnavailable() throws PluginBuildException, IOException, MessagingException {
 
     component.configure(null);
+    component.setLog(logger);
+    component.setNotifier(notifier);
 
     //noinspection ThrowableInstanceNeverThrown
     when(database.getDocument(anyString())).thenThrow(new IOException("BANG!"));
@@ -68,9 +74,8 @@ public class NewDataComponentTest {
       component.input.handleMessage(message);
       fail("A plugin exception should have been thrown");
     }
-    catch (PluginException ignore) {
-    }
-
+    catch (PluginException ignore) {}
+    verify(notifier).notify(NotificationType.FatalError, "Unable to connect to database: BANG!");
     verify(messageChannel, never()).publish(anyString(), any(Message.class));
   }
 

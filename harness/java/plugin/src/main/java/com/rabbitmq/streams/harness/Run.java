@@ -20,9 +20,12 @@ public class Run {
     Thread thread = new Thread()  {
       @Override
       public void run() {
-        if(connection != null)  {
+        if (connection != null) {
           try {
-            if(connection.isOpen()) {
+            if (connection.isOpen()) {
+              if (buildlog != null) {
+                buildlog.shutdown();
+              }
               connection.close();
             }
           }
@@ -35,18 +38,17 @@ public class Run {
     thread.setDaemon(true);
     Runtime.getRuntime().addShutdownHook(thread);
   }
-  
+
   public void setConfig(JSONObject config) {
     this.config = config;
   }
 
-  public void runPlugin() throws IOException  {
+  public void runPlugin() throws IOException {
     connection = new AMQPConnectionFactory().connectionFromConfig(config.getJSONObject("messageserver"));
     try {
       BitSet flags = new BitSet();
       if (config.optBoolean("debug", false)) flags.set(DEBUG);
       if (config.optBoolean("trace", false)) flags.set(TRACE);
-
       buildlog = new AMQPLogger(connection.createChannel(), "." + config.getString("plugin_name"), flags);
       // TODO: why does this need to run in a thread, rather than just being synchronous
       // TODO: encapsulate this
