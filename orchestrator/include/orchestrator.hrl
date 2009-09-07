@@ -9,3 +9,5 @@
 -else.
 -define(DEBUGREPORT(Term), ok).
 -endif.
+
+-record(amqp_config, {host="localhost", port=5672, virtual_host="/", user, password}).

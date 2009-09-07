@@ -43,7 +43,7 @@ plugin_not_found(PluginId) ->
 
 %%---------------------------------------------------------------------------
 
-init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName]) ->
+init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Queues, Exchanges, DbName, AmqpConfig]) ->
     error_logger:info_report({?MODULE, starting_plugin, _Args}),
     {ok, PluginNameBin} = rfc4627:get_field(PluginConfig, "type"),
     {ok, PluginUserConfig}  = case rfc4627:get_field(PluginConfig, "configuration") of
@@ -76,13 +76,7 @@ init(_Args = [HarnessTypeBin, PluginConfig, PluginTypeConfig, FeedId, NodeId, Qu
                   {"plugin_type", PluginTypeConfig},
 		  {"global_configuration", {obj, []}}, %% TODO
                   {"configuration", PluginUserConfig},
-                  {"messageserver",
-                   {obj, [{"host", <<"localhost">>}, %% TODO thread thru from root config
-                          {"port", 5672}, %% TODO thread thru from root config
-                          {"virtual_host", <<"/">>}, %% TODO thread thru from root config
-                          {"username", <<"feedshub_admin">>}, %% TODO use per-feed username
-                          {"password", <<"feedshub_admin">>} %% TODO use per-feed username
-                          ]}},
+                  orchestrator_util:amqp_plugin_config(AmqpConfig),
                   {"inputs", {obj, QueuesBin}},
                   {"outputs", {obj, ExchangesBin}},
                   {"state", list_to_binary(StateDocUrl)},

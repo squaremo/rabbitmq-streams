@@ -24,8 +24,6 @@ open_channel() ->
 
 %%---------------------------------------------------------------------------
 
--record(root_config, {rabbitmq_host, rabbitmq_port, rabbitmq_admin_user, rabbitmq_admin_password}).
-
 setup_core_messaging(Ch, LogCh) ->
     #'exchange.declare_ok'{} =
         amqp_channel:call(LogCh, #'exchange.declare'{exchange = ?FEEDSHUB_LOG_XNAME,
@@ -98,7 +96,6 @@ install_view(DbName, ViewDir) ->
     {ok, _} = couchapi:put(Path, Doc2).
 
 read_root_config() ->
-    %% TODO(alexander): this seems wrong -- why do I need to tell get_env it's orchestrator?
     {ok, RootConfigUrl} = application:get_env(orchestrator, root_config_url),
     {ok, RootConfig} = couchapi:get({raw, RootConfigUrl}),
     case rfc4627:get_field(RootConfig, "feedshub_version") of
@@ -106,12 +103,14 @@ read_root_config() ->
             {ok, RMQ} = rfc4627:get_field(RootConfig, "rabbitmq"),
             {ok, RHost} = rfc4627:get_field(RMQ, "host"),
             {ok, RPort} = rfc4627:get_field(RMQ, "port"),
+            RVHost = rfc4627:get_field(RMQ, "virtual_host", <<"/">>),
             {ok, RUser} = rfc4627:get_field(RMQ, "user"),
             {ok, RPassword} = rfc4627:get_field(RMQ, "password"),
-            {ok, #root_config{rabbitmq_host = binary_to_list(RHost),
-                              rabbitmq_port = RPort,
-                              rabbitmq_admin_user = binary_to_list(RUser),
-                              rabbitmq_admin_password = binary_to_list(RPassword)}};
+            {ok, #amqp_config{host = binary_to_list(RHost),
+                              port = RPort,
+                              virtual_host = RVHost,
+                              user = binary_to_list(RUser),
+                              password = binary_to_list(RPassword)}};
         {ok, Other} ->
             exit({feedshub_version_mismatch, [{expected, ?FEEDSHUB_VERSION},
                                               {detected, Other}]})
@@ -131,7 +130,7 @@ startup_couch_scan() ->
                   "before running the orchestrator"})
     end,
     install_views(),
-    {ok, #root_config{}} = read_root_config().
+    {ok, #amqp_config{}} = read_root_config().
 
 activate_thing(ThingId, Module, Args) when is_binary(ThingId) ->
     case supervisor:start_child(orchestrator_root_sup,
@@ -189,13 +188,13 @@ id_from_status(Status) ->
             NoStatusSuffix %% FIXME: this silently assumes that it was called mistakenly
     end.
 
-check_active_servers(Channel, Connection) ->
+check_active_servers(Channel, Connection, AmqpConfig) ->
     ServerIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
 		 || R <- couchapi:get_view_rows(streams_config:config_db(), "servers", "active")],
     lists:foreach(fun(ServerId) -> activate_server(ServerId, [Channel, Connection,
 							      Channel, Connection,
 							      Channel, Connection,
-							      self()]) end, ServerIds),
+							      self(), AmqpConfig]) end, ServerIds),
     {ok, length(ServerIds)}.
 
 activate_feed(FeedId, Args) ->
@@ -204,10 +203,10 @@ activate_feed(FeedId, Args) ->
 deactivate_feed(FeedId, _Args) ->
     deactivate_thing(FeedId).
 
-check_active_feeds(Connection) ->
+check_active_feeds(Connection, AmqpConfig) ->
     FeedIds = [id_from_status(binary_to_list(rfc4627:get_field(R, "id", undefined)))
                || R <- couchapi:get_view_rows(streams_config:config_db(), "feeds", "active")],
-    lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection]) end, FeedIds),
+    lists:foreach(fun (FeedId) -> activate_feed(FeedId, [Connection, Connection, AmqpConfig]) end, FeedIds),
     ok.
 
 activate_terminal(TermId, Channel) when is_binary(TermId) ->
@@ -272,12 +271,13 @@ server_started_callback(RootPid) ->
 -record(state, {config, amqp_connection, ch, logger_ch, server_startup_waiting}).
 
 init([]) ->
-    {ok, Configuration = #root_config{rabbitmq_host = RHost,
-                                      rabbitmq_port = RPort,
-                                      rabbitmq_admin_user = RUser,
-                                      rabbitmq_admin_password = RPassword}}
+    {ok, Configuration = #amqp_config{host = RHost,
+                                      port = RPort,
+                                      virtual_host = VHost,
+                                      user = RUser,
+                                      password = RPassword}}
         = startup_couch_scan(),
-    AmqpConnectionPid = amqp_connection:start_network_link(RUser, RPassword, RHost, RPort),
+    AmqpConnectionPid = amqp_connection:start_network_link(RUser, RPassword, RHost, RPort, VHost),
     Ch = amqp_connection:open_channel(AmqpConnectionPid),
     LogCh = amqp_connection:open_channel(AmqpConnectionPid),
     ok = setup_core_messaging(Ch, LogCh),
@@ -302,15 +302,17 @@ handle_cast(server_started_callback, State = #state { server_startup_waiting = S
 handle_cast(setup_logger, State = #state {logger_ch = LogCh}) ->
     ok = setup_logger(LogCh),
     {noreply, State};
-handle_cast(check_active_servers, State = #state { ch = Ch, amqp_connection = Connection }) ->
-    {ok, ServerCount} = check_active_servers(Ch, Connection),
+handle_cast(check_active_servers, State = #state { config=AmqpConf, ch = Ch, amqp_connection = Connection }) ->
+    {ok, ServerCount} = check_active_servers(Ch, Connection, AmqpConf),
     if 0 =:= ServerCount -> gen_server:cast(self(), check_active_terminals);
        true -> ok
     end,
     {noreply, State #state { server_startup_waiting = ServerCount }};
-handle_cast(check_active_terminals, State = #state { ch = Ch, amqp_connection = Connection }) ->
+%% There's no check_active_feeds because we simply "run on" and do it here,
+%% since it will still be in order (servers then terminals then feeds).
+handle_cast(check_active_terminals, State = #state { ch = Ch, amqp_connection = Connection, config=AmqpConfig }) ->
     ok = check_active_terminals(Ch),
-    ok = check_active_feeds(Connection),
+    ok = check_active_feeds(Connection, AmqpConfig),
     {noreply, State};
 handle_cast({status_change, ThingId}, State = #state{ch = Ch, amqp_connection = Connection}) ->
     status_change(ThingId, Ch, Connection),

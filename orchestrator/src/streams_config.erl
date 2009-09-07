@@ -5,7 +5,7 @@
 %% The following are unsafe (i.e., may blow up if the env values are
 %% not found).
 
-%% @doc Return a list of cnofig items missing.
+%% @doc Return a list of config items missing.
 check_config() ->
     lists:filter(fun (X) ->
                          case application:get_env(orchestrator, X) of

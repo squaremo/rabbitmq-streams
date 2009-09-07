@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/9]).
+-export([start_link/10]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([find_servers_for_terminal/1]).
 
@@ -14,12 +14,12 @@ start_link(ServerSupPid, ServerId,
 	   PipelineChannel, PipelineBroker,
 	   IngressChannel, IngressBroker,
 	   EgressChannel, EgressBroker,
-	   RootPid) ->
+	   RootPid, AmqpConfig) ->
     gen_server:start_link(?MODULE, [ServerSupPid, ServerId,
 				    PipelineChannel, PipelineBroker,
 				    IngressChannel, IngressBroker,
 				    EgressChannel, EgressBroker,
-				    RootPid], []).
+				    RootPid, AmqpConfig], []).
 
 find_servers_for_terminal(TermId) when is_binary(TermId) ->
     case streams:defn_doc(binary_to_list(TermId)) of
@@ -60,13 +60,13 @@ init([ServerSupPid, ServerIdBin,
       PipelineChannel, PipelineBroker,
       IngressChannel, IngressBroker,
       EgressChannel, EgressBroker,
-      RootPid])
+      RootPid, AqmpConfig])
   when is_binary(ServerIdBin) ->
     gen_server:cast(self(), {start_server, ServerIdBin,
 			     PipelineChannel, PipelineBroker,
 			     IngressChannel, IngressBroker,
 			     EgressChannel, EgressBroker,
-			     RootPid}),
+			     RootPid, AqmpConfig}),
 
     ServerId = binary_to_list(ServerIdBin),
     {ok, #state{subproc = undefined,
@@ -81,7 +81,7 @@ handle_call(_Message, _From, State) ->
 
 handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
                      IngressChannel, IngressBroker, EgressChannel, _EgressBroker,
-                     RootPid},
+                     RootPid, AmqpConfig},
 	    #state { server_id = ServerId, server_sup_pid = ServerSupPid }) ->
     error_logger:info_report({?MODULE, starting_server, _Args}),
 
@@ -173,7 +173,6 @@ handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
 				  {ok, PUC} -> {ok, PUC};
 				  not_found -> {ok, {obj, []}}
 			      end,
-    
     StateDb = "server_" ++ ServerId ++ "_state",
     couchapi:createdb(StateDb),
     ConfigDoc = {obj,
@@ -184,13 +183,7 @@ handle_cast(_Args = {start_server, ServerIdBin, PipelineChannel, PipelineBroker,
                   {"plugin_type", ServerDefinition},
 		  {"global_configuration", {obj, []}}, %% TODO
                   {"configuration", ServerUserConfig},
-                  {"messageserver", %% TODO - need more than one of these for the different brokers (potentially)
-                   {obj, [{"host", <<"localhost">>}, %% TODO thread thru from root config
-                          {"port", 5672}, %% TODO thread thru from root config
-                          {"virtual_host", <<"/">>}, %% TODO thread thru from root config
-                          {"username", <<"feedshub_admin">>}, %% TODO use per-feed username
-                          {"password", <<"feedshub_admin">>} %% TODO use per-feed username
-                          ]}},
+                  orchestrator_util:amqp_plugin_config(AmqpConfig),
                   {"inputs", Inputs},
                   {"outputs", Outputs},
                   {"database", list_to_binary(couchapi:expand(StateDb))},

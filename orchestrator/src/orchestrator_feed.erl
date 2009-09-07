@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/4]).
+-export([start_link/5]).
 -export([selfcheck/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
@@ -10,15 +10,15 @@
 -include("orchestrator.hrl").
 -include("rabbit_framing.hrl").
 
-start_link(FeedId, FeedSupPid, PipelineBroker, EgressBroker) ->
-    gen_server:start_link(?MODULE, [FeedId, FeedSupPid, PipelineBroker, EgressBroker], []).
+start_link(FeedId, FeedSupPid, PipelineBroker, EgressBroker, AmqpConfig) ->
+    gen_server:start_link(?MODULE, [FeedId, FeedSupPid, PipelineBroker, EgressBroker, AmqpConfig], []).
 
 selfcheck(FeedPid) ->
     ok = gen_server:cast(FeedPid, selfcheck).
 
 %%---------------------------------------------------------------------------
 
--record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid, pipeline_broker_connection, egress_broker_connection}).
+-record(state, {feed_id, channel, config_rev_id, feed_sup_pid, plugin_sup_pid, pipeline_broker_connection, egress_broker_connection, amqp_conf}).
 
 -record(node_configuration, {node_id, plugin_config, plugin_desc, queues, exchanges, database}).
 
@@ -26,6 +26,8 @@ open_channel(State = #state{channel = undefined}) ->
     {ok, Ch} = orchestrator_root:open_channel(),
     State#state{channel = Ch}.
 
+%% Find the supervisor we should use for starting up pipeline components.
+%% This should be started as part of the feed's supervisor.
 ensure_plugin_sup_detected(State = #state{plugin_sup_pid = P}) when is_pid(P) ->
     State;
 ensure_plugin_sup_detected(State = #state{feed_sup_pid = FSP}) ->
@@ -40,6 +42,7 @@ get_config(#state{feed_id = FeedId}) ->
     {ok, FeedDefinition} = streams:defn_doc(FeedId),
     FeedDefinition.
 
+%% TODO should this go in orchestrator_util?
 resource_name(FeedId, N, A) when is_binary(FeedId) ->
     resource_name(binary_to_list(FeedId), N, A);
 resource_name(F, NodeId, A) when is_binary(NodeId) ->
@@ -53,7 +56,8 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
                                  channel = Channel,
                                  plugin_sup_pid = PluginSupPid,
 				 pipeline_broker_connection = PipelineBroker,
-				 egress_broker_connection = EgressBroker
+				 egress_broker_connection = EgressBroker,
+                                 amqp_conf = AmqpConfig
 				}) ->
     FeedId = binary_to_list(FeedIdBin),
     FeedDefinition = get_config(State),
@@ -75,7 +79,7 @@ do_start_pipeline(State = #state{feed_id = FeedIdBin,
 
     %% Finally, go through nodes again starting the plugin instances.
     lists:foreach(fun (NodeConfiguration) ->
-                          start_component(PluginSupPid, FeedId, NodeConfiguration)
+                          start_component(PluginSupPid, FeedId, NodeConfiguration, AmqpConfig)
                   end, lists:filter(fun (NC) -> NC /= ok end, NodeConfigurations)),
 
     State.
@@ -200,7 +204,8 @@ start_component(PluginSupPid, FeedId,
                                     plugin_desc = PluginTypeDescription,
                                     queues = Queues,
                                     exchanges = Exchanges,
-                                    database = DbName}) ->
+                                    database = DbName},
+                AmqpConfig) ->
     {ok, HarnessTypeBin} = rfc4627:get_field(PluginTypeDescription, "harness"),
     supervisor:start_child(PluginSupPid, {NodeId,
 					  {orchestrator_plugin, start_link,
@@ -211,7 +216,8 @@ start_component(PluginSupPid, FeedId,
 					     NodeId,
 					     Queues,
 					     Exchanges,
-					     DbName]]
+					     DbName,
+                                             AmqpConfig]]
 					  },
 					  permanent,
 					  5000,
@@ -233,7 +239,7 @@ do_selfcheck(State = #state{config_rev_id = CurrentConfigRev}) ->
 
 %%---------------------------------------------------------------------------
 
-init([FeedId, FeedSupPid, PipelineBroker, EgressBroker]) ->
+init([FeedId, FeedSupPid, PipelineBroker, EgressBroker, AmqpConfig]) ->
     %% We send ourselves a message, because we need to interact with
     %% FeedSupPid, our parent supervisor, and doing so during init is
     %% a violation of the behaviour spec required of us as a
@@ -245,7 +251,8 @@ init([FeedId, FeedSupPid, PipelineBroker, EgressBroker]) ->
                 feed_sup_pid = FeedSupPid,
                 plugin_sup_pid = undefined,
 		pipeline_broker_connection = PipelineBroker,
-		egress_broker_connection = EgressBroker
+		egress_broker_connection = EgressBroker,
+                amqp_conf = AmqpConfig
 	       }}.
 
 handle_call(_Message, _From, State) ->
