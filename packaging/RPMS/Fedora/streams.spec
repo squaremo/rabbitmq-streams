@@ -6,6 +6,7 @@ Source: %{name}-%{version}.tar.gz
 License: BSD
 Group: Development/Libraries
 BuildRequires: erlang
+Requires: lsb
 Requires: erlang
 Requires: rabbitmq-server >= 1.6
 Requires: couchdb >= 0.9
