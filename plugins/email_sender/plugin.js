@@ -16,7 +16,7 @@
                                     ],
 
     "destination_specification": [
-                                  {"label": "To", "type": "List of emails", "name": "to"},
+      {"label": "To", "type": "List of emails", "name": "to"},
       {"label": "Subject", "type": "Email subject", "name": "subject"}
                                  ]
 }
