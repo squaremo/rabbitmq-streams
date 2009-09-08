@@ -1,6 +1,3 @@
-/** An interface representing state storage for plugins.
- */
-
 package com.rabbitmq.streams.harness;
 
 import java.io.IOException;
