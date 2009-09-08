@@ -1,10 +1,3 @@
-/*
- * FeedsActor.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
- */
-
 package com.rabbitmq.streams.management.comet
 
 import scala.collection.mutable.HashMap
@@ -39,7 +32,7 @@ class FeedsActor extends CometActor {
         bind("list" ->
              (<table id="feeds-list" class="tablesorter">
                 <thead>
-                       <tr><th>Feed</th><th>Status</th><th>Last log message</th><th></th></tr>
+                       <tr><th>Feed</th><th>Status</th><th>Last log message</th></tr>
                 </thead>
                 <tbody>
                        {feeds.map(f =>
@@ -52,7 +45,6 @@ class FeedsActor extends CometActor {
                           case None    => "No log messages available"
                         }), ("feed", f.id))}
                       </td>
-                      <td class="ctrl">{feedControl(f)}</td>
                   </tr>)}
                 </tbody>
               </table>
