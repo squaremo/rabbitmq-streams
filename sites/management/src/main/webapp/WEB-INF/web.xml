@@ -7,11 +7,39 @@ PUBLIC "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
 <web-app>
   <context-param>
     <param-name>couch_server</param-name>
-    <param-value>http://localhost:5984</param-value>
+    <param-value>localhost</param-value>
+  </context-param>
+  <context-param>
+    <param-name>couch_port</param-name>
+    <param-value>5984</param-value>
   </context-param>
   <context-param>
     <param-name>couch_database</param-name>
     <param-value>feedshub_status</param-value>
+  </context-param>
+  <context-param>
+    <param-name>couch_username</param-name>
+    <param-value></param-value>
+  </context-param>
+  <context-param>
+    <param-name>couch_password</param-name>
+    <param-value></param-value>
+  </context-param>
+  <context-param>
+    <param-name>rabbit_server</param-name>
+    <param-value>localhost</param-value>
+  </context-param>
+  <context-param>
+    <param-name>rabbit_port</param-name>
+    <param-value>5672</param-value>
+  </context-param>
+  <context-param>
+    <param-name>rabbit_username</param-name>
+    <param-value>feedshub_admin</param-value>
+  </context-param>
+  <context-param>
+    <param-name>rabbit_password</param-name>
+    <param-value>feedshub_admin</param-value>
   </context-param>
 
   <filter>

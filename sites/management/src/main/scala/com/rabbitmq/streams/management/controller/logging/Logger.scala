@@ -1,5 +1,6 @@
 package com.rabbitmq.streams.management.controller.logging
 
+import bootstrap.liftweb.Boot
 import scala.actors.Actor
 import scala.actors.Actor._
 import scala.collection.mutable.HashSet
@@ -18,11 +19,11 @@ abstract class Logger(binding: LogBinding) extends Actor {
   def connect {
     val listener = this
     val parameters = new ConnectionParameters
-    parameters.setUsername("feedshub_admin")
-    parameters.setPassword("feedshub_admin")
+    parameters.setUsername(Boot.rabbitConfig.username)
+    parameters.setPassword(Boot.rabbitConfig.password)
     parameters.setVirtualHost("/")
     val cf = new ConnectionFactory(parameters)
-    val ch = cf.newConnection("localhost", 5672).createChannel
+    val ch = cf.newConnection(Boot.rabbitConfig.server, Boot.rabbitConfig.port).createChannel
 
     object LogConsumer extends DefaultConsumer(ch) {
       override def handleDelivery(consumerTag: String, envelope: Envelope, properties: AMQP.BasicProperties, body: Array[Byte]) = {

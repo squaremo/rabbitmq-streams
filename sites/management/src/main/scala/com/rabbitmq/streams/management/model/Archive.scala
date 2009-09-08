@@ -1,5 +1,6 @@
 package com.rabbitmq.streams.management.model
 
+import bootstrap.liftweb.Boot
 import java.lang.String
 import java.net.{URLEncoder, URL}
 import java.util.{Date}
@@ -162,12 +163,7 @@ object Server {
   }
 }
 
-private object couchConfig {
-  val url = LiftRules.context.getInitParameter("couch_server")
-  val database = LiftRules.context.getInitParameter("couch_database")
-}
-
-object LocalServer extends Server(couchConfig.url, couchConfig.database)
+object LocalServer extends Server(Boot.couchConfig.url, Boot.couchConfig.database)
 
 /**
  * Represents an archive available as a feed

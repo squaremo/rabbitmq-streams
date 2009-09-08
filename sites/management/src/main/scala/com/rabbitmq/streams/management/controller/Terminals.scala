@@ -1,8 +1,3 @@
-/*
- * Terminals.scala
- *
- */
-
 package com.rabbitmq.streams.management.controller
 
 import scala.collection.jcl.Conversions._
@@ -48,10 +43,8 @@ object Terminals extends Actor with FeedsHubConfig with ConfigAwareActor with Ob
   }
 
   val handleChanges: PartialFunction[Any, Unit] = {
-    case ConfigChange(id) =>
-      true // ignore for now
-    case StatusChange(id) =>
-      readStatus; notifyOfUpdate
+    case ConfigChange(id) => true // ignore for now
+    case StatusChange(id) => readStatus; notifyOfUpdate
   }
 
   def act {
