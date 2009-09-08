@@ -62,6 +62,6 @@ public class EmailSenderTest extends TestCase {
     catch (PluginException ignore) {
     }
 
-    verify(notifier).notify(NotificationType.Unavailable, "Could not deliver email 501 5.1.7 Bad sender address syntax");
+    verify(notifier).notify(eq(NotificationType.Unavailable), anyString());
   }
 }
