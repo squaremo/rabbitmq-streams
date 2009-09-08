@@ -14,7 +14,7 @@ while [ -L "$CMD" ]; do CMD=`readlink "$CMD"`; done
 ORCHESTRATOR_HOME=${ORCHESTRATOR_HOME:-$(dirname ${CMD})/..}
 
 #FIXME: the below isn't quite ideal
-STREAMS_LOG_BASE=${STREAMS_LOG_BASE:-/var/log}
+STREAMS_LOG_BASE=${STREAMS_LOG_BASE:-/var/log/streams}
 STREAMS_LOG=${STREAMS_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}.log}
 STREAMS_SASL_LOG=${STREAMS_SASL_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}-sasl.log}
 
