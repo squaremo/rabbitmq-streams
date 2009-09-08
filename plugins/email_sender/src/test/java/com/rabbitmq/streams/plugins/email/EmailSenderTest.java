@@ -15,7 +15,7 @@ public class EmailSenderTest extends TestCase {
 
   public void setUp() {
     config = new JSONObject();
-    config.put("host", "0.0.0.0");
+    config.put("host", "257.257.257.257"); // Deliberately illegal, just want to see notification sent
     config.put("username", "username");
     config.put("password", "password");
     config.put("transportProtocol", "smtp");
