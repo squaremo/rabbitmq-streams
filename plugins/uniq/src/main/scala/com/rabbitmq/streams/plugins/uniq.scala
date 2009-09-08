@@ -1,7 +1,3 @@
-/*
- * A plugin that moans if there are input duplicates.
- */
-
 package com.rabbitmq.streams.plugins
 
 import java.util.Arrays
@@ -10,9 +6,9 @@ import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessag
                                      NotificationType}
 import net.sf.json.{JSONObject, JSONArray}
 
-
-
-
+/**
+ * A plugin that moans if there are input duplicates.
+ */
 class UniqPlugin() extends PipelineComponent() {
   //FIXME(alexander): AARGH. Surely there *must* be a saner way to do this!?
   //and why does that have to go into the class?

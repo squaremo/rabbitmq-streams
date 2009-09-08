@@ -1,13 +1,12 @@
-/*
- * A plugin that moans if the data is empty.
- */
-
 package com.rabbitmq.streams.plugins.dataempty
 
 import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessage,
                                      NotificationType}
 import net.sf.json.JSONObject
 
+/**
+ * A plugin that moans if the data is empty.
+ */
 class DataEmptyPlugin() extends PipelineComponent() {
   override def configure(config : JSONObject) {
     val nagMessage = config.getString("message")

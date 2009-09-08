@@ -1,7 +1,3 @@
-/*
- * A plugin that evaluates a supplied JavaScript function to transform messages.
- */
-
 package com.rabbitmq.streams.plugins.javascript
 
 import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessage}
@@ -9,6 +5,9 @@ import net.sf.json.JSONObject
 
 import org.mozilla.javascript.Context
 
+/**
+ * A plugin that evaluates a supplied JavaScript function to transform messages.
+ */
 class JavaScriptPlugin() extends PipelineComponent() {
 
     private val context = Context.enter()

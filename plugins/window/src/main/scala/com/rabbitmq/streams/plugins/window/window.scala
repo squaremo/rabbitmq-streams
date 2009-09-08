@@ -1,7 +1,3 @@
-/*
- * A sliding window with timeout and different ways to measure window length.
- */
-
 package com.rabbitmq.streams.plugins.window
 
 import scala.actors._
@@ -13,6 +9,9 @@ import net.sf.json.{JSONObject, JSONArray, JSONNull}
 import com.rabbitmq.streams.harness.{PipelineComponent, InputReader, InputMessage,
                                      NotificationType, PluginException}
 
+/**
+ * A sliding window with timeout and different ways to measure window length.
+ */
 class WindowPlugin() extends PipelineComponent() {
   //FIXME(alexander) cut'n pasted hack
   def unpickleBody(body: Object): Array[Byte] = {
