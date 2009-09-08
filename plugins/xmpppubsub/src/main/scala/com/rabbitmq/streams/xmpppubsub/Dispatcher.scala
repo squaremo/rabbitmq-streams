@@ -1,12 +1,5 @@
 package com.rabbitmq.streams.xmpppubsub
 
-/*
- * Dispatcher.scala
- *
- * To change this template, choose Tools | Template Manager
- * and open the template in the editor.
- */
-
 import scala.actors.Actor
 import scala.actors.Actor._
 

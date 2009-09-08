@@ -1,7 +1,3 @@
-/**
- * An exception for the messaging system to signal problems.
- */
-
 package com.rabbitmq.streams.harness;
 
 /**

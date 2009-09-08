@@ -1,8 +1,3 @@
-/*
- * websubscriber.scala
- *
- */
-
 import com.rabbitmq.streams.harness._
 import com.fourspaces.couchdb.Document
 import com.rabbitmq.client.QueueingConsumer.Delivery

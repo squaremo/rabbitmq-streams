@@ -42,7 +42,7 @@ object Boot {
 trait CouchConfig {
   def server = LiftRules.context.getInitParameter("couch_server")
   def port = LiftRules.context.getInitParameter("couch_port").toInt
-  def username = LiftRules.context.getInitParameter("couch_user")
+  def username = LiftRules.context.getInitParameter("couch_username")
   def password = LiftRules.context.getInitParameter("couch_password")
   def url = "http://" + server + ":" + port
   def database = LiftRules.context.getInitParameter("couch_database")
@@ -51,6 +51,6 @@ trait CouchConfig {
 trait RabbitConfig {
   def server = LiftRules.context.getInitParameter("rabbit_server")
   def port = LiftRules.context.getInitParameter("rabbit_port").toInt
-  def username = LiftRules.context.getInitParameter("rabbit_user")
+  def username = LiftRules.context.getInitParameter("rabbit_username")
   def password = LiftRules.context.getInitParameter("rabbit_password")
 }

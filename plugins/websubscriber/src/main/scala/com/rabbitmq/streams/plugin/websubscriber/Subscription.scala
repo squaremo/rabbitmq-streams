@@ -1,7 +1,3 @@
-/*
- * Subscription.scala
- */
-
 package com.rabbitmq.streams.plugin.websubscriber
 
 import scala.actors.Actor

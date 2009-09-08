@@ -1,8 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package com.rabbitmq.streams.harness;
 
 import com.fourspaces.couchdb.Database;
