@@ -3,7 +3,7 @@ set -eu
 
 # see ./streams-server re using readlink here.
 CMD="$0"
-while [ -L "$CMD" ]; do CMD=readlink "$CMD"; done
+while [ -L "$CMD" ]; do CMD=`readlink "$CMD"`; done
 
 exec erl \
     -pa "$(dirname ${CMD})/../ebin" \
