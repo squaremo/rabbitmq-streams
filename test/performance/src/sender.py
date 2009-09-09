@@ -1,5 +1,7 @@
 from net.grinder.plugin.http import HTTPRequest
 
+import socket
+
 # TODO: Remove duplication
 def consoleLog(msg):
     print msg
@@ -28,3 +30,17 @@ class HttpSender(Sender):
             raise Exception("Unexpected HTTP response; " + result.getText())
 
         return result
+
+class NetworkSender(Sender):
+    def __init__(self, addr):
+        self._addr = addr
+        Sender.__init__(self)
+        self.log("Using address %r" % (addr,))
+
+    def send(self, data):
+        sock = socket.socket()
+        sock.connect(self._addr)
+        sock.sendall(data)
+        sock.close()
+
+        
