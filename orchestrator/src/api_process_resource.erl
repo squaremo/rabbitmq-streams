@@ -23,6 +23,7 @@ content_types_provided(Req, State) ->
 
 resource_exists(Req, State = #state{kind=Kind}) ->
     Id = wrq:path_info(id, Req),
+    %% FIXME hide these in the streams.erl interface
     StatusDocType = api_util:status_doc_type(Kind),
     case streams:status_doc(Id) of
         {ok, Doc} ->

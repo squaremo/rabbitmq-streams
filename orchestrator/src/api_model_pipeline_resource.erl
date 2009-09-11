@@ -11,7 +11,7 @@
 -record(state, { doc = undefined }).
 
 init([]) ->
-    {ok, #state{}}.
+    {{trace, "/tmp"}, #state{}}.
 
 allowed_methods(Req, State) ->
     {['GET', 'HEAD', 'PUT'], Req, State}.
@@ -33,19 +33,52 @@ content_types_accepted(Req, State) ->
 to_json(Req, State = #state { doc = Doc }) ->
     {rfc4627:encode(del_field(del_field(Doc, "_rev"), "_id")), Req, State}.
 
-from_json(Req, State) ->
+from_json(Req, State = #state{ doc = Doc }) ->
+    Id = wrq:path_info(id, Req),
     case rfc4627:decode(wrq:req_body(Req)) of
         {ok, Json, _} ->
-            {put_pipeline(wrq:path_info(id, Req), Json), Req, State};
+            case Doc of
+                undefined ->
+                    case create_pipeline(Id, Json) of
+                        {ok, _} ->
+                            {true,
+                             wrq:set_resp_header("Location",
+                                                 api_util:url(model, pipeline, Id),
+                                                 Req),
+                             State};
+                        {error, Code, Reason} ->
+                            {{error, Reason}, Req, State}
+                    end;
+                Doc ->
+                    case put_pipeline(Id, Json, Doc) of
+                        {ok, _} ->
+                            {true, Req, State};
+                        {error, Code, Reason} ->
+                            {{error, Reason}, Req, State}
+                    end
+            end;
         {error, Reason} ->
             {{error, Reason}, Req, State}
     end.
 
-%% I don't think this will arise, since it will fail at If-Match with 412 precondition failed
+%% This will get hit if
+%%
+%% 1. The resource doesn't exist; no conflict, go ahead.
+%%
+%% 2. The resource exists, and the request has If-Match of "*" or a
+%% list of Etags, one of which matched our revision number.  In our
+%% case, we want an If-Match exactly matching our revision, not *
+%% or a list.  Conflict.
+%%
+%% 3. The request doesn't supply an If-Match header, we did find the
+%% resource.  We want If-Match to be mandatory if it's replacing
+%% something, so we'll signal a conflict.
+is_conflict(Req, State = #state{ doc = undefined }) ->
+    {false, Req, State};
 is_conflict(Req, State = #state{ doc = Doc }) ->
     {ok, Rev} = rfc4627:get_field(Doc, "_rev"),
     IfMatch = wrq:get_req_header("If-Match", Req),
-    {binary_to_list(Rev) =/= IfMatch, Req, State}.  %% Ignores possibility of multiple values in the header
+    {binary_to_list(Rev) /= IfMatch, Req, State}.
 
 generate_etag(Req, State = #state { doc = Doc }) ->
     {case rfc4627:get_field(Doc, "_rev", undefined) of
@@ -59,5 +92,8 @@ del_field({obj, Props}, Key) ->
     {obj, lists:keydelete(Key, 1, Props)}.
 %% NB erlang_rfc4627 in general lets other cases badmatch; see set_field/3 e.g..
 
-put_pipeline(Id, Json) ->
-    true.
+put_pipeline(Id, JsonObj, Doc) ->
+    streams:set_defn(Id, JsonObj).
+
+create_pipeline(Id, JsonObj) ->
+    streams:create_defn(pipeline, JsonObj, Id).

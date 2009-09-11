@@ -34,4 +34,3 @@ function test_pipeline_unknown() {
     Test.areEqual(404, e.javaException.getResponseCode());
   }
 }
-

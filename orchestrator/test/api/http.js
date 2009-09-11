@@ -1,6 +1,6 @@
 var http = Packages.com.meterware.httpunit;
 
-var baseUrl = "http://localhost:8000";
+var baseUrl = "http://localhost:5791";
 
 function getResponse(path) {
   var c = new http.WebConversation();
@@ -27,6 +27,20 @@ function postResponse(path, postdata, contenttype) {
   var req = new http.PostMethodWebRequest(baseUrl+path, is, contenttype);
   if (postResponse.arguments.length > 3) {
     var headers = postResponse.arguments[3];
+    for (k in headers) {
+      req.setHeaderField(k, headers[k]);
+    }
+  }
+  var res = c.getResponse(req);
+  return res;
+}
+
+function putResponse(path, putdata, contenttype) {
+  var c = new http.WebConversation();
+  var is = new java.io.ByteArrayInputStream(new java.lang.String(putdata).getBytes());
+  var req = new http.PutMethodWebRequest(baseUrl+path, is, contenttype);
+  if (putResponse.arguments.length > 3) {
+    var headers = putResponse.arguments[3];
     for (k in headers) {
       req.setHeaderField(k, headers[k]);
     }
