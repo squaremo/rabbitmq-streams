@@ -59,7 +59,7 @@ Output is suppressed using the \"-q\" flag.
 
 parse_args(["-n", NodeS | Args], Params) ->
     Node = case lists:member($@, NodeS) of
-               true -> list_to_atom(NodeS); 
+               true -> list_to_atom(NodeS);
                false -> splice_localnode(list_to_atom(NodeS))
            end,
     parse_args(Args, Params#params{node = Node});
@@ -67,8 +67,9 @@ parse_args(["-q" | Args], Params) ->
     parse_args(Args, Params#params{quiet = true});
 parse_args([Command | Args], Params) ->
     Params#params{command = list_to_atom(Command), args = Args};
-parse_args([], _) ->
+parse_args(Args, _) when Args =:= [] orelse Args =:= ["--help"] orelse Args =:= ["-h"]->
     usage().
+
 
 stop() ->
     ok.
