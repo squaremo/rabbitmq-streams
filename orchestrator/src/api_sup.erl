@@ -4,20 +4,20 @@
 %% @doc Supervisor for the api application.
 
 -module(api_sup).
--author('author <author@example.com>').
+-author('Michael Bridgen <mikeb@lshift.net>').
 
 -behaviour(supervisor).
 
 %% External exports
--export([start_link/0, upgrade/0]).
+-export([start_link/2, upgrade/0]).
 
 %% supervisor callbacks
 -export([init/1]).
 
-%% @spec start_link() -> ServerRet
+%% @spec start_link(integer(), string()) -> ServerRet
 %% @doc API for starting the supervisor.
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(Port, LogDir) ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [Port, LogDir]).
 
 %% @spec upgrade() -> ok
 %% @doc Add processes if necessary.
@@ -40,13 +40,13 @@ upgrade() ->
 
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
-init([]) ->
+init([Port, LogDir]) ->
     Ip = case os:getenv("MOCHIWEB_IP") of false -> "0.0.0.0"; Any -> Any end,   
     {ok, Dispatch} = file:consult(
                        filename:join([orchestrator:priv_dir(), "dispatch.conf"])),
     WebConfig = [{ip, Ip},
-                 {port, 8000}, %% FIXME use application env
-                 {log_dir, "priv/log"}, %% FIXME use application env
+                 {port, Port}, %% FIXME use application env
+                 {log_dir, LogDir}, %% FIXME use application env
                  {dispatch, Dispatch}],
     Web = {webmachine_mochiweb,
            {webmachine_mochiweb, start, [WebConfig]},

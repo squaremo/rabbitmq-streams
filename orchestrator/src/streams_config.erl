@@ -1,6 +1,7 @@
 -module(streams_config).
 
 -export([check_config/0, config_doc_url/0, state_server/0, config_db/0]).
+-export([api_port/0, api_log_dir/0]).
 
 %% The following are unsafe (i.e., may blow up if the env values are
 %% not found).
@@ -23,3 +24,5 @@ unsafe_env_value(Key) ->
 config_doc_url() -> unsafe_env_value(root_config_url).
 state_server() -> unsafe_env_value(couch_base_url).
 config_db() -> unsafe_env_value(config_db).
+api_port() -> unsafe_env_value(api_port).
+api_log_dir() -> unsafe_env_value(api_log_dir).
