@@ -31,7 +31,8 @@ stop_and_halt() ->
     case catch stop() of _ -> ok end.
 
 status() ->
-    [{running_applications, application:which_applications()}].
+    [{running_applications, application:which_applications()},
+     {uptime, orchestrator_util:uptime()}].
 
 restart() ->
     ok = stop(),

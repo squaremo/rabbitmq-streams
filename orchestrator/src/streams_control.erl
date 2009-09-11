@@ -44,16 +44,21 @@ usage() ->
 
 Available commands:
 
- start_app       - starts RabbitMQ Streams in an already running node
- stop_app        - stops RabbitMQ Streams, leaving the node running
- stop            - stops RabbitMQ Streams and halts the node
+ start_app        - starts RabbitMQ Streams in an already running node
+ stop_app         - stops RabbitMQ Streams, leaving the node running
+ stop             - stops RabbitMQ Streams and halts the node
  status
  restart          - rereads configuration and restarts the application
-                   (also reinstalls the configuration views)
+                    (also reinstalls the configuration views)
+ debug true|false - sets debug output on ('true') or off ('false'); will
+                    will take effect when pipelines are restarted.
+ trace true|false - set tracing to on ('true') or ('off'); this outputs
+                    timing messages from the plugins.  It will take
+                    effect when pipelines are restarted.
 
 Output is suppressed using the \"-q\" flag.
 
-<node> is the short or full name of the node to run (or stop) RabbitMQ Streams on.
+<node> is the short or full name of the node running RabbitMQ Streams.
 "),
     halt(1).
 
