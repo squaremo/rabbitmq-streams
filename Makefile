@@ -62,7 +62,7 @@ RPM_DEPENDENCIES=${DEB_AND_RPM_DEPENDENCIES} nc gcc curl-devel icu libicu-devel 
 
 # Pin down 3rd party libs we get out of repos to a specific revision
 RABBITMQ_HG_TAG=rabbitmq_v1_6_0
-ERLANG_RFC4627_HG_TAG=a1d45d4ffdfb
+ERLANG_RFC4627_HG_TAG=default
 RABBITMQ_CLIENT_HG_TAG=f3da1009b3cf
 IBROWSE_GIT_TAG=9b0a927e39e7c3145a6cac11409144d3089f17f9
 MOCHIWEB_SVN_TAG=104
