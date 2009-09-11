@@ -2,9 +2,12 @@
 
 -export([all_pipelines/0, defn_doc/1, status_doc/1]).
 -export([set_defn/2, process_status/1, activate/2, deactivate/2]).
--export([create_defn/3]).
+-export([new_id/0, create_defn/3]).
 
 -include("orchestrator.hrl").
+
+new_id() ->
+    couchapi:uuid().
 
 defn_doc(ThingId) ->
     couchapi:get(defn_doc_url(ThingId)).
