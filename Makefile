@@ -50,7 +50,7 @@ PLUGIN_MAKEFILES=$(shell find plugins -maxdepth 2 -type f -name Makefile)
 
 
 DEB_AND_RPM_DEPENDENCIES:=curl automake autoconf libtool help2man erlang mercurial subversion git \
-	ant maven2 screen python-simplejson cvs zip elinks
+	ant maven2 screen python-simplejson cvs zip elinks python-mako
 
 DEB_DEPENDENCIES:=${DEB_AND_RPM_DEPENDENCIES} \
         netcat-openbsd 	build-essential erlang-src libicu38 libicu-dev \
