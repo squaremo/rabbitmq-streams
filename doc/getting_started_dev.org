@@ -1,5 +1,5 @@
 #+TITLE:     Getting Started with RabbitMQ Streams
-#+DATE:      2009-05-22 Fri
+#+DATE:      2009-09-11 Fri
 #+LANGUAGE:  en
 #+STARTUP:   odd
 #+OPTIONS:   H:4 num:t toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
@@ -18,7 +18,6 @@
  - hack about with the core code -- read the whole lot, but esp. [[*The Feedshub Architecture in more detail][The Feedshub Architecture in more detail]].
 
 * General Overview
-
 RabbitMQ Streams is a stream based-architecture (surprisingly enough)
 conceived to bring more order and manageability to the BBC's massive feed
 infrastructure (see [[http://www.bbc.co.uk/blogs/radiolabs/2009/04/introducing_bbc_feeds_hub.shtml][this BBC radiolabs blog entry]]; the BBC have tasked us at
@@ -42,107 +41,29 @@ xslt transforms), as depicted below:
     [[./flow-simplified.png]]
 
 =Servers= as well as =PipelineComponents= (jointly referred to as =Plugins=)
-can currently be written in Java, Python and require almost no boilerplate
-(see e.g. [[../plugins/regexp_replace/regexp_replace.py][regexp_replace.py]]) Support for other languages can be added
-straightforwardly by creating an appropriate [[*Writing][=Harness=]] (adding e.g. Ruby would
-be easy because plugins are essentially just programs following a simple
-protocol).
+can currently be written in Java and other JVM based languages (for example
+several plugins are written in scala, and using JRuby or Jython should be
+equally straightforward). Plugins require almost no boilerplate (see e.g.
+[[../plugins/regexp_split/src/main//java/com/rabbitmq/streams/plugins/regexp/split/RegexpSplit.java][RegexpSplit.java]]). Support for other languages can be added straightforwardly
+by creating an appropriate [[*Writing][=Harness=]] (adding e.g. Ruby would be easy because
+plugins are essentially just programs following a simple protocol). There used
+to be a python harness, but since the Plugin architecture changed quite a bit
+and is indeed likely to change even more in the near future (we plan to
+replace the current imperative design with a more functional one), we decided
+to concentrate on the Java harness until the overall design stabilizes.
 
 Robustness, scalability etc. are achieved through the "plumbing" layer which
-is transparent to Plugin authors and (mostly) consists of the
-Streams-specific =Orchestrator= (which takes care setting up all the wiring
-between components) as well as two proven off-the-shelf [[http://www.rabbitmq.com][RabbitMQ]] (the
-messaging broker which provides high-performance, fault-tolerant queued
-communication between components) and Apache's [[http://couchdb.apache.org/][CouchDB]] (which
-provides a store for configuration and persistent state for =Plugins= which
-require it)[fn:1]. (*FIXME* [[http://erlang.org][Erlang Blurp]]; e.g. supervisors)
-
-* Installation
-
-1. Install the runtime dependencies:
-#+BEGIN_SRC sh
-make setup
-#+END_SRC
-
-  This will attempt to download and install all required dependencies. At the
-  minute it assumes you are using a Linux distribution with `apt-get`; but
-  this is restricted to a small, easily replicated section of build
-  dependencies (the targets ending in =-debs=). Currently a couple of packages
-  (e.g. CouchDB and RabbitMQ) will be locally installed from sources in the
-  Streams directory, but in the future Streams will likely offer more
-  flexibility in this regard; just be aware of possible conflicts with
-  system-wide installs.
-
-2. Build everything:
-#+BEGIN_SRC sh
-make all
-#+END_SRC
-
-* Running and debugging
-
-There are three components which need to be running: RabbitMQ (the messaging
-broker), CouchDB (the database used for configuration and per-component
-state), and the Orchestrator (which takes care of all the
-wiring/configuration). RabbitMQ and CouchDB are together referred to as the
-"core" and must be started before the Orchestrator. The following is currently
-our preferred means to get everything up and running (Note: as the project
-matures this will become less fiddly and delicate, but for the moment make
-sure you follow the instructions exactly):
-
-1. Start up three xterms which are configured to listen to the outputs of
-   each component
-#+HTML: (<font color="#400000"><b>RabbitMQ</b></font> </font>,
-#+HTML: <font color="#004000"><b>CouchDB</b></font> </font>,
-#+HTML: <font color="#000040"><b>Orchestrator</b></font>):
-#+BEGIN_SRC sh
-make listen-all
-#+END_SRC
-   [Note: If you can't spawn xterms for some reason, e.g. because you're connected
-    via a remote terminal, you can also use =make listen-all-nox= which will
-    run the 3 listeners in a single (GNU) =screen= session, but this is really only
-    recommended in that specific case or for =screen= aficionados.]
-
-2. Re-initialize the state of and (re)start couchdb and rabbitmq
-   (=full-reset-core=) and start the orchestrator (=start-orchestrator=) then
-   import a simple test configuration (=import_config.py=) into couchdb (which
-   is running on =localhost= on the default port, =5984=). Finally restart the
-   orchestrator (=start-orchestrator=):
-
-#+BEGIN_SRC sh
-make full-reset-core start-orchestrator
-python sbin/import_config.py --couchdb http://127.0.0.1:5984  examples/test
-make start-orchestrator
-#+END_SRC
-
-3. Finally, to shutdown everything type:
-
-#+BEGIN_SRC sh
-make stop-core stop-orchestrator unlisten all=
-#+END_SRC
-
-All three components are normal Erlang shells (though due to
-forwarding outputs over =nc=, the command history features are
-lost). Thus to quit any of the components, enter =q()= and press
-return in the shells. The Makefile targets take care of stopping the
-components as necessary.
-
-Note that if you already got a system install of couchDB or RabbitMQ etc. you
-should make sure that they are either currently not running or using different
-ports than the local versions that feedshub installs.
-
-
-*** Further notes (can be ignored on first reading)
-    =make start-couchdb start-rabbit create-fresh-accounts= is equivalent to
-    =make full-reset-core=. Generally for every =start-...= command there is
-    an equivalent =stop-...= command. Both are idempotent and =stop-...= is in
-    fact called by =start-...= to bring down a potentially already running
-    service before (re)starting it (possibly activation a new configuration).
-    Furthermore there are also individual =(un)listen-...= commands for each
-    component.
-
+is transparent to Plugin authors and (mostly) consists of the Streams-specific
+=Orchestrator= (which takes care setting up all the wiring between components)
+as well as two proven off-the-shelf [[http://www.rabbitmq.com][RabbitMQ]] (the messaging broker which
+provides high-performance, fault-tolerant queued communication between
+components) and Apache's [[http://couchdb.apache.org/][CouchDB]] (which provides a store for configuration and
+persistent state for =Plugins= which require it)[fn:1]. Since these core
+components as well as the =Orchestrator= are written in [[http://erlang.org][Erlang]], they can
+leverage Erlang's excellent infrastructure for creating highly-available and
+fault-tolerant services.
 
 * Developing
-
 Although many of the core components of Streams are written in Erlang, relax!
 No Erlang skills are required for the most common development task: writing
 additional Sources/Sinks/Transformers ([[*Plugins][=Plugins=]]). The same is true for
@@ -156,52 +77,62 @@ pointers to more in-depth info, but the following links are useful to hit the
 ground running:
 
  - [[http://somic.org/d/samovskiy-amqp-rabbitmq-cohesiveft.pdf][A short presentation on AMQP and RabbitMQ]]
-*** TODO add more links here
+ - [[http://books.couchdb.org/relax/intro/getting-started][Getting Started with CouchDB (from the CouchDB Book)]]
 
-*** TODO Plugins
-Writing a plugin (say =acme_frotz=) in Java or Python involves creating a
-subdirectory =plugins/acme_frotz= and (at a minimum) two files in it:
+* Plugins
+Currently the easiest way of Writing a plugin (say =acme_frotz=) in Java or
+another JVM language involves creating a subdirectory =plugins/acme_frotz=
+with some files in it. We will eventually create an maven archetype or some
+other means of automatization for this task, but at the moment the easiest way
+to get going is to just adapt an existing plugin (we will take the =xslt=
+=PipelineComponent= as a starting point, if you'd like to write a
+Server/Gatway instead use e.g. =socket_source= (Ingress) or
+=socket_destination= (Egress) as a template instead).
 
- 1. =plugin.js= (specifying meta- and configuration/wiring info about the plugin)
- 2. =acme_frotz.py= (or =acme_frotz.java=; the actual plugin)
-
-If there is a further =plugin/acme_frotz/lib= subdirectory, the Harness will
-take care of adding everything in it to the =sys.path= =acme_frotz.py= sees
-when run (in the case of python code; mutatis mutandis the same applies to
-other languages, e.g. =acme_frotz.java= would have all the =.jar= files in
-=lib/= added to its =CLASSPATH=). In other words future Harnesses for other
-languages are expected to follow an analogous convention and in general
-per-plugin library code should go into =lib/=.
+ 1. add a line =<module>websubscriber</module>= to =plugins/pom.xml= (this is
+    mostly for IDE support).
+ 2. Copy some existing plugin and rename as appropriate, e.g.
+#+BEGIN_SRC sh
+cd plugins
+cp -r xslt acme_frotz
+FILES=$(find acme_frotz -type f -name '*')
+perl -i -pe 's/xslt/acme_frotz/g; s/Xslt/AcmeFrotz/g' $FILES
+rename 's/xslt/acme_frotz/g; s/Xslt/AcmeFrotz/g' $FILES
+mv src/main/java/com/rabbitmq/streams src/main/java/com/MY_DOMAIN/
+mv src/test/java/com/rabbitmq/streams src/test/java/com/MY_DOMAIN/
+#+END_SRC
+ 3. Edit =acme_frotz/plugin.js= which specifies the configuration/wiring and meta-info of
+    the plugin and specify the author, parameters and wiring (more below)
+ 4. Make sure the =acme_frotz/pom.xml= file lists the right dependencies
+ 5. Edit the actual java file =acme_frotz/src/main/java/com/MY_DOMAIN/plugins/AcmeFrotzProcessor.java=
 
 The harness also provides the plugin with an abstract facility to store state
 that should persists between restarts of the same instance (=Plugin.getState=,
 =Plugin.setState=); for more involved needs a plugin specification can also
 request a full-blown private database but the details are still being hashed
-out (XXX).
+out.
 
-(*NB:* You might find it useful to have a look at [[../plugins/regexp_replace/]]
-(if you're a pythonista) or [[../plugins/regexp_split/]] (if you're Javanese) to
-have some concrete example to follow as you keep reading on.)
-
-***** =plugin.js= (Per-plugin (class) [[http://json.org][json]] configuration)
+*** =plugin.js= (Per-plugin (class) [[http://json.org][json]] configuration)
 #+BEGIN_SRC js2
 File plugin.js =
 // applies to both pipeline components and servers
 { "name": "The ACME Frotz", // FIXME this will change to "label"
   "author": { "name":  "John Doe",
               "email": "jondoe@example.tld" },
+  "help": "ACME Frotz mogrifies bartz-transputed bits.",
   "type": "plugin-specification", // FIXME this will go
-  "harness": "java", // or "python" or "ruby"
-  "subtype": "pipeline_component", // or  "server" // FIXME this will change to "plugin_type"
+  "harness": "java", // same for all JVM based languages
+  "subtype": "pipeline_component", // or  "server"  // FIXME this will change to "plugin_type"
   "global_configuration_specification": [], // FIXME get rid of this
   /* the /schema/ of the configuration that must be provided per plugin
     instance, i.e. the plugin-configuration variable names and types.
    */
-  "configuration_specification":  [ { "name": "port", "label": "Port", "type": "Nat" }
+  "configuration_specification":  [ { "name": "port", "label": "Port", "default": 8080,
+                                      "help": "int < 65536" }
                                     // ...
                                   ],
   /* configuration per terminal (terminal ONLY) */ //FIXME AMWS: "server ONLY"?
-  "destination_specification": [ { "name": "title", "label": "Title for RSS", "type": "String" }
+  "destination_specification": [ { "name": "title", "label": "Title for RSS"}
                                  // ...
                                ],
   /* configuration per terminal (terminal ONLY) */ //FIXME AMWS: "server ONLY"?
@@ -224,53 +155,83 @@ File plugin.js =
    */
   "database_specification": null // or {} ; initial values for the per instance db
 }
-#+End_SRC
-***** TODO Some Guidelines applying to all types of Plugins
+#+END_SRC
+*** Some Guidelines applying to all types of Plugins
 The Harness provides abstract interfaces to the Plugin to access (inter alia)
 the following functionality:
 
- - (hooked-up) input/output channels (as specified by =plugin.js=, *FIXME* add
-   example).
+ - (hooked-up) input/output channels (as specified by =plugin.js=) ::
+   =plugins/regexp_split=, which implements simple regexp-based routing, can
+   serve as a template for doing that, it specifies one input channel
+   (unimaginatively named "input") and two output channels ("positive" and
+   "negative", for messages that respectively match and don't match the
+   regexp) in its =plugin.js=. In the class constructor the "input" channel is
+   registered with an InputReader =registerInput("input", input)= which is
+   instantiated from an anonymous subclass of InputReader:
 
- - data storage facilities.
+#+BEGIN_SRC java
+  // for each input
+  InputReader input = new InputReader() {
+    @Override  // do something plugin-specific with the received message
+    public void handleMessage(InputMessage msg) throws PluginException {
+       ... // do stuff with input msg
+       if (matcher.matches()) // if the input messages matches the regexp
+         publishToChannel("positive", msg);
+       else
+         publishToChannel("negative", msg);
 
- - logging facilities.
+#+END_SRC
+ - logging and notification facilities ::
+   - =log.debug("Current value of froboz is " + froboz)= adds a debug message to the
+     streams log (other log types include =fatal= and =info=).
 
-Note: since the Harness uses =stdin= and =stdout= for its own purposes (see
-[[*lifecycle%20of%20a%20plugin][lifecycle of a plugin]]) your plugin shouldn't try to use these internally.
-***** storing data
-******* simple persistent state
-Plugins can store a simple json-serialized data that persists between instance
-restarts. This is useful in case the plugin must remember it's state even in
-case of crashes or failure, e.g. [[../plugins/data_timeout]] detects if a channel
-hasn't been written to for a certain amount of time and sends an alert. To
-make sure that this happens even if the plugin instance has died in-between,
-it stores the time it should send the next alert persistently and checks it on
-waking up -- if it is in the past, it fires of an alert immediately.
-********* TODO verify above spec is what's intended
-******* TODO per-plugin private database
-The =database= argument is intended for plugins whose needs aren't satsified by
-the simple persistent state explained above, but remains experimental at this
-stage.
-*********** TODO hash out database arg for plugin
-***** TODO Writing Sinks/Sources (=Servers=)
-***** TODO Writing =PipelineComponents=
-***** TODO The lifecycle of a Plugin (*FIXME* nuke?)
-      This information is not required for (normal) plugin development and
-      thus can be skipped by those not interested in the details.
+   - =notifier.notify(NotificationType.BadData, "Input XML isn't well-formed")=
+     sends a notification.
 
-      1. The plugin configuration is read from stdin in json format.
-      2. The plugin prints its PID to stdout (so that runaway plugins can be
-         killed easily by the orchestrator).
-      3. The plugin initializes itself.
-      4. A worker thread or process is spawned by the main thread of the
-         plugin (this, or its children, will do the actual work).
-      4. The main thread blocks on reading stdout. As soon as stdout is
-         closed by the orchestrator the plugin kills itself and all spawned
-         threads or processes (this is the shutdown protocol; misbehaving
-         plugins that fail to shutdown if requested will be killed by
-         sending a signal to the PID obtained in step 2).
-***** TODO testing Plugins (*FIXME* channel is wrong)
+   Technically the main difference between notifications and loggings is that
+   notifications are sent like other Messages, which means they can be routed
+   filtered and transformed by streams, whereas log messages are just written
+   directly to the central log file. Logically, notifications are intended for
+   aspects that are relevant to the business logic whilst logging is intended
+   for system administration and troubleshooting.
+
+ - data storage facilities :: Some plugins need need to remember state between
+   messages and since streams is designed for robustness, plugins need a
+   facility to persist such state in case of restarts or crashes. For example
+   =plugins/timeout= detects if a channel hasn't been written to for a certain
+   amount of time and sends an alert. To make sure that this happens even if
+   the plugin instance has died in-between, it stores the time it should send
+   the next alert persistently and checks it on waking up -- if it is in the
+   past, it fires of an alert immediately. This is handled by the =getState()=
+   and =setState()= methods, which allow persisting the state serialized as
+   json objects.
+
+   The =database= argument is intended for plugins whose needs aren't
+   satsified by the simple persistent state explained above, but remains
+   experimental at this stage.
+
+*** TODO add notification etc. javadoc links
+
+
+Note: since the Harness uses =stdin= and =stdout= for its own purposes your
+plugin shouldn't try to use these internally.
+*** Testing Plugins
+There are currently two ways to write tests for Plugins
+***** Using "normal" JUnit/Mockito unittests in Java (or Scala  etc.)
+This method offers best IDE integration, e.g. such tests can be easily
+debugged in and IDE like netbeans or Eclipse, but on the downside is somewhat
+language specific and needs awareness of the plugin implementation details.
+
+Some helper classes for mocking up important components of the framework can
+be found =com.rabbitmq.streams.harness.testsupport=. For a simple java example
+see e.g. =RegexpSplitTest.java= of the =regexp_split= plugin and for an
+indiomatic scala example e.g. =DataTimeoutTest.scala= of the =timeout= plugin.
+
+***** Writing functional input-expect output (=.io=) tests
+*Warning:* the driver code for the functional tests is currently pretty
+kludgy and brittle and portions need to be rewritten, so although it works
+most of time strange errors can occur.
+
 The =plugin_test_harness.py= script allows one to run a plugin in isolation
 for testing purposes. It loads up the plugin with a configuration file,
 creates a dummy database and defines a simple protocol for sending data to
@@ -280,21 +241,20 @@ reads text from channel =input= and writes the regexp substituion to channel
 there isn't):
 
 #+BEGIN_SRC sh
-make listen-all start-all # make sure everying is up
+# after starting streams
 python bin/plugin_test_harness.py --verbose plugins/regexp_replace <(echo -E '
- {"regexp": "(.)\\1\\1", "replacement": "[3 x \"\\1\"]",
-  "multiline": false, "dotall": false, "caseinsensitive": false }' )
+ {"expressions": [{"regexp": "(.)$1$1", "replacement": "[3 x \"$1\"]",
+                   "multiline": false, "dotall": false, "caseinsensitive": false }]}' )
 #+END_SRC
 
 Then type in the following (*NB* although it is not visible note that the left
 and right columns are seperated by a tab, not (just) spaces):
 
 #+BEGIN_SRC io
->input	no tripples in this line
-...	or this one
-...	here we end, still no tripples
+>input	sausages
 
->input	next come some tttrrriiippples
+<positive	sausages
+
 #+END_SRC
 
 You should see the following on the screen:
@@ -310,6 +270,18 @@ You should see the following on the screen:
 
 <positive	next come some [3 x "t"][3 x "r"][3 x "i"][3 x "p"]les
 #+END_SRC
+
+******* Running functional tests in the debugger
+It is possible to attach a debugger to IO-tests for a plugin written in a JVM
+language by adding an extra flag:
+#+BEGIN_SRC sh
+DEBUG_ARGS="-Xdebug -Xrunjdwp:transport=dt_socket,address=8998,server=y"
+python bin/plugin_test_harness.py -DJVMARGS="$DEBUG_ARGS"  [...]
+#+END_SRC
+Then in your IDE add the breakpoints you want and attach the debugger (make
+sure the port is what you specified above, i.e. 8998).
+
+******* the =.io= format in detail
 
 The input format is simple:
  - a line starting with =#= is treated as a comment and ignored
@@ -338,7 +310,7 @@ input = """start of text
 one more line
 final line, but no trailing newline"""
 #+END_SRC
-******* Magic channels
+***** Magic channels
 Channels with ALLCAPS names are reserved for magic pseudochannels. An example
 is
 #+BEGIN_SRC io
@@ -350,7 +322,7 @@ timing sensitive plugins, such as =../plugins/data_timeout=.
 The pseudo-channel =>PLUGIN_INSTANCE_CONFIG= is used to specify the
 configuration of the plugin for tests; currently it has to occur in the first
 line.
-******* TODO Json config params
+***** Json config params
 It is possible to effect =config= changes and modify the routing key for a
 channel to a message by specifying a json-dictionary of the form:
 #+BEGIN_SRC io
@@ -358,8 +330,8 @@ channel to a message by specifying a json-dictionary of the form:
 #+END_SRC
 Note that the json must be on a single line.
 
-******* Writing unittests for plugins
-You can create and run a unittest by pasting the contents of a
+***** Converting an io session into a functional test
+You can create and run a test by pasting the contents of a
 =plugin_test_harness.py= session by pasting the contents of the session
 (you'll probably want to run without =--verbose== though) into a file (say
 =test_transcript.io=) and executing the following command:
@@ -368,11 +340,12 @@ You can create and run a unittest by pasting the contents of a
 
 This will check that the inputs give the same outputs as those listen in the
 transcript and show testfailures otherwise (thanks to the =-v= or =--verbose=
-flag).
+flag). A more convenient way to run all tests in one or several directories is
+provided by =bin/test_plugin plugins/my_plugin plugins/my_other_plugin ...=.
 
-*NB:* you need to make sure that the first-line of your =.io= file contains
-the plugin-instance-configuration, i.e. it must look something like this
-(where =...= denotes truncation):
+*NB:* you need to make sure that the first non-comment line of your =.io= file
+contains the plugin-instance-configuration, i.e. it must look something like
+this (where =...= denotes truncation):
 #BEGIN_SRC io
 >PLUGIN_INSTANCE_CONFIG	{"dotall": false, "regexp": "(.)\\1\\1", ...
 #END_SRC
@@ -559,16 +532,6 @@ In particular
  - Similarly on the Egress side, there is a =Shoveler= process which takes
    care of transferring the feed data to the Terminals/Server but that can
    also be considered as an implementation detail.
-
-* TODO Administration
-If you are not familiar with [[http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol][AMQP]] (Advanced Message Queueing Protocol),
-[[http://www.rabbitmq.com][RabbitMQ]] and [[http://couchdb.apache.org/][CouchDB]] (as well as possibly [[http://erlang.org][Erlang]]), please see the first two
-paragraphs under [[*Developing][Developing]] for pointers.
-
-*** TODO The webinterface
-*** TODO the directory structure
-***** TODO The commands in =sbin/=
-*** TODO Summary of used ports
 
 * Footnotes
 
