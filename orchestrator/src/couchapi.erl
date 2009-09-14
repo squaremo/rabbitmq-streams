@@ -7,7 +7,7 @@
 -export([simple_result/1]).
 
 %% Somewhat higher-level.
--export([all_dbs/0, createdb/1, get_view/3, get_view_rows/3]).
+-export([all_dbs/0, uuid/0, createdb/1, get_view/3, get_view_rows/3]).
 
 %%---------------------------------------------------------------------------
 
@@ -65,6 +65,10 @@ simple_result(Other) when element(1, Other) =:= error ->
 
 all_dbs() ->
     get1("_all_dbs").
+
+uuid() ->
+    {ok, {obj, [{"uuids", [UUID]}]}} = get1("_uuids"),
+    binary_to_list(UUID).
 
 createdb(DbName) ->
     simple_result(put1(DbName, undefined)).

@@ -1,18 +1,58 @@
 var http = Packages.com.meterware.httpunit;
 
-var baseUrl = "http://localhost:8000";
+var baseUrl = "http://localhost:5791";
 
 function getResponse(path) {
   var c = new http.WebConversation();
   var req = new http.GetMethodWebRequest(baseUrl+path);
+  if (getResponse.arguments.length > 1) {
+    var headers = getResponse.arguments[1];
+    for (k in headers) {
+      req.setHeaderField(k, headers[k]);
+    }
+  }
   var res = c.getResponse(req);
   return res;
 }
 
 function jsonGetResponse(path) {
-  var res = getResponse(path);
+  var res = getResponse(path, {"Accept": "application/json"});
   Test.areEqual("application/json", res.getContentType());
-  Test.areEqual(200, res.getResponseCode());
+  return res;
+}
+
+function postResponse(path, postdata, contenttype) {
+  var c = new http.WebConversation();
+  var is = new java.io.ByteArrayInputStream(new java.lang.String(postdata).getBytes());
+  var req = new http.PostMethodWebRequest(baseUrl+path, is, contenttype);
+  if (postResponse.arguments.length > 3) {
+    var headers = postResponse.arguments[3];
+    for (k in headers) {
+      req.setHeaderField(k, headers[k]);
+    }
+  }
+  var res = c.getResponse(req);
+  return res;
+}
+
+function putResponse(path, putdata, contenttype) {
+  var c = new http.WebConversation();
+  var is = new java.io.ByteArrayInputStream(new java.lang.String(putdata).getBytes());
+  var req = new http.PutMethodWebRequest(baseUrl+path, is, contenttype);
+  if (putResponse.arguments.length > 3) {
+    var headers = putResponse.arguments[3];
+    for (k in headers) {
+      req.setHeaderField(k, headers[k]);
+    }
+  }
+  var res = c.getResponse(req);
+  return res;
+}
+
+function jsonPostResponse(path, obj) {
+  var res = postResponse(path, JSON.stringify(obj), "application/json",
+    {"accept": "application/json"});
+  Test.areEqual("application/json", res.getContentType());
   return res;
 }
 

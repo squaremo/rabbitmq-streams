@@ -1,11 +1,43 @@
 -module(streams).
 
--export([all_pipelines/0, defn_doc/1, status_doc/1, process_status/1, activate/2, deactivate/2]).
+-export([all_pipelines/0, defn_doc/1, status_doc/1]).
+-export([set_defn/2, process_status/1, activate/2, deactivate/2]).
+-export([new_id/0, create_defn/3]).
 
 -include("orchestrator.hrl").
 
+new_id() ->
+    couchapi:uuid().
+
 defn_doc(ThingId) ->
-    couchapi:get(streams_config:config_db() ++ "/" ++ ThingId).
+    couchapi:get(defn_doc_url(ThingId)).
+
+set_defn(ThingId, JsonObj) ->
+    %% FIXME This overwrites the document there regardless of
+    %% revision.  This introduces a race.
+    case defn_doc(ThingId) of
+        {ok, Doc} ->
+            Doc2 = case rfc4627:get_field(Doc, "_rev") of
+                       {ok, Rev} -> rfc4627:set_field(JsonObj, "_rev", Rev);
+                       _ -> Doc
+                   end,
+            couchapi:put(defn_doc_url(ThingId), Doc2);
+        Error ->
+            Error
+    end.
+
+create_defn(pipeline, Defn, Id) ->
+    Url = defn_doc_url(Id),
+    StatusUrl = status_doc_url(Id),
+    StatusDoc = {obj, [{"type", <<"feed-status">>},
+                       {"active", false}]},
+    couchapi:put(Url, Defn),
+    couchapi:put(StatusUrl, StatusDoc).
+
+defn_doc_url(ThingId) when is_binary(ThingId) ->
+    defn_doc_url(binary_to_list(ThingId));
+defn_doc_url(ThingId) ->
+    streams_config:config_db() ++ "/" ++ ThingId.
 
 status_doc_url(ThingId) when is_binary(ThingId) ->
     status_doc_url(binary_to_list(ThingId));

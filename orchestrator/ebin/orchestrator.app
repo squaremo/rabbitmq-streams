@@ -17,5 +17,7 @@
  COMMANDLINE: http://localhost:5984/feedshub_status/root_config"},
          {config_db, "Supply on command line e.g., feedshub_status"},
          {debug, false},
-         {trace, false}]}
- ]}.
+         {trace, false},
+         {api_port, 5791},
+         {api_log_dir, "priv/log"}]}
+]}.

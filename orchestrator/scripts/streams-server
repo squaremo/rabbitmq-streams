@@ -19,7 +19,7 @@ STREAMS_LOG=${STREAMS_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}.log}
 STREAMS_SASL_LOG=${STREAMS_SASL_LOG:-${STREAMS_LOG_BASE}/${STREAMS_NODENAME}-sasl.log}
 
 START_STREAMS="-s crypto"
-[[ -z "${STREAMS_NODE_ONLY:-}" ]] && START_STREAMS="-s crypto -s orchestrator -noinput"
+[ -z "${STREAMS_NODE_ONLY:-}" ] && START_STREAMS="-s crypto -s orchestrator -noinput"
 
 EBIN_DIR="ebin"
 ERL_PATH_OPTS="-pa $EBIN_DIR"
