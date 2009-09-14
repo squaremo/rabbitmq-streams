@@ -7,6 +7,7 @@ License: BSD
 Group: Development/Libraries
 BuildRequires: erlang
 Requires: lsb
+Requires: logrotate
 Requires: erlang
 Requires: rabbitmq-server >= 1.6
 Requires: couchdb >= 0.9
@@ -32,6 +33,25 @@ make install-local-stuff all
 make -f Makefile.install LIB_TARGET_DIR=%{buildroot}%{_streams_libdir} SBIN_TARGET_DIR=%{buildroot}%{_sbindir} PLUGIN_TARGET_DIR=%{buildroot}%{_plugin_dir} install
 sed -i -e "s:../harness/python/lib:../python:" %{buildroot}%{_streams_libdir}/scripts/*.py
 %clean
+
+%pre
+
+if [ $1 -gt 1 ]; then
+  #Upgrade - stop and remove previous instance of streams init.d script
+  /sbin/service streams stop
+  /sbin/chkconfig --del streams
+fi
+
+# create streams group
+if ! getent group streams >/dev/null; then
+        groupadd -r streams
+fi
+
+# create streams user
+if ! getent passwd streams >/dev/null; then
+        useradd -r -g streams -d %{_localstatedir}/lib/rabbitmq-streams \
+            -c "RabbitMQ Streams server"
+fi
 
 %files
 %defattr(-,root,root)
