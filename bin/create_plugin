@@ -1,0 +1,625 @@
+#!/usr/bin/env python
+r"""Creates a streams plugin from a template.
+
+  create_plugin plugins/ example.domain.AcmeFrotz --author "" --email $EMAIL --lang java
+
+will create a PipelineComponent in plugins/acme_frotz, that lives in package
+example.domain.
+
+alternatively, to query all arguments interactively:
+
+  create_plugin
+
+Finally
+
+  create_plugin plugin_dir
+
+will just regenerate plugin_dir/pom.xml.
+"""
+# TODO(alexander): the right way to do this is is to take a dir argument for a
+# templates directory as first argument and get rid of --lang. Not only the
+# templates but also the paths should be interpolated, e.g. a path in the
+# template dir should look something like this:
+# ``src/main/\$package_dir/\$class_name.java`` by linking it should be easy to
+# inherit from other templates.
+
+
+__author__ = "Alexander Schmolck <alexander@lshift.net>"
+import contextlib
+from functools import partial
+import glob
+import os
+import pprint
+import re
+import sys
+from optparse import OptionParser, Values, make_option as opt, NO_DEFAULT
+
+import mako.template
+
+import simplejson as json
+
+def camel(s):
+    return "".join(map(str.capitalize, s.split('_')))
+
+def decaml(s):
+    return "_".join(map(str.lower, filter(None, re.split(r'([A-Z][a-z]*)', s))))
+
+USAGE = __doc__
+LANG_TO_HARNESS={'scala': 'java', 'java': 'java'}
+CANON_PLUGIN_TYPE={'egress': 'server', 'ingress': 'server',
+                   'pipeline_component': 'pipeline_component'}
+CANON_PLUGIN_CLASS = dict((k, camel(v)) for (k,v) in CANON_PLUGIN_TYPE.items())
+
+class Template(mako.template.Template):
+    __call__ = mako.template.Template.render_unicode
+
+JAVA_BOILERPLATE_TEMPLATE=Template(r'''##
+import ${package};
+public class ${plugin_name} extends ${class_name} {}
+''',uri='boilerplate.java')
+
+JAVA_CLASS_TEMPLATE=Template(r'''##
+package ${package};
+
+import com.rabbitmq.streams.harness.InputReader;
+import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.NotificationType;
+import com.rabbitmq.streams.harness.PipelineComponent;
+import com.rabbitmq.streams.harness.PluginBuildException;
+import com.rabbitmq.streams.harness.PluginException;
+import net.sf.json.*;
+
+/**
+ * @author ${author}
+ **/
+public class ${class_name} extends ${plugin_class_type} {
+
+  public void configure(final JSONObject config) throws PluginBuildException {
+    % for x in inputs:
+    registerInput("${x}", ${x});
+    % endfor
+  }
+  % for x in inputs:
+  InputReader input = new InputReader() {
+    @Override
+    public void handleMessage(InputMessage msg) throws PluginException {
+      % if outputs:
+      publishToChannel("${outputs[0]}", msg.withBody("Some body"));
+      % endif
+    }
+  };
+  % endfor
+}
+''', uri='class.java')
+
+JAVA_TEST_TEMPLATE=Template(r'''##
+<% varname= class_name[0].lower() + class_name[1:] %>
+package ${package};
+import org.junit.Test;
+import org.junit.Before;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import com.rabbitmq.streams.harness.PluginBuildException;
+import com.rabbitmq.streams.harness.MessageChannel;
+import com.rabbitmq.streams.harness.InputMessage;
+import com.rabbitmq.streams.harness.PluginException;
+import net.sf.json.JSONObject;
+
+public class ${class_name}Test {
+  private ${class_name}  ${varname};
+  private JSONObject config = JSONObject.fromObject("{PUT SOME JSON HERE}");
+  private MessageChannel channel;
+  private InputMessage message;
+
+  @Before
+  public void setup() {
+    ${varname} = new ${class_name}();
+    config = JSONObject.fromObject(CONFIG_STRING);
+    channel = mock(MessageChannel.class);
+    message = mock(InputMessage.class);
+  }
+  @Test
+  /** Make sure illegal config values are properly flagged etc. */
+  public void testConfigure() throws PluginBuildException {
+    ${varname}.setMessageChannel(channel);
+    ${varname}.configure(config);
+  }
+  @Test
+  /** generic test template */
+  public void test_() throws Exception {
+    InputMessage output = mock(InputMessage.class);
+    ${varname}.setMessageChannel(channel);
+    ${varname}.configure(config);
+    when(message.bodyAsString()).thenReturn("some string");
+    fail("test not written yet");
+  }
+}
+''',uri='test.java')
+
+JAVA_POM_TEMPLATE=Template(r'''##
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <groupId>com.rabbitmq.streams.plugins</groupId>
+    <artifactId>streams-plugins</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>${group_id}</groupId>
+  <artifactId>${plugin_name}</artifactId>
+  <packaging>jar</packaging>
+  <version>${plugin_version}</version>
+  <name>${label}</name>
+  <url>http://www.rabbitmq.com/</url>
+  <dependencies>
+    <dependency>
+      <groupId>com.rabbitmq.streams</groupId>
+      <artifactId>plugin</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>1.7</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+''',uri='pom.xml')
+
+SCALA_POM_TEMPLATE=Template('''##
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.rabbitmq.streams.plugins</groupId>
+  <artifactId>${plugin_name}</artifactId>
+  <version>${plugin_version}</version>
+  <name>${label}</name>
+  <properties>
+    <scala.version>2.7.5</scala.version>
+  </properties>
+
+  <parent>
+    <groupId>com.rabbitmq.streams.plugins</groupId>
+    <artifactId>streams-plugins</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+
+  <repositories>
+    <repository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${"${scala.version}"}</version>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.6</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-tools.testing</groupId>
+      <artifactId>specs</artifactId>
+      <version>1.5.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.rabbitmq.streams</groupId>
+      <artifactId>plugin</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>src/main/scala</sourceDirectory>
+    <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>testCompile</goal>
+            </goals>
+          </execution>
+        </executions>
+        <copnfiguration>
+          <scalaVersion>${"${scala.version}"}</scalaVersion>
+          <args>
+            <arg>-target:jvm-1.5</arg>
+          </args>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-eclipse-plugin</artifactId>
+        <configuration>
+          <downloadSources>true</downloadSources>
+          <buildcommands>
+            <buildcommand>ch.epfl.lamp.sdt.core.scalabuilder</buildcommand>
+          </buildcommands>
+          <additionalProjectnatures>
+            <projectnature>ch.epfl.lamp.sdt.core.scalanature</projectnature>
+          </additionalProjectnatures>
+          <classpathContainers>
+            <classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
+            <classpathContainer>ch.epfl.lamp.sdt.launching.SCALA_CONTAINER</classpathContainer>
+          </classpathContainers>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${"${project.build.directory}"}</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <configuration>
+          <scalaVersion>${"${scala.version}"}</scalaVersion>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
+</project>
+''', uri='scala_pom.xml')
+
+SCALA_BOILERPLATE_TEMPLATE=Template(r'''##
+import ${package}
+public class ${plugin_name} extends ${class_name} {}
+''',uri='boilerplate.scala')
+
+SCALA_CLASS_TEMPLATE=Template(r'''##
+package ${package}
+
+import scala.actors.Actor
+import scala.actors.Actor._
+
+import net.sf.json.JSONObject
+import com.rabbitmq.streams.harness.PipelineComponent
+import com.rabbitmq.streams.harness.InputReader
+import com.rabbitmq.streams.harness.InputMessage
+import com.rabbitmq.streams.harness.PluginBuildException
+import com.rabbitmq.streams.harness.NotificationType
+
+/**
+ * @author ${author}
+ *
+ */
+class ${class_name} extends ${plugin_class_type} {
+
+  private var state : java.util.Map[String, Object] = null
+
+  override def configure(config : JSONObject) {
+    {
+      // FILL_ME_IN
+    }
+    catch {
+      case ex : Exception => throw new PluginBuildException("Unable to interpret configuration values given -- check the types", ex)
+    }
+    state = getState
+
+    val outer = this
+
+    : for input in inputs:
+    object input extends InputReader {
+      override def handleMessage(msg : InputMessage, ignored : JSONObject) {
+        // FILL_ME_IN
+      }
+    }
+    registerInput("${input}", ${input})
+    : endfor
+}
+''',uri='class.scala')
+
+SCALA_TEST_TEMPLATE=Template(r'''##
+<% varname=class_name[0].lower() + class_name[1:] %>
+package ${package}
+
+import net.sf.json._
+import com.rabbitmq.streams.harness.{MessageChannel, InputHandler}
+
+import org.specs._
+import org.specs.mock.Mockito
+import org.mockito.Matchers._
+import org.mockito.Matchers
+import org.specs.runner.{ConsoleRunner, JUnit4}
+import com.rabbitmq.streams.harness.testsupport.MockMessageChannel
+import com.rabbitmq.streams.harness.InputMessage
+import com.rabbitmq.streams.harness.StateResource
+import com.rabbitmq.streams.harness.PluginBuildException
+import com.rabbitmq.streams.harness.PipelineComponent
+import com.rabbitmq.streams.harness.Logger
+import com.rabbitmq.streams.harness.{Notifier, NotificationType}
+
+class ${class_name}Test extends JUnit4(${class_name}Spec)
+object MySpecRunner extends ConsoleRunner(${class_name}Spec)
+
+
+object ${class_name}Spec extends Specification with Mockito {
+
+  def fullyMock(plugin : PipelineComponent) {
+    plugin.setLog(mock[Logger])
+    plugin.setMessageChannel(mock[MessageChannel])
+    plugin.setNotifier(mock[Notifier])
+    plugin.setStateResource(mock[StateResource])
+  }
+
+  "${class_name}" should {
+
+    val ${varname}  = new ${class_name}
+    fullyMock(${varname})
+    val config = JSONObject.fromObject("""{PUT SOME JSON HERE}""")
+
+    "not complain given OK values" in {
+      dt.configure(config)
+    }
+
+
+    "publish BLAH" in {
+      val mc = new MockMessageChannel()
+      dt.setMessageChannel(mc)
+      dt.configure(config)
+      val m = mock[InputMessage]
+      mc.inject("input", m)
+      mc.outputs.size() must_== 1
+      val out = mc.outputs.get(0)
+      out.channel must_== "output"
+      out.msg must_== m
+    }
+  }
+}
+''',uri='test.scala')
+
+
+def PLUGIN_JSON(label, author, email, doc, lang, plugin_type, inputs, outputs):
+    js = {
+        "name": label,
+        "author": {"name": author, "email": email},
+        "help": doc,
+        "type": "plugin-specification",
+        "harness": LANG_TO_HARNESS[lang],
+        "subtype": CANON_PLUGIN_TYPE[plugin_type],
+        "global_configuration_specification": [],
+        "configuration_specification": [],
+        "inputs_specification":
+            [{"name": x, "label": "".join(map(str.capitalize, x.split("_")))}
+             for x in inputs],
+        "outputs_specification":
+            [{"name": x, "label": "".join(map(str.capitalize, x.split("_")))}
+             for x in outputs],
+    }
+    return json.dumps(js,indent=2)
+
+
+
+OPTS = [
+    opt('-a', '--author', type="string",
+        help="The author of the plugin."),
+    opt('', '--email', type="string",
+        help="The email address of the author of the plugin."),
+    opt('-l', '--lang', default='java', type='choice', choices=['java', 'scala'],
+        help="The language the plugin is written in."),
+    opt('-t', '--plugin-type', default='pipeline_component', type='choice', choices=
+        ['pipeline_component', 'ingress', 'egress'],
+        help="The type of plugin."),
+    opt('--doc', type='string',
+        help="The plugin documentation."),
+    opt('--plugin-version', type="string", default='1.0-SNAPSHOT',
+        help="The version number of the plugin."),
+    opt('', '--inputs', type="string",  default="input",
+        help="A comma-seperated list of input channels"),
+    opt('', '--outputs', type="string", default="output",
+        help="A comma-seperated list of output channels"),
+    opt('-q', '--quiet', action='store_true', default=False,
+        help="Don't output error messages.")]
+
+
+@contextlib.contextmanager
+def cwd(d):
+    curdir = os.getcwd()
+    try:     os.chdir(d); yield
+    finally: os.chdir(curdir)
+
+
+
+class JvmPlugin(object):
+    def _subdirs_to_create(self, **kwargs):
+        package = kwargs['package']
+        package_path_part = os.path.join(*package.split('.'))
+        pre_package_path = os.path.join('src', 'main')
+        main_path     = os.path.join(*([pre_package_path] +  [self.LANG, package_path_part]))
+        unittest_path = os.path.join(*('/src/test/'.split('/') +  [self.LANG, package_path_part]))
+        functest_path = "tests"
+        lib_path = "lib"
+        return (pre_package_path, main_path, unittest_path, functest_path, lib_path)
+    def __init__(self, plugins_dir, vars):
+        self.vars = vars
+        package, class_name, plugin_name = (
+            getattr(vars,n) for n in
+            'package, class_name, plugin_name'.split(', '))
+
+        plugin_dir = os.path.join(plugins_dir, plugin_name)
+        group_id=package.split('.')[:-1]
+        os.mkdir(plugin_dir)
+        label = plugin_name # FIXME
+
+        plugin_json = PLUGIN_JSON(label=label,
+                                  author=vars.author, email=vars.email,
+                                  doc=vars.doc,
+                                  lang=self.LANG, plugin_type=vars.plugin_type,
+                                  inputs=vars.inputs, outputs=vars.outputs)
+        pom = self.POM_TEMPLATE(label=label,
+                                group_id=group_id,
+                                plugin_version=vars.plugin_version,
+                                plugin_name=plugin_name)
+
+        test = self.TEST_TEMPLATE(package=package, class_name=vars.class_name)
+        the_class = self.CLASS_TEMPLATE(
+            author=vars.author,
+            package=package, class_name=class_name,
+            # FIXME the below should be encapsulated in the template itself, but don't know how
+            plugin_class_type=CANON_PLUGIN_CLASS[vars.plugin_type],
+            inputs=vars.inputs,
+            outputs=vars.outputs)
+        boilerplate = self.BOILERPLATE_TEMPLATE(package=package, class_name=class_name,
+                                                plugin_name=plugin_name)
+
+        with cwd(plugin_dir):
+            for f,c in [('plugin.js', plugin_json), ('pom.xml', pom)]:
+                with file(f, 'w') as f:
+                    f.write(c)
+
+            (pre_package_path, main_path, unittest_path, functest_path, lib_path) = (
+                self._subdirs_to_create(package=package))
+            paths_files_contents = (
+                (pre_package_path, [(plugin_name + '.' + self.LANG, boilerplate)]),
+                (main_path, [(class_name + '.' + self.LANG, the_class)]),
+                (unittest_path, [(class_name + 'Test.' + self.LANG, test)]))
+            for p, fcs in paths_files_contents:
+                print p
+                os.makedirs(p)
+                for f, c in fcs:
+                    print f
+                    with file(os.path.join(p, f), 'w') as f:
+                        f.write(c)
+
+
+
+
+
+            ## os.makedirs(os.path.join(plugins_dir, plugin_name, p))
+
+class Java(JvmPlugin):
+    LANG = 'java'
+    POM_TEMPLATE=JAVA_POM_TEMPLATE
+    CLASS_TEMPLATE=JAVA_CLASS_TEMPLATE
+    BOILERPLATE_TEMPLATE=JAVA_BOILERPLATE_TEMPLATE
+    TEST_TEMPLATE=JAVA_TEST_TEMPLATE
+
+class Scala(JvmPlugin):
+    LANG = 'scala'
+    POM_TEMPLATE=SCALA_POM_TEMPLATE
+    CLASS_TEMPLATE=SCALA_CLASS_TEMPLATE
+    BOILERPLATE_TEMPLATE=SCALA_BOILERPLATE_TEMPLATE
+    TEST_TEMPLATE=SCALA_TEST_TEMPLATE
+
+
+
+def interactivify_commandline_opts(opts):
+    par = OptionParser()
+    vals = Values()
+    for opt in opts:
+        if opt.help:
+            print opt.help.rjust(70)
+        if opt.choices:
+            choices = " [choices: %s]" % ", ".join(map(str, opt.choices))
+        else:
+            choices = ''
+        if opt.default is NO_DEFAULT:
+            default = None
+            default_repr = ""
+        else:
+            default = opt.default
+            default_repr = " [default: %s]" % ('NY'[default] if type(default) is bool else default,
+                                                 )
+        ans = raw_input("%s" % ("%s%s%s: " % (opt.dest.replace("_", " "), choices, default_repr)))
+        if not ans and default is not None:
+            setattr(vals, opt.dest, default)
+        else:
+            if opt.takes_value():
+                opt.process(opt, ans, vals, par)
+            else:
+                setattr(vals, opt.dest, ans.lower() in ('y', 'yes'))
+    print
+    print "You provided: "
+    pprint.pprint(vals.__dict__, indent=2)
+    ans = raw_input("Is that correct? [Y/n]")
+    return ans.lower() != 'n' and vals
+
+def regenerate_plugins_pom(plugins_dir):
+    with cwd(plugins_dir):
+        all_modules = map(os.path.dirname, glob.glob( '*/pom.xml'))
+        pom_in = 'pom.xml.mako'
+        with file('pom.xml', 'w') as pom_out:
+            pom_out.write(Template(filename=pom_in)(modules=all_modules))
+
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        print "[No arguments given, switching to interactive mode]"
+        print "(``%s --help`` for more info)" % sys.argv[0]
+        print
+        print "Please provide the following information to create a new plugin."
+        print
+        opts = interactivify_commandline_opts(OPTS + [
+            opt('', '--plugins-directory', help="Where to write the plugin to."),
+            opt('', '--package-qualified-name', help="E.g. example.domain.plugins.MyNewPlugin")])
+        args = opts.plugins_directory, opts.package_qualified_name
+    elif len(sys.argv) == 2:
+        regenerate_plugins_pom(sys.argv[1])
+        sys.exit(0)
+    else:
+        opts, args = OptionParser(USAGE, OPTS).parse_args()
+        if len(args) < 2:
+            print >>sys.stderr, "Not enough arguments\n", USAGE
+    opts.inputs = opts.inputs.split(',')
+    opts.outputs = opts.outputs.split(',')
+    plugins_dir, package_qualified_name = args
+    package, class_name = package_qualified_name.rsplit('.',1)
+    plugin_name = decaml(class_name)
+    opts.__dict__.update(dict(plugin_name=plugin_name, package=package, class_name=class_name))
+    globals()[opts.lang.capitalize()](plugins_dir=plugins_dir, vars=opts)
+    regenerate_plugins_pom(plugins_dir)
+

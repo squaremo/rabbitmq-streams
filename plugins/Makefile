@@ -2,7 +2,10 @@ JAVA_PLUGINS=$(shell find . -mindepth 2 -name pom.xml)
 PLUGIN_DIRS=$(foreach plugin, $(JAVA_PLUGINS), $(shell dirname $(plugin)))
 PLUGIN_DIR_TARGETS=$(foreach dir, $(PLUGIN_DIRS), ${dir}/target)
 
-all: mvn
+pom.xml:
+	../bin/create_plugin .
+
+all: mvn pom.xml
 	$(foreach dir, $(PLUGIN_DIRS), $(shell mkdir -p $(dir)/lib; cp $(dir)/target/*.jar $(dir)/lib))
 
 mvn: $(PLUGIN_DIR_TARGETS)

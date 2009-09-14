@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?> <!-- -*- mode: xml -*- -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.rabbitmq.streams.plugins</groupId>
@@ -28,29 +28,10 @@
       <url>http://scala-tools.org/repo-releases</url>
     </pluginRepository>
   </pluginRepositories>
-
   <modules>
-    <module>websubscriber</module>
-    <module>regexp_split</module>
-    <module>regexp_replace</module>
-    <module>socket_source</module>
-    <module>relay</module>
-    <module>xslt</module>
-    <module>xmpppubsub</module>
-    <module>archive</module>
-    <module>socket_destination</module>
-    <module>logger</module>
-    <module>notification</module>
-    <module>httppost</module>
-    <module>javascript</module>
-    <module>data_empty</module>
-    <module>uniq</module>
-    <module>window</module>
-    <module>email_sender</module>
-    <module>lastvalue</module>
-    <module>xpathselect</module>
-    <module>newdata</module>
-    <module>timeout</module>
+  % for module in modules:
+    <module>${module}</module>
+  % endfor
   </modules>
 
   <build>
