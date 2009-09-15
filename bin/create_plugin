@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 r"""Creates a streams plugin from a template.
 
-  create_plugin plugins/ example.domain.AcmeFrotz --author "" --email $EMAIL --lang java
+  create_plugin plugins/ example.domain.AcmeFrotz --author $USER --email $EMAIL \
+     --lang java --doc 'Merges frobotz bar and foo.' --inputs=bar,foo
 
 will create a PipelineComponent in plugins/acme_frotz, that lives in package
 example.domain.
@@ -441,9 +442,19 @@ def PLUGIN_JSON(label, author, email, doc, lang, plugin_type, inputs, outputs):
     }
     return json.dumps(js,indent=2)
 
+def enrich_opt_help(opt):
+    extra = None
+    if opt.choices:
+        extra = "[choices: %s]" % ", ".join(
+            (repr(c) if c != opt.default else "*%s*" % repr(c)).replace('\\', '\\\\')
+            for c in opt.choices)
+    elif opt.default is not NO_DEFAULT:
+        extra = "[default: %r]" % opt.default
+    if extra:
+        opt.help = re.sub(r'(.*)([?!.]?)', r'\1 %s\2' % extra, opt.help)
+    return opt
 
-
-OPTS = [
+OPTS = map(enrich_opt_help, [
     opt('-a', '--author', type="string",
         help="The author of the plugin."),
     opt('', '--email', type="string",
@@ -462,7 +473,7 @@ OPTS = [
     opt('', '--outputs', type="string", default="output",
         help="A comma-seperated list of output channels"),
     opt('-q', '--quiet', action='store_true', default=False,
-        help="Don't output error messages.")]
+        help="Don't output error messages.")])
 
 
 @contextlib.contextmanager
@@ -607,7 +618,7 @@ if __name__ == '__main__':
             opt('', '--plugins-directory', help="Where to write the plugin to."),
             opt('', '--package-qualified-name', help="E.g. example.domain.plugins.MyNewPlugin")])
         args = opts.plugins_directory, opts.package_qualified_name
-    elif len(sys.argv) == 2:
+    elif len(sys.argv) == 2 and not sys.argv[1].startswith('-'):
         regenerate_plugins_pom(sys.argv[1])
         sys.exit(0)
     else:
