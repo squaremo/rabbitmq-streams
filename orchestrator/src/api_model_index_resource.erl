@@ -9,7 +9,7 @@
 -include("api.hrl").
 
 init([{kind, Kind}]) ->
-    {{trace, "/tmp"}, #modelctx{ kind = Kind }}.
+    {ok, #modelctx{ kind = Kind }}.
 
 allowed_methods(Req, State = #modelctx{kind = pipeline}) ->
     {['GET', 'HEAD', 'POST'], Req, State}.
