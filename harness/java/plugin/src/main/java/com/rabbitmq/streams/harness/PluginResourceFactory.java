@@ -52,7 +52,7 @@ class PluginResourceFactory {
   }
 
   public MessageResource getComponentMessageResource(JSONObject config) throws IOException {
-    return new AMQPComponentMessageChannel(connection.createChannel(), config, log, trace);
+    return new AMQPMessageChannel(connection.createChannel(), config, log, trace);
   }
 
   public MessageResource getMessageResource(JSONObject config) throws IOException {
@@ -109,13 +109,18 @@ class AMQPMessageChannel implements MessageResource {
   private final Logger log;
   protected final boolean trace;
 
-  AMQPMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) {
+  private final Object mutex = new Object();
+
+  AMQPMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) throws IOException {
     this.channel = channel;
     this.config = config;
     this.outputs = new HashMap(1);
     this.inputs = new HashMap(1);
     this.log = log;
     this.trace = traceOn;
+    synchronized(mutex) {
+      channel.txSelect();
+    }
   }
 
   public void declareExchange(String name, String exchange) {
@@ -137,7 +142,7 @@ class AMQPMessageChannel implements MessageResource {
     consumerThread.setDaemon(true);
     consumerThread.start();
     try {
-      synchronized(channel) {
+      synchronized(mutex) {
         channel.basicConsume(queue, queuer);
       }
     } catch (IOException ex) {
@@ -150,7 +155,9 @@ class AMQPMessageChannel implements MessageResource {
     AMQPPublisher p = outputs.get(channelName);
     if (null != p) {
       try {
-        p.publish(msg);
+        synchronized(mutex) {
+          p.publish(msg);
+        }
       } catch (IOException ex) {
         throw new MessagingException("IOException on publish", ex);
       }
@@ -160,23 +167,9 @@ class AMQPMessageChannel implements MessageResource {
   }
 
   protected AMQPInputConsumer inputConsumer(QueueingConsumer queuer, InputHandler handler, JSONObject config, Logger log) {
-    return new DefaultInputConsumer(queuer, handler, config, log);
-  }
-}
-
-class AMQPComponentMessageChannel extends AMQPMessageChannel {
-  AMQPComponentMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) throws IOException {
-    super(channel, config, log, traceOn);
-    synchronized(channel) {
-      channel.txSelect();
-    }
-  }
-
-  private final Object mutex = new Object();
-  @Override
-  protected AMQPInputConsumer inputConsumer(QueueingConsumer queuer, InputHandler handler, JSONObject config, Logger log) {
     return new SerialisedInputConsumer(queuer, handler, config, log, mutex, trace);
   }
+
 }
 
 class CouchDbStateResource implements StateResource {
