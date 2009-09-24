@@ -56,7 +56,7 @@ class PluginResourceFactory {
   }
 
   public MessageResource getMessageResource(JSONObject config) throws IOException {
-    return new AMQPMessageChannel(connection.createChannel(), config, log, trace);
+    return new AMQPServerMessageChannel(connection.createChannel(), config, log, trace);
   }
 
   public StateResource getStateResource(String stateString) throws PluginBuildException {
@@ -101,7 +101,7 @@ class CouchDbDatabaseResource implements DatabaseResource {
 }
 
 class AMQPMessageChannel implements MessageResource {
-  private final Channel channel;
+  protected final Channel channel;
   private Map<String, AMQPPublisher> outputs;
   private Map<String, String> inputs;
   protected static Map<String, Object> EMPTY_HEADERS = new HashMap(0);
@@ -140,7 +140,6 @@ class AMQPMessageChannel implements MessageResource {
     AMQPInputConsumer consumer = inputConsumer(queuer, handler, config, log);
     Thread consumerThread = new Thread(consumer);
     consumerThread.setDaemon(true);
-    consumerThread.start();
     try {
       synchronized(mutex) {
         channel.basicConsume(queue, queuer);
@@ -148,20 +147,26 @@ class AMQPMessageChannel implements MessageResource {
     } catch (IOException ex) {
       throw new MessagingException("IOException on consume", ex);
     }
+    // This is started after we've returned from basicConsume, so that there's
+    // no chance of trying to basicPublish in the handler and thereby
+    // interleave frames.
+    consumerThread.start();
   }
-
 
   public void publish(String channelName, Message msg) throws MessagingException {
     AMQPPublisher p = outputs.get(channelName);
     if (null != p) {
       try {
-        synchronized(mutex) {
-          p.publish(msg);
-        }
+        // NB: basicPublish sends multiple frames, so must be serialised.
+        // However, we will be doing this from within a handler, and that
+        // handler will already have entered the mutexed block.
+        // In other words, it would deadlock.
+        p.publish(msg);
       } catch (IOException ex) {
         throw new MessagingException("IOException on publish", ex);
       }
-    } else {
+    }
+    else {
       throw new MessagingException("No such channel: " + channelName);
     }
   }
@@ -170,6 +175,25 @@ class AMQPMessageChannel implements MessageResource {
     return new SerialisedInputConsumer(queuer, handler, config, log, mutex, trace);
   }
 
+}
+
+class AMQPServerMessageChannel extends AMQPMessageChannel {
+  AMQPServerMessageChannel(Channel channel, JSONObject config, Logger log, boolean traceOn) throws IOException {
+    super(channel, config, log, traceOn);
+  }
+
+  // In general, servers won't be responding to a handler invocation when publishing, so we have to commit
+  // for them.  If (as in the relay server) it is in a handler, txCommit will be an over-the-network noop.
+  @Override
+  public void publish(String channelName, Message msg) throws MessagingException {
+    try {
+      super.publish(channelName, msg);
+      channel.txCommit();
+    }
+    catch (IOException ioe) {
+      throw new MessagingException("IOException while committing basicPublish", ioe);
+    }
+  }
 }
 
 class CouchDbStateResource implements StateResource {
