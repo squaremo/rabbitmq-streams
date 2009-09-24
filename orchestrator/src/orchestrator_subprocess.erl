@@ -4,7 +4,9 @@
 
 -include("orchestrator.hrl").
 
--record(orchestrator_subprocess_state, {debug_info, port, output_acc, pid}).
+-record(orchestrator_subprocess_state, {debug_info, port, output_acc, output_acc_size=0, pid}).
+
+-define(MAX_ACC_SIZE, 1024).
 
 start(DebugInfo, Port, ConfigDoc) ->
     error_logger:info_report({DebugInfo, start, [{pid, self()},
@@ -26,9 +28,18 @@ handle_message({Port, {data, {eol, Fragment}}},
 handle_message({Port, {data, {noeol, Fragment}}},
                State = #orchestrator_subprocess_state{port = Port}) ->
     {ok, append_fragment(Fragment, State)};
-handle_message({Port, {data, {eol, Fragment}}},
+handle_message({Port, {data, {eol, Fragment}}}, State) ->
+    handle_message({Port, {data, {noeol, Fragment ++ "\n"}}}, State);
+handle_message({Port, {exit_status, 0}},
                State = #orchestrator_subprocess_state{port = Port}) ->
-    {ok, append_fragment(Fragment ++ "\n", State)};
+    {ok, State};
+handle_message({Port, {exit_status, E}},
+               State = #orchestrator_subprocess_state{port = Port,
+                                                      debug_info = DebugInfo,
+                                                      pid = Pid}) ->
+    error_logger:error_report({?MODULE, subprocess_terminated,
+                               io_lib:format("~p~n%% PID[~3w]: NONZERO EXITCODE: ~3w", [DebugInfo, Pid, E])}),
+    {ok, State};
 handle_message({'EXIT', Port, Reason},
                State = #orchestrator_subprocess_state{debug_info = _DebugInfo,
                                                       port = Port}) ->
@@ -37,16 +48,25 @@ handle_message({'EXIT', Port, Reason},
 handle_message(Message, State) ->
     {error, {?MODULE, unhandled_message, Message}, State}.
 
-append_fragment(Fragment, State = #orchestrator_subprocess_state{debug_info = _DebugInfo,
-                                                                 output_acc = Acc}) ->
-    ?DEBUGREPORT({_DebugInfo, received_fragment, Fragment}),
-    State#orchestrator_subprocess_state{output_acc = [Fragment | Acc]}.
+append_fragment(Fragment, State = #orchestrator_subprocess_state{debug_info = DebugInfo,
+                                                                 pid = Pid,
+                                                                 output_acc = Acc,
+                                                                 output_acc_size = Size}) ->
+    ?DEBUGREPORT({DebugInfo, received_fragment, Fragment}),
+    NewSize = Size + length(Fragment),
+    case NewSize >= ?MAX_ACC_SIZE of
+        true ->
+            error_logger:info_msg("~p~n%% Subprocess output:~n~s~n", [{DebugInfo, output, [{pid, Pid}]}, lists:reverse(Acc)]),
+            State#orchestrator_subprocess_state{output_acc = [], output_acc_size = 0};
+        false ->
+            State#orchestrator_subprocess_state{output_acc = [Fragment | Acc], output_acc_size = NewSize}
+    end.
 
 stop(#orchestrator_subprocess_state{debug_info = DebugInfo,
                                     port = Port,
                                     output_acc = Acc,
                                     pid = Pid}) ->
-    error_logger:info_msg("~p~n%% Subprocess output follows:~n~s~n", [{DebugInfo, stop, [{pid, Pid}]}, lists:reverse(Acc)]),
+    error_logger:info_msg("~p~n%% Subprocess output:~n~s~n", [{DebugInfo, stop, [{pid, Pid}]}, lists:reverse(Acc)]),
     close_port(Port),
     kill_pid(Pid),
     ok.
