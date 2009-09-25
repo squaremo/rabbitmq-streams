@@ -158,10 +158,10 @@ class AMQPMessageChannel implements MessageResource {
     if (null != p) {
       try {
         // NB: basicPublish sends multiple frames, so must be serialised.
-        // However, we will be doing this from within a handler, and that
-        // handler will already have entered the mutexed block.
-        // In other words, it would deadlock.
-        p.publish(msg);
+        // Usually, but not always, we will be doing this from within a handler,
+        // and that handler will already have entered the mutexed block.  If
+        // this is in the handler thread, this will be a reentrant lock.
+        synchronized (mutex) { p.publish(msg); }
       } catch (IOException ex) {
         throw new MessagingException("IOException on publish", ex);
       }
