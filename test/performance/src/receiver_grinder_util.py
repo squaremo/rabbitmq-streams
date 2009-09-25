@@ -12,7 +12,7 @@ grinder.statistics.registerDataLogExpression("Delivery time (ms)", "userLong1")
 grinder.statistics.registerSummaryExpression("Mean delivery time (ms)",
                                              "(/ userLong1 (count timedTests))")
 
-EXTRACT_ID_RE = re.compile(r".*\|\|MSG_ID=(.*)\|\|$")
+EXTRACT_ID_RE = re.compile(r".*\|\|MSG_ID=(.*)\|\|.*$")
 
 class ReceiverTestRunner(FeedsTestRunner):
 

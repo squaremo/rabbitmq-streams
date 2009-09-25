@@ -1,0 +1,1 @@
+<foo>MSG_ID</foo>
