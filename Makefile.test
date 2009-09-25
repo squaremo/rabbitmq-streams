@@ -103,8 +103,10 @@ plot-last-run:
 
 	awk -f test/performance/gnuplot/calculate-receiver-rate.awk \
 		tmp/logs/data_receiver-0.log > tmp/gnuplot/receiver-rate.log
-
+	awk -f test/performance/gnuplot/timings.awk \
+		var/log/orchestrator.log > tmp/logs/timings
 	gnuplot test/performance/gnuplot/rate-receiver.p
+	gnuplot test/performance/gnuplot/trace.p
 
 # *** End top level targets ***
 
