@@ -19,4 +19,5 @@ run: all
 		-sname orchestrator -s crypto -s orchestrator \
 		-orchestrator couch_base_url '"$(COUCH_SERVER)/"'  \
 		-orchestrator root_config_url '"$(CONFIG_DOC)"' \
-		-orchestrator config_db '"$(CONFIG_DB)"'
+		-orchestrator config_db '"$(CONFIG_DB)"' \
+		-orchestrator debug true -orchestrator trace true
