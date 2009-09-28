@@ -50,7 +50,7 @@ fi
 # create streams user
 if ! getent passwd streams >/dev/null; then
         useradd -r -g streams -d %{_localstatedir}/lib/rabbitmq-streams \
-            -c "RabbitMQ Streams server"
+            -c "RabbitMQ Streams server" streams
 fi
 
 %files
