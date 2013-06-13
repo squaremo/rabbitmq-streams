@@ -37,9 +37,7 @@ Streams.
 
 # Current state
 
-We're still actively developing this towards a production release;
-there are rough edges and of course, plenty of things we'd like to
-improve.
+No longer being developed. May be interesting to look at though.
 
 # Getting started
 
